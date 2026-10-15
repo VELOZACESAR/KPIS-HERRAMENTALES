@@ -4,41 +4,105 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Indicadores Herramentales</title>
-<!-- Plantilla: generar_tablero.py reemplaza el marcador de datos y escribe "Tablero de Indicadores.html". No editar el HTML generado. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 34 34%27%3E%3Cpath d=%27M17 2 30 7v9c0 8-5.6 13.6-13 16C9.6 29.6 4 24 4 16V7z%27 fill=%27%2307234f%27 stroke=%27%238FC5CF%27 stroke-width=%272.2%27/%3E%3Cpath d=%27M11 19.5 15.5 24 24 12%27 fill=%27none%27 stroke=%27%238FC5CF%27 stroke-width=%272.4%27/%3E%3C/svg%3E">
 <style>
+  /* Tema oscuro por defecto (sistema de diseño AGP); el claro es un override. */
   :root{
-    --navy:#4C4C4C; --navy-soft:#616161;
-    --teal:#5B99A6; --teal-deep:#3D7784; --teal-pale:#DCEFF2;
-    --bg:#F3F6F7; --surface:#FFFFFF; --border:#E1E7E9; --grid:#EDF1F2;
-    --text:#152229; --text-soft:#5C6E76; --muted:#8A979D;
-    --ok:#1E7A3D; --ok-bg:#DCF3E3;
-    --near:#9C6B12; --near-bg:#FCEFD9;
-    --bad:#B23B3B; --bad-bg:#FBE2E1;
-    --pend:#E4E8EA;
-    --font:'Plus Jakarta Sans',"Segoe UI",system-ui,sans-serif;
-    --mono:'IBM Plex Mono',Consolas,monospace;
+    --brand:#8FC5CF; --brand-dark:#D4EFF3; --on-brand:#0B2F36;
+    --navy:#0B1626; --navy-soft:#16263b; --head-text:#e8e8e8; --head-soft:#9fb3c4;
+    --teal:#8FC5CF; --teal-deep:#8FC5CF; --teal-pale:#12303a;
+    --bg:#07111F; --surface:#0B1626; --border:#213856; --grid:#16263b;
+    --text:#e8e8e8; --text-soft:#b9c7d3; --muted:#7f93a6;
+    --ok:#78BE8C; --ok-bg:#163527;
+    --near:#e0a030; --near-bg:#3a2c10;
+    --bad:#EF7B7B; --bad-bg:#3d1a1d;
+    --pend:#1d2f45; --tip-bg:#22374f; --tip-text:#ffffff;
+    --sombra:0 6px 24px rgba(0,0,0,.35);
+    --radius:12px;
+    --meta:#F08A7E; --meta-borde:#6b3a36; --meta-bg:#2a1719;
+    --font:'Segoe UI',system-ui,sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+    color-scheme:dark;
+  }
+  :root[data-tema="claro"]{
+    --brand-dark:#07234f;
+    --navy:#07234f; --navy-soft:#163a6b; --head-text:#ffffff; --head-soft:#c4d6e4;
+    --teal:#5B99A6; --teal-deep:#1a6b7a; --teal-pale:#E8F5F7;
+    --bg:#f0f6f8; --surface:#ffffff; --border:#DCDCDC; --grid:#EDF1F2;
+    --text:#07234f; --text-soft:#4d6676; --muted:#7d909b;
+    --ok:#2f7d4c; --ok-bg:#EAF7EF;
+    --near:#b45309; --near-bg:#fef9c3;
+    --bad:var(--meta); --bad-bg:#FDECEA;
+    --pend:#E4E8EA; --tip-bg:#07234f; --tip-text:#ffffff;
+    --sombra:0 4px 18px rgba(7,35,79,.08);
+    --meta:#C0392B; --meta-borde:#F2C9C4; --meta-bg:#FDF3F2;
+    color-scheme:light;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 
   /* ---------- encabezado ---------- */
-  header{background:var(--navy);color:#fff;border-bottom:3px solid var(--teal)}
-  .head-in{max-width:1360px;margin:0 auto;padding:18px 24px 0;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
-  .titulo h1{margin:0;font-size:20px;font-weight:700;letter-spacing:.01em}
-  .titulo p{margin:2px 0 0;color:#C9D4D7;font-size:13px}
-  .frescura{font-size:12px;color:#C9D4D7;text-align:right}
-  .frescura b{color:#fff;font-weight:600}
-  .head-der{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:flex-end}
-  .btn-act{background:var(--teal);color:#08171D;font:600 13px var(--font);padding:9px 16px;border-radius:8px;text-decoration:none;white-space:nowrap;transition:background .15s}
-  .btn-act:hover{background:#8FC5CF}
-  .btn-act.cargando{background:var(--navy-soft);color:#C9D4D7;pointer-events:none}
-  nav.tabs{max-width:1360px;margin:14px auto 0;padding:0 24px;display:flex;gap:4px;overflow-x:auto}
-  nav.tabs button{background:transparent;border:0;color:#C9D4D7;font:600 13px var(--font);padding:10px 16px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px}
-  nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.06)}
-  nav.tabs button[aria-selected="true"]{background:var(--bg);color:var(--text)}
+  header{background:var(--navy);color:var(--head-text);border-bottom:3px solid var(--brand);position:sticky;top:0;z-index:20}
+  .head-in{max-width:1360px;margin:0 auto;padding:14px 24px 0;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between}
+  .marca{display:flex;align-items:center;gap:12px}
+  .marca svg{flex:none}
+  .titulo h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.01em}
+  .titulo p{margin:2px 0 0;color:var(--head-soft);font-size:13px}
+  .frescura{font-size:12px;color:var(--head-soft);text-align:right;line-height:1.4}
+  .frescura b{color:var(--head-text);font-weight:600}
+  .vivo{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--head-text)}
+  .vivo i{width:8px;height:8px;border-radius:50%;background:#78BE8C;box-shadow:0 0 0 0 rgba(120,190,140,.6);animation:pulso 2s infinite}
+  .vivo.caido i{background:#DC5353;animation:none}
+  @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(120,190,140,.55)}70%{box-shadow:0 0 0 7px rgba(120,190,140,0)}100%{box-shadow:0 0 0 0 rgba(120,190,140,0)}}
+  .head-der{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+  .btn-act{background:var(--brand);color:var(--on-brand);font:700 13px var(--font);padding:9px 16px;border-radius:8px;border:0;cursor:pointer;white-space:nowrap;transition:filter .15s;min-height:38px}
+  .btn-act:hover{filter:brightness(1.08)}
+  .btn-act.cargando{opacity:.6;pointer-events:none}
+  .btn-ico{background:transparent;border:1px solid rgba(255,255,255,.22);color:var(--head-text);border-radius:8px;min-width:38px;height:38px;display:inline-grid;place-items:center;cursor:pointer;font:700 12px var(--font);padding:0 10px}
+  .btn-ico:hover{background:rgba(143,197,207,.14)}
+  .idioma{display:inline-flex;border:1px solid rgba(255,255,255,.22);border-radius:8px;overflow:hidden;height:38px}
+  .idioma button{background:transparent;border:0;color:var(--head-soft);font:700 12px var(--font);padding:0 11px;cursor:pointer}
+  .idioma button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand)}
+  nav.tabs{max-width:1360px;margin:12px auto 0;padding:0 24px;display:flex;gap:4px;overflow-x:auto}
+  nav.tabs button{background:transparent;border:0;color:var(--head-soft);font:600 13px var(--font);padding:10px 16px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px}
+  nav.tabs button:hover{color:var(--head-text);background:rgba(143,197,207,.09)}
+  nav.tabs button[aria-selected="true"]{background:var(--bg);color:var(--text);font-weight:700}
+
+  /* ---------- carga / error ---------- */
+  .cargando-box{display:grid;place-items:center;gap:14px;padding:90px 20px;color:var(--text-soft)}
+  .spinner{width:38px;height:38px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--brand);animation:gira 1s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  .aviso .reintentar{margin-left:auto;background:var(--surface);border:1px solid currentColor;color:inherit;border-radius:7px;padding:4px 10px;font:600 12px var(--font);cursor:pointer}
+
+  /* ---------- fuentes de datos ---------- */
+  .fuentes{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:8px}
+  .fuente{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text-soft)}
+  .fuente b{color:var(--text);font-size:13px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .fuente .err{color:var(--bad);margin-top:4px}
+
+  /* ---------- mantenimiento: matriz persona x día ---------- */
+  .matriz{border-collapse:separate;border-spacing:3px;font-size:12px;width:auto}
+  .matriz th{font-size:10.5px;text-align:center;padding:4px 2px;border:0;letter-spacing:0;text-transform:none}
+  .matriz th.p{text-align:left}
+  .matriz td{padding:0;border:0;text-align:center}
+  .matriz td.p{text-align:left;white-space:nowrap;padding-right:8px;font-weight:600;color:var(--text);max-width:190px;overflow:hidden;text-overflow:ellipsis}
+  .matriz td.c{width:38px;height:30px;border-radius:6px;font-family:var(--mono);font-weight:600;cursor:default}
+  .matriz td.c.cero{color:var(--muted);font-weight:400}
+  .matriz td.t{font-family:var(--mono);font-weight:700;padding-left:8px;text-align:right}
+  .matriz th.hoy,.matriz td.hoy{outline:2px solid var(--brand);outline-offset:-2px}
+  .cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  .cat{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--c);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:box-shadow .15s}
+  .cat:hover,.cat.sel{box-shadow:var(--sombra)}
+  .cat.sel{outline:2px solid var(--c)}
+  .cat h4{margin:0;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+  .cat .big{font:700 30px/1 var(--font);font-variant-numeric:tabular-nums}
+  .cat .big small{font-size:12px;color:var(--text-soft);font-weight:500}
+  .cat .fila3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:11.5px;color:var(--text-soft)}
+  .cat .fila3 b{display:block;font:700 15px var(--font);color:var(--text)}
+  .etq{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;background:var(--pend);color:var(--text-soft)}
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
 
   main{max-width:1360px;margin:0 auto;padding:22px 24px 60px}
@@ -55,7 +119,7 @@
   .frase{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--teal);border-radius:10px;padding:14px 18px;font-size:15px;margin-bottom:18px}
   .grid-serv{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
   .serv{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
-  .serv:hover{border-color:var(--teal);box-shadow:0 4px 18px rgba(21,34,41,.07)}
+  .serv:hover{border-color:var(--teal);box-shadow:var(--sombra)}
   .serv h3{margin:0;font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
   .serv .big{font:600 34px/1 var(--font);font-variant-numeric:tabular-nums}
   .serv .big small{font-size:15px;color:var(--text-soft);font-weight:500}
@@ -69,7 +133,7 @@
   /* resumen: un servicio por fila, a lo ancho */
   .lista-serv{display:flex;flex-direction:column;gap:16px}
   .serv-largo{background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--teal);border-radius:12px;padding:16px 20px 18px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
-  .serv-largo:hover{box-shadow:0 4px 18px rgba(21,34,41,.07);border-color:var(--teal)}
+  .serv-largo:hover{box-shadow:var(--sombra);border-color:var(--teal)}
   .sl-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
   .sl-bloque .desc{font-size:12px;color:var(--text-soft)}
   .serv-largo h3{margin:0;font-size:17px;font-weight:700}
@@ -104,24 +168,24 @@
   .fila-hero span:last-child{font-size:13px;line-height:1.25;color:var(--text-soft);font-weight:600}
   .fila-dias{display:grid;gap:8px;font-size:13px;color:var(--text-soft)}
   .fila-dias b.num{font:700 20px var(--font);color:var(--text)}
-  .fila-dias .meta-txt{color:#C0392B;font-weight:600}
-  .fila-dias .mini-in{font-size:16px;color:#C0392B;border-bottom-color:#E3A39B}
+  .fila-dias .meta-txt{color:var(--meta);font-weight:600}
+  .fila-dias .mini-in{font-size:16px;color:var(--meta);border-bottom-color:var(--meta-borde)}
   .bullet.grande{height:14px;border-radius:7px}
   .bullet.grande i{border-radius:7px}
   .bullet.grande b{width:3px;top:-5px;bottom:-5px}
   .mini-in{width:3ch;border:0;border-bottom:2px dashed var(--border);background:transparent;font-family:var(--font);font-weight:700;font-size:inherit;line-height:1;color:var(--text);text-align:center;outline:none;padding:0}
-  .kpi .val .mini-in{font-size:22px;color:#C0392B;border-bottom-color:#E3A39B}
-  .meta-in .mini-in{font-size:18px;color:#C0392B;border-bottom-color:#E3A39B;width:4ch}
+  .kpi .val .mini-in{font-size:22px;color:var(--meta);border-bottom-color:var(--meta-borde)}
+  .meta-in .mini-in{font-size:18px;color:var(--meta);border-bottom-color:var(--meta-borde);width:4ch}
   .mini-in:focus{border-bottom-style:solid}
   /* casillas de capacidad por semana, alineadas bajo cada barra (margen izq. 34 px y der. 8 px como la gráfica) */
   .cap-fila{position:relative;padding:2px 8px 0 34px}
   .cap-fila:empty{display:none}
-  .cap-tit{position:absolute;left:0;top:6px;font-size:9.5px;font-weight:700;color:#C0392B;writing-mode:vertical-rl;transform:rotate(180deg);height:30px;text-align:center}
-  .cap-celdas{display:grid;border-top:1px dashed #F2C9C4;padding-top:4px}
+  .cap-tit{position:absolute;left:0;top:6px;font-size:9.5px;font-weight:700;color:var(--meta);writing-mode:vertical-rl;transform:rotate(180deg);height:30px;text-align:center}
+  .cap-celdas{display:grid;border-top:1px dashed var(--meta-borde);padding-top:4px}
   .cap-celdas span{display:flex;justify-content:center}
   .cap-celdas .mini-in{width:100%;max-width:46px;font-size:12.5px;font-weight:600;color:var(--muted);border-bottom:1px dashed var(--border);padding:3px 0}
   .cap-celdas .mini-in::placeholder{color:var(--muted);font-weight:500}
-  .cap-celdas .propia .mini-in{color:#C0392B;font-weight:700;border-bottom-color:#E3A39B}
+  .cap-celdas .propia .mini-in{color:var(--meta);font-weight:700;border-bottom-color:var(--meta-borde)}
   @media (max-width:1000px){ .ra-grid{grid-template-columns:1fr} }
 
   /* ---------- chips de estado (siempre ícono + texto) ---------- */
@@ -150,12 +214,12 @@
   .btn-volver{border:1px solid var(--border);background:var(--surface);color:var(--teal-deep);font:600 12px var(--font);padding:6px 12px;border-radius:7px;cursor:pointer}
   .btn-volver:hover{border-color:var(--teal)}
   .prod-ctrl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .meta-in{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#C0392B;border:1px solid #F2C9C4;background:#FDF3F2;border-radius:8px;padding:4px 10px}
-  .meta-in input{width:4ch;border:0;border-bottom:2px dashed #E3A39B;background:transparent;font:700 18px var(--font);color:#C0392B;text-align:center;outline:none;padding:0}
-  .meta-in input:focus{border-bottom:2px solid #C0392B}
-  .chart text.v.halo{paint-order:stroke;stroke:#fff;stroke-width:3.5px;pointer-events:none}
-  .chart text.linea-num{font-weight:700;font-family:var(--mono);font-size:11px;paint-order:stroke;stroke:#fff;stroke-width:3px}
-  .chart text.meta-num{fill:#C0392B;font-weight:700;font-family:var(--mono);font-size:11px;paint-order:stroke;stroke:#fff;stroke-width:3px}
+  .meta-in{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--meta);border:1px solid var(--meta-borde);background:var(--meta-bg);border-radius:8px;padding:4px 10px}
+  .meta-in input{width:4ch;border:0;border-bottom:2px dashed var(--meta-borde);background:transparent;font:700 18px var(--font);color:var(--meta);text-align:center;outline:none;padding:0}
+  .meta-in input:focus{border-bottom:2px solid var(--meta)}
+  .chart text.v.halo{paint-order:stroke;stroke:var(--surface);stroke-width:3.5px;pointer-events:none}
+  .chart text.linea-num{font-weight:700;font-family:var(--mono);font-size:11px;paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+  .chart text.meta-num{fill:var(--meta);font-weight:700;font-family:var(--mono);font-size:11px;paint-order:stroke;stroke:var(--surface);stroke-width:3px}
 
   /* línea de proceso: piezas sin acero en planta */
   .flujo-tot{font-size:13px;color:var(--text-soft);margin:6px 0 4px}
@@ -213,9 +277,9 @@
   /* barra fabricado vs. proyectado */
   .proy{position:relative;padding-top:22px;margin-top:2px}
   .proy-bar{display:flex;gap:2px;height:26px;background:var(--grid);border-radius:6px;overflow:hidden}
-  .proy-bar i{display:flex;align-items:center;justify-content:center;height:100%;font:600 12px var(--mono);color:#152229;font-style:normal;white-space:nowrap;overflow:hidden}
+  .proy-bar i{display:flex;align-items:center;justify-content:center;height:100%;font:600 12px var(--mono);color:#0B1626;font-style:normal;white-space:nowrap;overflow:hidden}
   .proy-bar i:last-child{border-radius:0 6px 6px 0}
-  i.proy-falta{background:repeating-linear-gradient(135deg,#E4E8EA 0 6px,#F3F6F7 6px 12px);color:var(--text-soft)!important;font-weight:500!important}
+  i.proy-falta{background:repeating-linear-gradient(135deg,var(--pend) 0 6px,var(--grid) 6px 12px);color:var(--text-soft)!important;font-weight:500!important}
   .proy-marca{position:absolute;top:2px;bottom:-4px;width:2px;background:var(--text);transform:translateX(-1px);z-index:1}
   .proy-marca span{position:absolute;top:-2px;right:6px;font-size:11.5px;color:var(--text-soft);white-space:nowrap}
   .proy-marca span b{color:var(--text)}
@@ -259,7 +323,7 @@
   .hit:hover{fill:rgba(91,153,166,.08)}
   .vacio{padding:28px;text-align:center;color:var(--text-soft);font-size:13px}
 
-  #tip{position:fixed;pointer-events:none;background:var(--text);color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:50;max-width:280px;opacity:0;transition:opacity .08s}
+  #tip{position:fixed;pointer-events:none;background:var(--tip-bg);color:var(--tip-text);font-size:12px;padding:8px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:50;max-width:280px;opacity:0;transition:opacity .08s}
   #tip b{font-weight:600}
   #tip .r{display:flex;justify-content:space-between;gap:14px}
   #tip .r span:last-child{font-family:var(--mono)}
@@ -276,36 +340,91 @@
   .pend-box h3{margin:8px 0 6px;font-size:18px}
   .pend-box ul{text-align:left;display:inline-block;margin:12px 0 0;color:var(--text-soft)}
   footer{max-width:1360px;margin:0 auto;padding:0 24px 30px;color:var(--muted);font-size:12px}
-  @media (max-width:640px){ .head-in,main,nav.tabs{padding-left:16px;padding-right:16px} .kpi .val{font-size:26px} }
-  @media print{ nav.tabs,#tip{display:none} .vista[hidden]{display:block!important} header{print-color-adjust:exact;-webkit-print-color-adjust:exact} }
+  @media (max-width:640px){ .head-in,main,nav.tabs,footer{padding-left:16px;padding-right:16px} .kpi .val{font-size:26px} header{position:static} .titulo h1{font-size:17px} }
+  @media print{ nav.tabs,#tip,.head-der button,.idioma{display:none} .vista[hidden]{display:block!important} header{print-color-adjust:exact;-webkit-print-color-adjust:exact} }
 </style>
 </head>
 <body>
 <header>
   <div class="head-in">
-    <div class="titulo">
-      <h1>Indicadores del Área · Herramentales</h1>
-      <p id="sub-ayer"></p>
+    <div class="marca">
+      <svg width="34" height="34" viewBox="0 0 34 34" role="img" aria-label="AGP Herramentales">
+        <path d="M17 2 30 7v9c0 8-5.6 13.6-13 16C9.6 29.6 4 24 4 16V7z" fill="none" stroke="#8FC5CF" stroke-width="2.2"/>
+        <path d="M11 19.5 15.5 24 24 12" fill="none" stroke="#8FC5CF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="titulo">
+        <h1 data-t="titulo">Indicadores del Área · Herramentales</h1>
+        <p id="sub-ayer"></p>
+      </div>
     </div>
     <div class="head-der">
       <div class="frescura" id="frescura"></div>
-      <a class="btn-act" id="btn-actualizar" href="tablero-herramentales:actualizar" title="Vuelve a leer los Excel de SharePoint y recarga el tablero">⟳ Actualizar ahora</a>
+      <div class="idioma" role="group" aria-label="Idioma / Idioma">
+        <button data-idioma="es" aria-pressed="true">ES</button><button data-idioma="pt" aria-pressed="false">PT</button>
+      </div>
+      <button class="btn-ico" id="btn-tema" aria-label="Cambiar tema claro/oscuro" title="Tema claro / oscuro"></button>
+      <button class="btn-act" id="btn-actualizar" data-t="actualizar">⟳ Actualizar ahora</button>
     </div>
   </div>
   <nav class="tabs" role="tablist" id="tabs"></nav>
 </header>
-<main id="main"></main>
+<main id="main"><div class="cargando-box"><div class="spinner" aria-hidden="true"></div><span data-t="cargando">Cargando indicadores…</span></div></main>
 <footer id="pie"></footer>
 <div id="tip" role="tooltip"></div>
 
-<script id="datos" type="application/json">/*__DATOS__*/null</script>
 <script>
 "use strict";
-const D = JSON.parse(document.getElementById('datos').textContent || 'null');
+let D = null;
+
+// ---------------------------------------------------------------- idioma y tema
+const TXT = {
+  es: {titulo:'Indicadores del Área · Herramentales', actualizar:'⟳ Actualizar ahora', actualizando:'Actualizando…', cargando:'Cargando indicadores…',
+       error_carga:'No se pudo conectar con el servidor del tablero.', reintentar:'Reintentar', en_vivo:'En vivo', sin_conexion:'Sin conexión',
+       resumen:'Resumen del área', aceros:'Aceros', mantenimiento:'Mantenimiento de moldes', moldes:'Fabricación de moldes', serigrafia:'Serigrafía',
+       servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
+       fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
+       mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Promedio diario (30 días)', mant_mediana:'Duración típica',
+       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos por persona y por día', mant_cat:'Por vehículo',
+       mant_serie:'Mantenimientos finalizados', mant_tipos:'Tipo de mantenimiento (30 días)', mant_reinc:'Moldes con más mantenimientos (30 días)',
+       mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
+       moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Pendientes por vehículo',
+       moldes_serie:'Herramentales entregados', moldes_fab:'Quién fabricó (90 días)', moldes_detalle:'Detalle de pendientes',
+       diario:'Diario', semanal:'Semanal', mensual:'Mensual', dias:'días', persona:'Persona', total:'Total', minutos:'min'},
+  pt: {titulo:'Indicadores da Área · Ferramentaria', actualizar:'⟳ Atualizar agora', actualizando:'Atualizando…', cargando:'Carregando indicadores…',
+       error_carga:'Não foi possível conectar ao servidor do painel.', reintentar:'Tentar novamente', en_vivo:'Ao vivo', sin_conexion:'Sem conexão',
+       resumen:'Resumo da área', aceros:'Aços', mantenimiento:'Manutenção de moldes', moldes:'Fabricação de moldes', serigrafia:'Serigrafia',
+       servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
+       fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
+       mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Média diária (30 dias)', mant_mediana:'Duração típica',
+       mant_abiertos:'Abertas agora', mant_personas:'Manutenções por pessoa e por dia', mant_cat:'Por veículo',
+       mant_serie:'Manutenções finalizadas', mant_tipos:'Tipo de manutenção (30 dias)', mant_reinc:'Moldes com mais manutenções (30 dias)',
+       mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
+       moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Pendentes por veículo',
+       moldes_serie:'Ferramentais entregues', moldes_fab:'Quem fabricou (90 dias)', moldes_detalle:'Detalhe dos pendentes',
+       diario:'Diário', semanal:'Semanal', mensual:'Mensal', dias:'dias', persona:'Pessoa', total:'Total', minutos:'min'},
+};
+const leerPref = (k, d) => { try { return localStorage.getItem(k) || d; } catch(e){ return d; } };
+const guardarPref = (k, v) => { try { localStorage.setItem(k, v); } catch(e){} };
+let IDIOMA = leerPref('tablero-idioma', 'es');
+const t = k => (TXT[IDIOMA] && TXT[IDIOMA][k]) || TXT.es[k] || k;
+function aplicarIdioma(){
+  document.documentElement.lang = IDIOMA === 'pt' ? 'pt-BR' : 'es';
+  document.querySelectorAll('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
+  document.querySelectorAll('[data-idioma]').forEach(b => b.setAttribute('aria-pressed', b.dataset.idioma === IDIOMA));
+}
+function aplicarTema(tema){
+  document.documentElement.dataset.tema = tema;
+  const b = document.getElementById('btn-tema');
+  b.innerHTML = tema === 'claro'
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+}
+aplicarTema(leerPref('tablero-tema', 'oscuro'));
+aplicarIdioma();
 
 // ---------------------------------------------------------------- utilidades
-const COLOR_MAT = {'Böhler':'#7FB0AE','Inox 2,5mm':'#8FA8C7','Galvanizado 0,3mm':'#D9BC6C','Inox 3mm':'#B98089',
-                   'Inox 1mm':'#9BB894','Gurkha':'#CA9682','Otro':'#8A9499'};
+let COLOR_MAT = {'Böhler':'#7FB0AE','Inox 2,5mm':'#8FA8C7','Galvanizado 0,3mm':'#D9BC6C','Inox 3mm':'#B98089',
+                 'Inox 1mm':'#9BB894','Gurkha':'#CA9682','Otro':'#8A9499'};
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS = ['dom','lun','mar','mié','jue','vie','sáb'];
 const DIAS_L = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -341,9 +460,10 @@ function mostrarTip(ev, html){
   tip.style.left = x+'px'; tip.style.top = y+'px';
 }
 const ocultarTip = () => tip.style.opacity = 0;
-function tipSegs(titulo, segs, extra=''){
-  const filas = D.orden_materiales.filter(m => segs && segs[m]).map(m =>
-    `<div class="r"><span><i style="background:${COLOR_MAT[m]}"></i>${m}</span><span>${fmt(segs[m])}</span></div>`).join('');
+function tipSegs(titulo, segs, extra='', esc_={}){
+  const orden = esc_.orden || D.orden_materiales, colores = esc_.colores || COLOR_MAT;
+  const filas = orden.filter(m => segs && segs[m]).map(m =>
+    `<div class="r"><span><i style="background:${colores[m]}"></i>${m}</span><span>${fmt(segs[m])}</span></div>`).join('');
   return `<b>${titulo}</b>${filas ? '<div style="margin-top:6px">'+filas+'</div>' : ''}${extra}`;
 }
 
@@ -392,12 +512,12 @@ function barrasApiladas(cont, items, o={}){
       svgEl('rect', {x, y:y(it.fondo), width:bw, height:Math.max(0, y(0)-y(it.fondo)), rx:4, fill:'var(--pend)'}, g);
     }
     let acc = 0;
-    const mats = D.orden_materiales.filter(m => it.segs && it.segs[m]);
+    const mats = (o.orden || D.orden_materiales).filter(m => it.segs && it.segs[m]);
     mats.forEach((m, j) => {
       const v = it.segs[m], y1 = y(acc+v), y0 = y(acc);
       const top = j === mats.length-1;
       // separador de 2 px entre segmentos; el extremo superior va redondeado
-      const color = o.color || COLOR_MAT[m];
+      const color = o.color || (o.colores || COLOR_MAT)[m];
       svgEl('rect', {x, y:y1, width:bw, height:Math.max(1, y0-y1-(acc?2:0)), rx: top?4:0, fill:color}, g);
       if(top && y0-y1 > 6) svgEl('rect', {x, y:y1+4, width:bw, height:Math.max(0,y0-y1-4-(acc?2:0)), fill:color}, g);
       acc += v;
@@ -423,7 +543,7 @@ function barrasApiladas(cont, items, o={}){
       t.textContent = it.sub;
     }
     const hit = svgEl('rect', {x:mL+banda*i, y:mT-10, width:banda, height:H-mT-mB+10, class:'hit'}, svg);
-    hit.addEventListener('mousemove', ev => mostrarTip(ev, it.tip || tipSegs(it.etiqueta, it.segs)));
+    hit.addEventListener('mousemove', ev => mostrarTip(ev, it.tip || tipSegs(it.etiqueta, it.segs, '', o)));
     hit.addEventListener('mouseleave', ocultarTip);
     if(o.onClick) hit.addEventListener('click', () => o.onClick(it, i));
   });
@@ -496,13 +616,39 @@ function inputManual(id, defecto, placeholder='—'){
 // Solo dígitos. Se reescribe la casilla únicamente si hay algo que limpiar: reescribirla siempre hace que
 // Chrome/Edge no disparen "change", por eso además se guarda al salir de la casilla (focusout) o con Enter.
 function soloDigitos(inp){ const limpio = inp.value.replace(/[^\d]/g,''); if(limpio !== inp.value) inp.value = limpio; }
+// Los valores manuales viven en la base de datos (cesar.valor_manual): todos los que abren el tablero ven lo mismo.
+// Se pinta de una vez (optimista) y se guarda en segundo plano; si el servidor lo rechaza se revierte.
 function guardarManual(id, texto){ // devuelve true si el valor guardado cambió
   const todos = leerManuales(), v = parseInt(String(texto).replace(/[^\d]/g,''), 10), antes = todos[id] ? todos[id].v : null;
   const nuevo = isNaN(v) ? null : v;
   if(nuevo === antes) return false;
-  if(nuevo == null) delete todos[id]; else todos[id] = {v: nuevo, t: new Date().toISOString()};
-  try { localStorage.setItem(CLAVE_MANUAL, JSON.stringify(todos)); } catch(e){}
+  const previo = todos[id];
+  if(nuevo == null) delete todos[id]; else todos[id] = {v: nuevo, t: new Date().toISOString(), u: usuarioEdicion()};
+  enviarManual(id, nuevo).catch(err => {
+    if(previo) todos[id] = previo; else delete todos[id];
+    alert('No se guardó el valor: ' + err.message);
+    render();
+  });
   return true;
+}
+function usuarioEdicion(){
+  let u = leerPref('tablero-usuario', '');
+  if(!u){ u = (prompt('¿Quién está escribiendo el valor? (queda en el historial de cambios)') || '').trim(); if(u) guardarPref('tablero-usuario', u); }
+  return u || null;
+}
+async function enviarManual(id, valor, reintento=false){
+  const headers = {'Content-Type':'application/json'};
+  let clave = null; try { clave = sessionStorage.getItem('tablero-clave'); } catch(e){}
+  if(clave) headers['X-Clave'] = clave;
+  const r = await fetch('/api/manual/' + encodeURIComponent(id), {method:'PUT', headers, body: JSON.stringify({valor, usuario: leerPref('tablero-usuario', '') || null})});
+  if(r.status === 403 && !reintento){
+    const c = prompt('Clave de edición del tablero:'); if(!c) throw new Error('se necesita la clave de edición');
+    try { sessionStorage.setItem('tablero-clave', c); } catch(e){}
+    return enviarManual(id, valor, true);
+  }
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || ('error ' + r.status));
+  D.manuales = j.manuales || D.manuales;
 }
 document.addEventListener('focusin', ev => { if(ev.target.dataset && ev.target.dataset.mini){ ev.target.value = ev.target.value.replace(/\./g,''); ev.target.select(); } });
 document.addEventListener('input', ev => { if(ev.target.dataset && ev.target.dataset.mini) soloDigitos(ev.target); });
@@ -619,18 +765,23 @@ function dibujarResumen(){
 }
 
 // ---- meta diaria de producción: se escribe a mano en la gráfica "Producción vs. meta"
-const COLOR_META = '#C0392B';
-function metaDiaria(){ return D.aceros ? D.aceros.meta_dia_defecto : 0; }   // 50 (generar_tablero.py); se ajusta con las casillas de capacidad
+const COLOR_META = 'var(--meta)';
+function metaDiaria(){ return D.aceros ? D.aceros.meta_dia_defecto : 0; }   // cesar.parametro meta_aceros_dia; se ajusta con las casillas de capacidad
 
 const leyendaMat = (mats, extra='') => `<div class="legend">${mats.map(m=>`<span><i style="background:${COLOR_MAT[m]}"></i>${m}</span>`).join('')}${extra}</div>`;
 const matsPresentes = items => D.orden_materiales.filter(m => items.some(i => i.segs && i.segs[m]));
 
 // ---------------------------------------------------------------- navegación
-const SERVICIOS = [
-  {id:'resumen', nombre:'Resumen del área'},
-  {id:'aceros', nombre:'Aceros'},
-  ...((D && D.pendientes) || []).map(p => ({id:p.id, nombre:p.nombre, pendiente:true})),
-];
+let SERVICIOS = [];
+function armarServicios(){
+  SERVICIOS = [
+    {id:'resumen', nombre:t('resumen')},
+    {id:'aceros', nombre:t('aceros')},
+    {id:'mantenimiento', nombre:t('mantenimiento')},
+    {id:'moldes', nombre:t('moldes')},
+    ...((D && D.pendientes) || []).map(p => ({id:p.id, nombre:t(p.id) || p.nombre, pendiente:true})),
+  ];
+}
 function irA(id, mantenerScroll=false){
   if(!SERVICIOS.some(s=>s.id===id)) id = 'resumen';
   document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.id===id));
@@ -638,41 +789,55 @@ function irA(id, mantenerScroll=false){
   if(location.hash !== '#'+id) history.replaceState(null, '', '#'+id);
   if(id==='aceros') dibujarAceros(); // las gráficas se dibujan al ser visibles (miden el ancho real)
   if(id==='resumen') dibujarResumen();
+  if(id==='mantenimiento') dibujarMantenimiento();
+  if(id==='moldes') dibujarMoldes();
   if(!mantenerScroll) scrollTo(0,0);
 }
 
 // ---------------------------------------------------------------- render
+const NOMBRE_FUENTE = {consolidado:'Consolidado inventario de aceros', pedidos:'Control de pedidos', x5:'Inventario Aceros X5', fila_moldes:'Fila de moldes'};
 function render(){
   const main = $('#main');
-  if(!D){ main.innerHTML = '<div class="aviso err">Esta es la plantilla. Abre "Tablero de Indicadores.html" (lo genera generar_tablero.py).</div>'; return; }
+  if(!D) return;
   const A = D.aceros;
+  if(D.colores_materiales) COLOR_MAT = {...COLOR_MAT, ...D.colores_materiales};
+  armarServicios();
 
   // encabezado
-  $('#sub-ayer').textContent = A ? `Ayer = ${fLarga(A.ayer.fecha)} · comparado contra lo proyectado` : '';
-  const horas = (Date.now() - new Date(D.generado)) / 36e5;
-  $('#frescura').innerHTML = `Actualizado: <b>${fHora(D.generado)}</b>` +
-    (A ? `<br>Consolidado modificado: ${fHora(A.fuente.modificado)}` : '');
+  $('#sub-ayer').textContent = A ? `${t('ayer')} = ${fLarga(A.ayer.fecha)} · comparado contra lo proyectado` : '';
+  const F = D.fuentes || {};
+  $('#frescura').innerHTML = `<span class="vivo"><i></i>${t('en_vivo')}</span> · ${t('actualizado')} <b>${fHora(D.generado)}</b>` +
+    (F.consolidado && F.consolidado.modificado ? `<br>Consolidado guardado: ${fHora(F.consolidado.modificado)}` : '');
 
   $('#tabs').innerHTML = SERVICIOS.map(s => {
     let color = 'var(--muted)';
     if(s.id==='aceros' && A) color = COLOR_EST[estado(A.ayer.comprometidos_hechos, A.ayer.comprometidos).cls];
+    if(s.id==='mantenimiento' && D.mantenimiento) color = 'var(--teal)';
+    if(s.id==='moldes' && D.moldes) color = D.moldes.kpis.vencidos ? 'var(--bad)' : 'var(--ok)';
     return `<button role="tab" data-id="${s.id}">${s.id!=='resumen'?`<span class="dot" style="background:${color}"></span>`:''}${esc(s.nombre)}</button>`;
   }).join('');
   document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => irA(b.dataset.id));
 
   let avisos = '';
-  if(horas > 2) avisos += `<div class="aviso warn">⚠ Los datos tienen más de ${Math.floor(horas)} horas. Revisa que el PC esté encendido o usa "Actualizar ahora".</div>`;
-  (D.errores||[]).forEach(e => avisos += `<div class="aviso err">✖ No se pudo leer: ${esc(e)}</div>`);
+  Object.entries(F).filter(([k, f]) => f.estado === 'error').forEach(([k, f]) =>
+    avisos += `<div class="aviso warn">⚠ <span><b>${esc(NOMBRE_FUENTE[k] || k)}</b>: ${esc(f.mensaje)}${f.ultimo_ok ? ` Se muestran los datos del último cargue bueno (${fHora(f.ultimo_ok)}).` : ''}</span></div>`);
+  (D.errores||[]).forEach(e => avisos += `<div class="aviso err">✖ <span>No se pudo calcular: ${esc(e)}</span><button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div>`);
 
-  main.innerHTML = avisos + vistaResumen(A) + vistaAceros(A) +
+  main.innerHTML = avisos + vistaResumen(A) + vistaAceros(A) + vistaMantenimiento(D.mantenimiento) + vistaMoldes(D.moldes) +
     D.pendientes.map(p => `<section class="vista" id="v-${p.id}" hidden>
       <div class="pend-box"><div class="chip neutral">○ Pendiente de conectar</div>
       <h3>${esc(p.nombre)}</h3><p style="color:var(--text-soft);margin:0">Para activar los indicadores de este servicio se necesita:</p>
       <ul>${p.necesita.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div></section>`).join('');
 
   document.querySelectorAll('[data-ir]').forEach(el => el.onclick = () => irA(el.dataset.ir));
-  $('#pie').textContent = 'Fuentes: ' + [A && A.fuente.archivo, D.cortes && 'Control de pedidos.xlsx', D.x5 && 'Inventario Aceros X5.xlsx'].filter(Boolean).join(' · ') +
-    '. Las tarjetas con ✎ se escriben a mano y quedan guardadas en este navegador. El tablero se recarga solo cada 10 minutos.';
+  $('#pie').innerHTML = `<h2 class="sec">${t('fuentes')} <small>los Excel se leen solos apenas OneDrive los sincroniza · mantenimiento sale en vivo de la app Control Inventarios</small></h2>
+    <div class="fuentes">${Object.keys(NOMBRE_FUENTE).map(k => { const f = F[k] || {};
+      return `<div class="fuente"><b>${esc(NOMBRE_FUENTE[k])} <span class="chip ${f.estado==='ok'?'ok':f.ultimo_ok?'near':'bad'}">${f.estado==='ok'?'✓ OK':f.ultimo_ok?'● Con aviso':'✖ Sin datos'}</span></b>
+        ${f.modificado ? `Guardado en SharePoint: ${fHora(f.modificado)}<br>` : ''}${f.ultimo_ok ? `Cargado a la base: ${fHora(f.ultimo_ok)} · ${fmt(f.filas)} filas` : ''}
+        ${f.mensaje ? `<div class="err">${esc(f.mensaje)}</div>` : ''}</div>`; }).join('')}
+      <div class="fuente"><b>Control Inventarios (mantenimiento) <span class="chip ${D.mantenimiento?'ok':'bad'}">${D.mantenimiento?'✓ En vivo':'✖ Sin conexión'}</span></b>AGP_Ingenieria · AppControlInventarios_ManttoHead</div>
+    </div>
+    <p style="margin-top:14px">Las casillas con ✎ se escriben a mano y quedan guardadas en la base de datos para todos. El tablero se actualiza solo cada minuto.</p>`;
   activarManuales();
   irA(location.hash.slice(1) || 'resumen', true); // al redibujar (ej. tras guardar un valor manual) no salta al inicio
 }
@@ -683,10 +848,12 @@ function vistaResumen(A){
     const a = A.ayer, e = estado(a.comprometidos_hechos, a.comprometidos);
     const verbo = e.cls==='ok' ? 'cumplió sus compromisos' : e.cls==='near' ? 'quedó cerca de sus compromisos' : e.cls==='bad' ? 'quedó por debajo de sus compromisos' : 'no tenía aceros comprometidos';
     frase = `<b>Ayer (${fLarga(a.fecha)})</b>: Aceros ${verbo}: <b>${fmt(a.comprometidos_hechos)}</b> de <b>${fmt(a.comprometidos)}</b> aceros comprometidos cumplidos${e.pct!=null?` (${fmt(e.pct*100)} %)`:''}${a.comprometidos > a.comprometidos_hechos ? `, ${fmt(a.comprometidos - a.comprometidos_hechos)} no cumplidos` : ''}. ` +
-            `${D.pendientes.length} servicios están pendientes de conectar.`;
+            (D.mantenimiento ? ` Mantenimiento: <b>${fmt(D.mantenimiento.kpis.ayer)}</b> moldes/galgas finalizados ayer.` : '') +
+            (D.moldes ? ` Cola de fabricación de moldes: <b>${fmt(D.moldes.kpis.cola_dias,1)}</b> días.` : '');
     const k = A.kpis, md = metaDiaria(), eProd = estado(k.productividad, md);
     // fila vs. meta de días de fila (menos es mejor): en meta / cerca (hasta 1,5×) / sobre la meta
-    const metaFila = valorManual('meta-dias-fila', 2), sobra = k.dias_fila - metaFila;
+    const metaDefecto = (D.parametros && D.parametros.meta_dias_fila) || 2;
+    const metaFila = valorManual('meta-dias-fila', metaDefecto), sobra = k.dias_fila - metaFila;
     const eFila = k.dias_fila <= metaFila ? {cls:'ok', ico:'▲', txt:'En meta'} : k.dias_fila <= metaFila*1.5 ? {cls:'near', ico:'●', txt:'Cerca'} : {cls:'bad', ico:'▼', txt:'Sobre la meta'};
     const maxF = Math.max(k.dias_fila, metaFila) || 1;
     tarjAceros = `<article class="serv-largo">
@@ -697,7 +864,7 @@ function vistaResumen(A){
             <div class="lbl"><span>Fila de fabricación</span><span class="chip ${eFila.cls}">${eFila.ico} ${eFila.txt}</span></div>
             <div class="fila-hero"><span class="num-hero">${fmt(k.fila)}</span><span>aceros en<br>fabricación</span></div>
             <div class="fila-dias">
-              <div><b class="num">${fmt(k.dias_fila)}</b> días de fila <span class="meta-txt">· meta ${inputManual('meta-dias-fila', 2)} días</span></div>
+              <div><b class="num">${fmt(k.dias_fila)}</b> días de fila <span class="meta-txt">· meta ${inputManual('meta-dias-fila', metaDefecto)} días</span></div>
               <div class="bullet grande" aria-hidden="true"><i style="width:${k.dias_fila/maxF*100}%;background:${COLOR_EST[eFila.cls]}"></i><b style="left:${metaFila/maxF*100}%" title="Meta: ${fmt(metaFila)} días"></b></div>
             </div>
             <div class="desc">${sobra > 0 ? `<b style="color:var(--bad)">${fmt(sobra)} días</b> por encima de la meta · ` : ''}<b style="color:${k.vencidos?'var(--bad)':'inherit'}">${fmt(k.vencidos)}</b> vencidos</div>
@@ -726,8 +893,8 @@ function vistaResumen(A){
       <div class="desc">Para activarlo se necesita: ${p.necesita.map(esc).join(' · ')}</div></article>`).join('');
   return `<section class="vista" id="v-resumen" hidden>
     ${frase ? `<div class="frase">${frase}</div>` : ''}
-    <h2 class="sec">Servicios del área <small>clic en un servicio para ver el detalle</small></h2>
-    <div class="lista-serv">${tarjAceros}${pend}</div></section>`;
+    <h2 class="sec">${t('servicios')} <small>${t('clic_servicio')}</small></h2>
+    <div class="lista-serv">${tarjAceros}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${pend}</div></section>`;
 }
 
 function kpi(lbl, val, unidad, desc, extra='', cls=''){
@@ -735,8 +902,7 @@ function kpi(lbl, val, unidad, desc, extra='', cls=''){
     <div class="val">${val}${unidad?` <small>${unidad}</small>`:''}</div>${desc?`<div class="desc">${desc}</div>`:''}</div>`;
 }
 // ---- tarjetas manuales: el número se escribe en la tarjeta y se guarda en este navegador con su fecha/hora
-const CLAVE_MANUAL = 'tablero-herramentales-manual';
-function leerManuales(){ try { return JSON.parse(localStorage.getItem(CLAVE_MANUAL)) || {}; } catch(e){ return {}; } }
+function leerManuales(){ return (D && D.manuales) || {}; }
 function kpiManual(id, lbl, unidad, lado='', cls=''){
   const num = `<div class="val"><input class="val-input num" data-manual="${id}" inputmode="numeric" placeholder="—" aria-label="${lbl}"> <small>${unidad}</small><span class="lapiz" title="Se escribe a mano">✎</span></div>
     <div class="desc"><span class="registro" data-registro="${id}">Clic en el número para escribirlo</span></div>`;
@@ -790,7 +956,8 @@ function tarjetaCortes(){
   const desc = h.total
     ? `<div class="cp-prio">${prio}</div><div>${mats}</div>`
     : `Aún no hay envíos hoy${u ? ` · último: <b>${fmt(u.total)}</b> el ${fLarga(u.fecha)}` : ''}`;
-  return `<div class="kpi"><div class="lbl"><span>Aceros enviados a cortar hoy</span><span class="chip neutral" title="Control de pedidos.xlsx modificado ${fHora(C.modificado)}">Auto</span></div>
+  const modPed = D.fuentes && D.fuentes.pedidos && D.fuentes.pedidos.modificado;
+  return `<div class="kpi"><div class="lbl"><span>Aceros enviados a cortar hoy</span><span class="chip neutral" title="${modPed ? 'Control de pedidos.xlsx guardado ' + fHora(modPed) : 'Control de pedidos.xlsx'}">Auto</span></div>
     <div class="val">${fmt(h.total)} <small>aceros</small></div><div class="desc">${desc}</div></div>`;
 }
 
@@ -935,7 +1102,8 @@ function dibujarAceros(){
   // Inventario X5 OEM por pieza (hoja 2 de "Inventario Aceros X5.xlsx"): Matricería + Calidad (piso)
   if(D.x5){
     const tm = D.x5.filas.reduce((s,f)=>s+f.matriceria,0), tc = D.x5.filas.reduce((s,f)=>s+f.calidad,0);
-    $('#x5-desc').innerHTML = `<b>${fmt(tm+tc)}</b> aceros = <b>${fmt(tm)}</b> en Matricería + <b>${fmt(tc)}</b> en Calidad (piso)${D.x5.fecha?` · corte ${fLarga(D.x5.fecha)}`:''}`;
+    const modX5 = D.fuentes && D.fuentes.x5 && D.fuentes.x5.modificado;
+    $('#x5-desc').innerHTML = `<b>${fmt(tm+tc)}</b> aceros = <b>${fmt(tm)}</b> en Matricería + <b>${fmt(tc)}</b> en Calidad (piso)${modX5?` · Excel guardado ${fHora(modX5)}`:''}`;
     barrasH($('#ch-x5'), D.x5.filas.map(f => ({etiqueta:f.pieza, valor:f.matriceria+f.calidad,
       segs:[{v:f.matriceria, color:'var(--teal)'}, {v:f.calidad, color:'#C1852A'}],
       tip:`<b>${esc(f.pieza)}</b><div class="r"><span>Matricería</span><span>${fmt(f.matriceria)}</span></div><div class="r"><span>Calidad (piso)</span><span>${fmt(f.calidad)}</span></div><div class="r"><span>Total</span><span>${fmt(f.matriceria+f.calidad)}</span></div>`})),
@@ -1151,6 +1319,193 @@ function dibujarFlujo(){
   });
 }
 
+// ================================================================ Mantenimiento de moldes (en vivo, app Control Inventarios)
+const COLOR_CAT = {'BMW X5':'#5B9BD5', 'Land Rover Sentinel':'#78BE8C', 'Express Van':'#E0A030', 'BMW Serie 7':'#A78BFA', 'Retrofit':'#8A9499'};
+const colorCat = c => COLOR_CAT[c] || '#8FC5CF';
+let catMant = null, vistaMant = 'diaria';
+
+function tarjetaResumenMant(M){
+  if(!M) return `<article class="serv-largo" data-ir="mantenimiento"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
+  const k = M.kpis;
+  return `<article class="serv-largo" data-ir="mantenimiento" tabindex="0">
+    <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver">${t('ver_detalle')}</span></div>
+    <div class="sl-grid">
+      <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')}</span><span class="chip neutral">${fCorta(k.fecha_ayer)}</span></div>
+        <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} personas</small></div>
+        ${minibarras(M.diaria.slice(-14).map(d => ({total:d.total, lab:false})), 0)}
+        <div class="desc">${M.categorias.map(c => { const x = M.por_categoria.find(p => p.categoria === c);
+          return x && x.ayer ? `<span class="etq" style="background:${colorCat(c)}33;color:var(--text)">${esc(c)} ${fmt(x.ayer)}</span>` : ''; }).join(' ')}</div></div>
+      <div class="sl-bloque"><div class="lbl"><span>${t('mant_hoy')}</span><span class="vivo" style="color:var(--text)"><i></i></span></div>
+        <div class="val">${fmt(k.hoy)}</div><div class="desc">${fmt(k.personas_hoy)} personas trabajando hoy</div></div>
+      <div class="sl-bloque"><div class="lbl"><span>${t('mant_prom')}</span></div>
+        <div class="val">${fmt(k.prom_dia_30,1)} <small>/día</small></div><div class="desc">${fmt(k.fin_30)} finalizados en 30 días</div></div>
+      <div class="sl-bloque"><div class="lbl"><span>${t('mant_abiertos')}</span></div>
+        <div class="val">${fmt(k.abiertos)}</div><div class="desc">Duración típica ${k.mediana_min_30==null?'—':fmt(k.mediana_min_30)+' min'}</div></div>
+    </div></article>`;
+}
+
+function vistaMantenimiento(M){
+  if(!M) return `<section class="vista" id="v-mantenimiento" hidden><div class="aviso err">✖ No se pudo leer la base de mantenimientos (Control Inventarios).<button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div></section>`;
+  const k = M.kpis;
+  const viejos = k.abiertos_viejos ? `<div class="aviso warn" style="margin-top:12px">⚠ <span>Hay <b>${fmt(k.abiertos_viejos)}</b> mantenimientos abiertos hace más de ${k.dias_viejo} días que nadie cerró en la app. No se cuentan como abiertos; conviene finalizarlos o cancelarlos en Control Inventarios.</span></div>` : '';
+  return `<section class="vista" id="v-mantenimiento" hidden>
+  <h2 class="sec">${t('hoy')} · ${t('ayer')} <small>se actualiza solo cada minuto desde la app Control Inventarios</small></h2>
+  <div class="grid-kpi">
+    ${kpi(t('mant_hoy'), fmt(k.hoy), '', `${fmt(k.personas_hoy)} personas · en vivo`, '<span class="chip ok">● En vivo</span>', 'hero')}
+    ${kpi(t('mant_ayer'), fmt(k.ayer), '', `${fLarga(k.fecha_ayer)} · ${fmt(k.personas_ayer)} personas`, '', 'hero')}
+    ${kpi(t('mant_prom'), fmt(k.prom_dia_30,1), '/día', `${fmt(k.fin_30)} finalizados · ${fmt(k.galgas_30)} galgas`)}
+    ${kpi(t('mant_mediana'), k.mediana_min_30==null?'—':fmt(k.mediana_min_30), t('minutos'), 'Mediana de lo que dura un mantenimiento (30 días), sin contar los que quedaron abiertos de un día para otro')}
+    ${kpi(t('mant_abiertos'), fmt(k.abiertos), '', `Pendientes o en proceso abiertos en los últimos ${k.dias_viejo} días`)}
+  </div>${viejos}
+
+  <h2 class="sec">${t('mant_cat')} <small>últimos 30 días · clic en un vehículo para filtrar las gráficas y la tabla por persona</small></h2>
+  <div class="cats" id="mant-cats">${M.por_categoria.map(c => `
+    <div class="cat ${catMant===c.categoria?'sel':''}" data-cat="${esc(c.categoria)}" style="--c:${colorCat(c.categoria)}" tabindex="0">
+      <h4>${esc(c.categoria)} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
+      <div class="big">${fmt(c.fin_30)} <small>finalizados</small></div>
+      <div class="fila3"><span><b>${fmt(c.ayer)}</b>${t('ayer').toLowerCase()}</span><span><b>${fmt(c.abiertos)}</b>abiertos</span><span><b>${c.mediana_min==null?'—':fmt(c.mediana_min)}</b>min típico</span></div>
+      <div class="desc" title="${esc(c.vehiculos.map(v => v.vehiculo + ': ' + v.n).join(' · '))}">${c.top_moldes.length ? 'Más atendidos: ' + c.top_moldes.slice(0,3).map(m => `<b>${esc(m.molde)}</b> (${fmt(m.n)})`).join(', ') : 'Sin mantenimientos en 30 días'}</div>
+    </div>`).join('')}</div>
+
+  <div class="panel" style="margin-top:16px">
+    <div class="panel-head"><div><h3 id="mant-serie-tit">${t('mant_serie')}</h3><p id="mant-serie-sub"></p></div>
+      <div class="seg" id="mant-vista"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div></div>
+    <div id="mant-leyenda"></div><div class="chart" id="ch-mant"></div>
+  </div>
+
+  <div class="panel" style="margin-top:16px">
+    <div class="panel-head"><div><h3>${t('mant_personas')}</h3><p id="mant-mat-sub">Mantenimientos finalizados por cada persona en los últimos 14 días (el día cuenta cuando se finaliza). Pasa el mouse por una casilla para ver el detalle.</p></div></div>
+    <div class="tabla" style="max-height:none" id="mant-matriz"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><div><h3>${t('mant_tipos')}</h3></div></div><div class="chart" id="ch-mant-tipos"></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3><p>Un molde que vuelve muchas veces a mantenimiento puede necesitar revisión de fondo.</p></div></div>
+      <div class="tabla"><table><thead><tr><th>Molde</th><th>Vehículo</th><th>Categoría</th><th class="n">Veces</th></tr></thead><tbody>${
+        M.reincidentes_30.map(r => `<tr><td class="num">${esc(r.molde)}</td><td>${esc(r.vehiculo||'—')}</td><td><span class="etq" style="background:${colorCat(r.categoria)}33;color:var(--text)">${esc(r.categoria)}</span></td><td class="n">${fmt(r.n)}</td></tr>`).join('') || `<tr><td colspan="4">${t('sin_datos')}</td></tr>`}</tbody></table></div></div>
+  </div>
+
+  <div class="panel" style="margin-top:16px"><details><summary>${t('mant_lista_abiertos')} (${fmt(M.abiertos.length)})</summary>
+    <div class="tabla"><table><thead><tr><th>Desde</th><th>Molde</th><th>Vehículo</th><th>Categoría</th><th>Persona</th><th>Estado</th><th>Tipo</th></tr></thead><tbody>${
+      M.abiertos.map(a => `<tr><td style="white-space:nowrap">${fHora(a.inicio)}</td><td class="num">${esc(a.molde)}</td><td>${esc(a.vehiculo||'—')}</td><td>${esc(a.categoria)}</td><td>${esc(a.persona)}</td><td>${esc(a.estatus)}</td><td>${esc(a.tipo_mant||'—')}</td></tr>`).join('')}</tbody></table></div></details></div>
+  </section>`;
+}
+
+function segsFiltrados(segs){ return catMant ? (segs[catMant] ? {[catMant]: segs[catMant]} : {}) : segs; }
+function totalSegs(segs){ return Object.values(segs).reduce((a, b) => a + b, 0); }
+
+function dibujarMantenimiento(){
+  const M = D && D.mantenimiento; if(!M || $('#v-mantenimiento').hidden) return;
+  document.querySelectorAll('#mant-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMant));
+  document.querySelectorAll('#mant-cats .cat').forEach(x => x.classList.toggle('sel', x.dataset.cat === catMant));
+  const op = {orden: M.categorias, colores: COLOR_CAT};
+  const serie = M[vistaMant].map(p => {
+    const segs = segsFiltrados(p.segs), total = totalSegs(segs);
+    const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
+    const nombre = vistaMant === 'diaria' ? fLarga(p.fecha) : vistaMant === 'semanal' ? `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})` : `${MESES[+p.etiqueta.slice(5)-1]} ${p.etiqueta.slice(0,4)}`;
+    return {etiqueta, segs, total, sub: p.hoy || p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
+      tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>`, op)};
+  });
+  $('#mant-serie-sub').textContent = (catMant ? `Solo ${catMant} · ` : '') + (vistaMant === 'diaria' ? 'Últimos 30 días' : vistaMant === 'semanal' ? 'Últimas 12 semanas' : 'Últimos 12 meses');
+  $('#mant-leyenda').innerHTML = `<div class="legend">${M.categorias.filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(c)}</span>`).join('')}</div>`;
+  barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo'});
+
+  const meta = M.kpis.meta_persona_dia;
+  const filas = M.personas.map(p => ({...p, celdas: p.celdas.map(c => { const s = segsFiltrados(c.segs); return {...c, n: totalSegs(s), segs: s}; })}))
+    .map(p => ({...p, total: p.celdas.reduce((a, c) => a + c.n, 0)})).filter(p => p.total).sort((a, b) => b.total - a.total);
+  const maxN = Math.max(1, ...filas.flatMap(p => p.celdas.map(c => c.n)));
+  const fondo = n => { if(!n) return 'transparent'; const a = .18 + .62 * n / maxN; return `rgba(143,197,207,${a.toFixed(2)})`; };
+  const tinta = n => n / maxN > .55 ? '#0B2F36' : 'var(--text)';
+  $('#mant-matriz').innerHTML = filas.length ? `<table class="matriz"><thead><tr><th class="p">${t('persona')}</th>${M.dias14.map(d => {
+      const f = fecha(d), lab = infoDia(d).lab; return `<th class="${d===D.hoy?'hoy':''}" style="${lab?'':'color:var(--muted)'}">${DIAS[f.getDay()]}<br>${f.getDate()}</th>`; }).join('')}<th class="n">${t('total')}</th><th class="n">Prom/día</th></tr></thead>
+    <tbody>${filas.map(p => `<tr><td class="p" title="${esc(p.nombre)}">${esc(p.nombre)}</td>${p.celdas.map(c =>
+      `<td class="c ${c.n?'':'cero'} ${c.fecha===D.hoy?'hoy':''}" style="background:${fondo(c.n)};color:${c.n?tinta(c.n):''}${meta && c.n && c.n < meta ? ';box-shadow:inset 0 -3px 0 var(--bad)' : ''}"
+         data-tip="${esc(tipSegs(`${p.nombre} · ${fLarga(c.fecha)}`, c.segs, c.min!=null?`<div class="r" style="margin-top:6px"><span>Duración típica</span><span>${fmt(c.min)} min</span></div>`:'', op))}">${c.n || '·'}</td>`).join('')}
+      <td class="t">${fmt(p.total)}</td><td class="t" style="color:var(--text-soft)">${fmt(p.total / Math.max(1, p.celdas.filter(c => c.n).length), 1)}</td></tr>`).join('')}
+      <tr><td class="p">${t('total')}</td>${M.dias14.map((d, i) => `<td class="t" style="text-align:center;padding:0">${fmt(filas.reduce((a, p) => a + p.celdas[i].n, 0))}</td>`).join('')}<td class="t">${fmt(filas.reduce((a, p) => a + p.total, 0))}</td><td></td></tr>
+    </tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`;
+  document.querySelectorAll('#mant-matriz [data-tip]').forEach(td => {
+    td.addEventListener('mousemove', ev => mostrarTip(ev, td.dataset.tip));
+    td.addEventListener('mouseleave', ocultarTip);
+  });
+  barrasH($('#ch-mant-tipos'), M.tipos_30.map(x => ({etiqueta:x.tipo, valor:x.n})), {mL:190, aria:'Tipos de mantenimiento'});
+}
+
+// ================================================================ Fabricación de moldes (Fila de moldes.xlsx)
+const COLOR_HERR = {'Molde':'#8FC5CF', 'Galga':'#E0A030', 'Otro':'#8A9499'};
+let vistaMoldesSerie = 'semanal';
+
+function tarjetaResumenMoldes(MO){
+  if(!MO) return `<article class="serv-largo pend" data-ir="moldes"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
+  const k = MO.kpis;
+  return `<article class="serv-largo" data-ir="moldes" tabindex="0">
+    <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver">${t('ver_detalle')}</span></div>
+    <div class="sl-grid">
+      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_cola')}</span></div>
+        <div class="val">${fmt(k.cola_dias,1)} <small>${t('dias')}</small></div>
+        <div class="desc">${fmt(k.horas)} h = ${fmt(k.turnos,1)} turnos ÷ ${fmt(k.matriceros)} matriceros</div></div>
+      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_pend')}</span></div><div class="val">${fmt(k.pendientes)}</div><div class="desc">en ${fmt(MO.vehiculos.length)} vehículos</div></div>
+      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_venc')}</span>${k.vencidos?'<span class="chip bad">▼ Atrasados</span>':'<span class="chip ok">▲ Al día</span>'}</div><div class="val" style="color:${k.vencidos?'var(--bad)':'inherit'}">${fmt(k.vencidos)}</div><div class="desc">pendientes con fecha de entrega vencida</div></div>
+      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_entregados')}</span></div><div class="val">${fmt(k.entregados_30)}</div><div class="desc">moldes y galgas con estatus OK</div></div>
+    </div></article>`;
+}
+
+function vistaMoldes(MO){
+  if(!MO) return `<section class="vista" id="v-moldes" hidden><div class="aviso warn">⚠ Todavía no hay datos de "Fila de moldes.xlsx". Revisa el estado de las fuentes al final de la página.</div></section>`;
+  const k = MO.kpis;
+  const calidad = k.sin_estatus ? `<div class="aviso warn" style="margin-top:12px">⚠ <span><b>${fmt(k.sin_estatus)}</b> de ${fmt(k.total_registros)} filas del Excel no tienen Estatus (ni OK ni Pendiente) y no entran en la cola.</span></div>` : '';
+  return `<section class="vista" id="v-moldes" hidden>
+  <h2 class="sec">${t('moldes_cola')} <small>misma cuenta del Excel: horas pendientes ÷ ${fmt(k.horas_turno)} h por turno ÷ matriceros</small></h2>
+  <div class="grid-kpi">
+    ${kpi(t('moldes_cola'), fmt(k.cola_dias,1), t('dias'), `${fmt(k.turnos,1)} turnos entre ${fmt(k.matriceros)} matriceros`, '', 'hero')}
+    ${kpi(t('moldes_pend'), fmt(k.pendientes), '', `${fmt(MO.vehiculos.length)} vehículos`)}
+    ${kpi(t('moldes_horas'), fmt(k.horas), 'h', 'Suma de la columna Tiempo de lo pendiente')}
+    ${kpi(t('moldes_venc'), fmt(k.vencidos), '', 'Pendientes con fecha de entrega ya pasada', k.vencidos?'<span class="chip bad">▼</span>':'<span class="chip ok">▲</span>')}
+    ${kpi(t('moldes_entregados'), fmt(k.entregados_30), '', 'Con estatus OK y fecha de entrega en los últimos 30 días')}
+  </div>${calidad}
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><div><h3>${t('moldes_vehiculo')}</h3><p>Ordenados por la entrega más próxima. La barra es el tiempo en turnos.</p></div></div>
+      <div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span></div>
+      <div class="chart" id="ch-moldes-veh"></div></div>
+    <div class="panel"><div class="panel-head"><div><h3 id="moldes-serie-tit">${t('moldes_serie')}</h3><p>Herramentales con estatus OK por fecha de entrega.</p></div>
+      <div class="seg" id="moldes-vista"><button aria-pressed="true" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div></div>
+      <div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span></div>
+      <div class="chart" id="ch-moldes-serie"></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><div><h3>${t('moldes_detalle')}</h3></div></div>
+      <div class="tabla"><table><thead><tr><th>Entrega</th><th>Herramental</th><th>Código</th><th>Vehículo</th><th>Tamaño</th><th class="n">Horas</th><th>Fabricante</th></tr></thead><tbody>${
+        MO.detalle.map(d => `<tr><td style="white-space:nowrap;${d.vencido?'color:var(--bad);font-weight:700':''}">${d.entrega?fCorta(d.entrega):'—'}${d.vencido?' ▼':''}</td><td>${esc(d.herramental)}</td><td class="num">${esc(d.codigo)} ${esc(d.rep||'')}</td><td>${esc(d.vehiculo)}</td><td>${esc(d.tamano||'—')}</td><td class="n">${fmt(d.horas)}</td><td>${esc(d.fabricante||'—')}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('moldes_fab')}</h3></div></div><div class="chart" id="ch-moldes-fab"></div></div>
+  </div>
+  </section>`;
+}
+
+function dibujarMoldes(){
+  const MO = D && D.moldes; if(!MO || $('#v-moldes').hidden) return;
+  document.querySelectorAll('#moldes-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMoldesSerie));
+  barrasH($('#ch-moldes-veh'), MO.vehiculos.map(v => ({etiqueta:v.vehiculo, valor:v.turnos, etiquetaValor:`${fmt(v.turnos,1)} t`,
+    segs:[{v:v.turnos * (v.moldes / Math.max(1, v.n)), color:COLOR_HERR.Molde}, {v:v.turnos * (v.galgas / Math.max(1, v.n)), color:COLOR_HERR.Galga}],
+    tip:`<b>${esc(v.vehiculo)}</b><div class="r"><span>Pendientes</span><span>${fmt(v.n)}</span></div><div class="r"><span>Moldes / Galgas</span><span>${fmt(v.moldes)} / ${fmt(v.galgas)}</span></div><div class="r"><span>Grandes / Pequeños</span><span>${fmt(v.grande)} / ${fmt(v.pequeno)}</span></div><div class="r"><span>Horas</span><span>${fmt(v.horas)}</span></div><div class="r"><span>Entrega más próxima</span><span>${v.entrega?fCorta(v.entrega):'—'}</span></div>`})),
+    {mL:230, vacio:'Sin herramentales pendientes', aria:'Pendientes por vehículo'});
+  const op = {orden:['Molde','Galga','Otro'], colores:COLOR_HERR};
+  barrasApiladas($('#ch-moldes-serie'), MO[vistaMoldesSerie].map(p => ({
+    etiqueta: vistaMoldesSerie === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3),
+    segs:p.segs, total:p.total, sub: p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
+    tip: tipSegs(vistaMoldesSerie === 'semanal' ? `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})` : `${MESES[+p.etiqueta.slice(5)-1]} ${p.etiqueta.slice(0,4)}`, p.segs,
+      `<div class="r" style="margin-top:6px"><span>Horas</span><span>${fmt(p.horas)}</span></div>`, op)})), {...op, sub:true, alto:240, aria:'Herramentales entregados'});
+  barrasH($('#ch-moldes-fab'), MO.fabricantes_90.map(f => ({etiqueta:f.nombre, valor:f.n})), {mL:170, aria:'Quién fabricó'});
+}
+
+document.addEventListener('click', ev => {
+  const c = ev.target.closest('#mant-cats .cat');
+  if(c){ catMant = catMant === c.dataset.cat ? null : c.dataset.cat; dibujarMantenimiento(); return; }
+  const bm = ev.target.closest('#mant-vista button');
+  if(bm){ vistaMant = bm.dataset.v; dibujarMantenimiento(); return; }
+  const bf = ev.target.closest('#moldes-vista button');
+  if(bf){ vistaMoldesSerie = bf.dataset.v; dibujarMoldes(); return; }
+});
+
 document.addEventListener('click', ev => {
   if(ev.target.closest('#rech-volver')){ semRech = null; dibujarRechazos(); return; }
   if(ev.target.closest('#prod-volver')){ zoomProd = null; dibujarProduccion(); return; }
@@ -1167,28 +1522,53 @@ document.addEventListener('click', ev => {
   dibujarProduccion();
 });
 document.addEventListener('keydown', ev => { if(ev.key==='Enter' && ev.target.dataset && ev.target.dataset.ir) irA(ev.target.dataset.ir); });
-let tRes; addEventListener('resize', () => { clearTimeout(tRes); tRes = setTimeout(() => { dibujarAceros(); dibujarResumen(); }, 150); });
-setTimeout(() => location.reload(), 10*60*1000); // recoge la versión que el script genera cada hora
+let tRes; addEventListener('resize', () => { clearTimeout(tRes); tRes = setTimeout(() => { dibujarAceros(); dibujarResumen(); dibujarMantenimiento(); dibujarMoldes(); }, 150); });
 
-// Botón "Actualizar ahora": el enlace tablero-herramentales: (registrado con "Instalar boton actualizar.bat")
-// ejecuta generar_tablero.py en segundo plano; aquí solo se espera y se recarga la página.
-document.getElementById('btn-actualizar').addEventListener('click', ev => {
+// ================================================================ datos en vivo
+// Cada minuto se pide el tablero; solo se redibuja si algo cambió (firma) y nadie está escribiendo en una casilla.
+const enEdicion = () => { const a = document.activeElement; return a && a.tagName === 'INPUT'; };
+function conectado(ok){ document.querySelectorAll('.vivo').forEach(v => v.classList.toggle('caido', !ok)); }
+async function cargar(forzar=false){
+  try {
+    const r = await fetch('/api/tablero', {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const nuevo = await r.json();
+    if(D && !forzar && nuevo.firma === D.firma){
+      D.generado = nuevo.generado; D.manuales = nuevo.manuales;
+      const b = $('#frescura b'); if(b) b.textContent = fHora(D.generado);
+      conectado(true); return;
+    }
+    if(D && !forzar && enEdicion()) return;
+    D = nuevo;
+    conectado(true);
+    try { render(); }
+    catch(e){ console.error(e); $('#main').innerHTML = `<div class="aviso err">✖ <span>Error al dibujar el tablero: ${esc(e.message)}</span><button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div>`; }
+  } catch(err){
+    console.error(err);
+    conectado(false);
+    if(!D) $('#main').innerHTML = `<div class="aviso err" style="margin-top:30px">✖ <span>${t('error_carga')} (${esc(err.message)})</span><button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div>`;
+  }
+}
+setInterval(() => { if(!document.hidden) cargar(); }, 60 * 1000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) cargar(); });
+
+document.getElementById('btn-actualizar').addEventListener('click', async ev => {
   const b = ev.currentTarget;
-  if(b.classList.contains('cargando')) { ev.preventDefault(); return; }
-  b.classList.add('cargando');
-  let s = 12;
-  b.textContent = `Actualizando… ${s}s`;
-  const t = setInterval(() => {
-    s--;
-    if(s > 0) { b.textContent = `Actualizando… ${s}s`; return; }
-    clearInterval(t);
-    location.reload();
-  }, 1000);
-  b.title = 'Si la fecha de "Actualizado" no cambia, ejecuta una vez "Instalar boton actualizar.bat" en la carpeta del tablero.';
+  if(b.classList.contains('cargando')) return;
+  b.classList.add('cargando'); b.textContent = t('actualizando');
+  try { await fetch('/api/actualizar', {method:'POST'}); } catch(e){}
+  await cargar(true);
+  b.classList.remove('cargando'); b.textContent = t('actualizar');
+});
+document.querySelectorAll('[data-idioma]').forEach(b => b.addEventListener('click', () => {
+  IDIOMA = b.dataset.idioma; guardarPref('tablero-idioma', IDIOMA); aplicarIdioma(); if(D) render();
+}));
+document.getElementById('btn-tema').addEventListener('click', () => {
+  const tema = document.documentElement.dataset.tema === 'claro' ? 'oscuro' : 'claro';
+  guardarPref('tablero-tema', tema); aplicarTema(tema);
 });
 
-try { render(); }
-catch(err){ document.getElementById('main').innerHTML = `<div class="aviso err">Error al dibujar el tablero: ${esc(err.message)}</div>`; console.error(err); }
+cargar();
 </script>
 </body>
 </html>
