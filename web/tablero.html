@@ -436,8 +436,17 @@ aplicarTema(leerPref('tablero-tema', 'oscuro'));
 aplicarIdioma();
 
 // ---------------------------------------------------------------- utilidades
-let COLOR_MAT = {'Böhler':'#7FB0AE','Inox 2,5mm':'#8FA8C7','Galvanizado 0,3mm':'#D9BC6C','Inox 3mm':'#B98089',
-                 'Inox 1mm':'#9BB894','Gurkha':'#CA9682','Otro':'#8A9499'};
+// Paleta corporativa AGP: una sola, en orden fijo, para todas las gráficas (materiales, vehículos, X5, serigrafía,
+// personas). Azul AGP, petróleo de la marca, dorado, vino, verde pino y cobre; "Otro" en gris neutro.
+// Validada con simulación de daltonismo (OKLab): los pares vecinos se distinguen, y siempre hay leyenda y etiquetas.
+const PALETA = ['#2F6FB0', '#5BB0C0', '#D4A03A', '#9C4E68', '#3E8E6B', '#C7703C'];
+const COLOR_OTRO = '#A3AEB9';
+// texto blanco sobre colores oscuros, navy sobre los claros
+const tintaSobre = hex => { const h = String(hex).replace('#',''); if(h.length !== 6) return '#0B1626';
+  const [r,g,b] = [0,2,4].map(i => parseInt(h.slice(i,i+2),16)/255);
+  return 0.2126*r + 0.7152*g + 0.0722*b < 0.42 ? '#ffffff' : '#0B1626'; };
+let COLOR_MAT = {'Böhler':PALETA[0],'Inox 2,5mm':PALETA[1],'Galvanizado 0,3mm':PALETA[2],'Inox 3mm':PALETA[3],
+                 'Inox 1mm':PALETA[4],'Gurkha':PALETA[5],'Otro':COLOR_OTRO};
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS = ['dom','lun','mar','mié','jue','vie','sáb'];
 const DIAS_L = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -673,7 +682,7 @@ document.addEventListener('focusout', ev => {
 });
 
 // ---- Resumen: producción semanal (barras) + capacidad semanal (línea roja, manual) + piezas retenidas (línea)
-const COLOR_RETENIDAS = '#6B4C9A';
+const COLOR_RETENIDAS = 'var(--text)';
 let zoomRes = null; // índice de la semana abierta en el Resumen (null = vista de semanas)
 // La capacidad que se escribe es DIARIA (la misma cada día laboral de esa semana), no se divide.
 // Orden: la propia de la semana (cap-AAAA-MM-DD) → la capacidad diaria base → la meta diaria.
@@ -739,7 +748,7 @@ function dibujarResumen(){
         tip: tipSegs(fLarga(d.fecha), d.segs,
           `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(d.total)}</span></div>` +
           `<div class="r"><span style="color:#F2A69C">Capacidad</span><span>${cap?fmt(cap):'—'}</span></div>` +
-          `<div class="r"><span style="color:#C9B5E6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
+          `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
     });
     $('#res-titulo').textContent = `Producción ${s.etiqueta} vs. capacidad`;
     $('#res-leyenda').innerHTML = leyendaMat(matsPresentes(filas.map(x=>x.item)), leyendaLineas);
@@ -764,7 +773,7 @@ function dibujarResumen(){
         `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(s.total)}</span></div>` +
         `<div class="r"><span style="color:#F2A69C">Capacidad semana</span><span>${fmt(cap)}</span></div>` +
         `<div style="opacity:.75">${fmt(capDiaSemana(s))}/día × ${s.dias_lab_total} días laborales${ajustados?` · ${ajustados} día(s) con capacidad propia`:''}</div>` +
-        `<div class="r"><span style="color:#C9B5E6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
+        `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
   });
   $('#res-leyenda').innerHTML = leyendaMat(matsPresentes(sem.map(x=>x.item)), leyendaLineas);
   barrasApiladas(cont, sem.map(x => x.item), {sub:true, alto:280, aria:'Producción semanal vs. capacidad y piezas retenidas',
@@ -816,7 +825,7 @@ function render(){
   const main = $('#main');
   if(!D) return;
   const A = D.aceros;
-  if(D.colores_materiales) COLOR_MAT = {...COLOR_MAT, ...D.colores_materiales};
+  if(D.colores_materiales) COLOR_MAT = {...D.colores_materiales, ...COLOR_MAT};
   armarServicios();
 
   // encabezado
@@ -1005,7 +1014,7 @@ function barraProyeccion(segs, real, proy, txt={marca:'Proyectado', falta:'Falt�
   const max = Math.max(real, proy, 1), mats = D.orden_materiales.filter(m => segs[m]);
   const tramos = mats.map(m => {
     const w = segs[m]/max*100;
-    return `<i style="width:${w}%;background:${COLOR_MAT[m]}" title="${m}: ${segs[m]}">${w>5?fmt(segs[m]):''}</i>`; }).join('');
+    return `<i style="width:${w}%;background:${COLOR_MAT[m]};color:${tintaSobre(COLOR_MAT[m])}" title="${m}: ${segs[m]}">${w>5?fmt(segs[m]):''}</i>`; }).join('');
   const faltan = Math.max(0, proy - real);
   return `<div><div class="proy">
     ${proy ? `<div class="proy-marca" style="left:${proy/max*100}%"><span>${txt.marca} <b class="num">${fmt(proy)}</b></span></div>` : ''}
@@ -1118,7 +1127,7 @@ function vistaAceros(A){
 
 // ---- Aceros OEM (BMW X5): "Inventario Aceros X5.xlsx", tabla FECHA | PIEZA | INVENTARIO MATRICERIA | INVENTARIO CALIDAD
 let subAceros = 'retrofit';
-const COLOR_X5 = {'Matricería':'#8FC5CF', 'Calidad (piso)':'#C1852A'};
+const COLOR_X5 = {'Matricería':PALETA[0], 'Calidad (piso)':PALETA[2]};
 function vistaAcerosOem(){
   const X = D.x5, mod = D.fuentes && D.fuentes.x5 && D.fuentes.x5.modificado;
   if(!X) return `<div id="aceros-oem" ${subAceros==='oem'?'':'hidden'}><div class="aviso warn">⚠ <span>No se pudo leer Inventario Aceros X5.xlsx. Revisa el estado de las fuentes al final de la página.</span></div></div>`;
@@ -1206,7 +1215,7 @@ function dibujarAceros(){
 function filasTip(total, cap, eq, ret, nota=''){
   return `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(total)}</span></div>` +
     `<div class="r"><span style="color:#F2A69C">Capacidad</span><span>${cap?fmt(cap):'—'}</span></div>${nota?`<div style="opacity:.75">${nota}</div>`:''}` +
-    `<div class="r"><span style="color:#C9B5E6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>` +
+    `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>` +
     `<div class="r"><span>Equivalentes</span><span>${fmt(eq,1)}</span></div>`;
 }
 function filaDia(iso){ // datos reales del día o un día vacío si aún no llega
@@ -1403,8 +1412,8 @@ function dibujarFlujo(){
 }
 
 // ================================================================ Mantenimiento de moldes (en vivo, app Control Inventarios)
-const COLOR_CAT = {'BMW X5':'#5B9BD5', 'Land Rover Sentinel':'#78BE8C', 'Express Van':'#E0A030', 'BMW Serie 7':'#A78BFA', 'Retrofit':'#8A9499'};
-const colorCat = c => COLOR_CAT[c] || '#8FC5CF';
+const COLOR_CAT = {'Retrofit':PALETA[0], 'BMW X5':PALETA[1], 'Express Van':PALETA[2], 'BMW Serie 7':PALETA[3], 'Land Rover Sentinel':PALETA[4]};
+const colorCat = c => COLOR_CAT[c] || PALETA[5];
 let catMant = null, vistaMant = 'diaria';
 
 function tarjetaResumenMant(M){
@@ -1528,9 +1537,9 @@ function dibujarMantenimiento(){
 }
 
 // ================================================================ Serigrafía
-const COLOR_RET = {'Falta de archivo (Vitrojet)':'#E0A030', 'Falta de malla':'#DC5353'};
-const COLOR_SCR = {'Mallas':'#8FC5CF', 'Logos':'#A78BFA', 'Trazabilidades':'#78BE8C'};
-const PALETA_PERSONAS = ['#8FC5CF','#E0A030','#A78BFA','#78BE8C','#5B9BD5','#CA9682','#8A9499'];
+const COLOR_RET = {'Falta de archivo (Vitrojet)':PALETA[2], 'Falta de malla':PALETA[3]};
+const COLOR_SCR = {'Mallas':PALETA[0], 'Logos':PALETA[1], 'Trazabilidades':PALETA[2]};
+const PALETA_PERSONAS = [...PALETA, COLOR_OTRO];
 const BLOQUES_SERI = [
   {id:'logos', titulo:'Logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
    reglaCarga:'Logo DISPONIBLE y sin NOMBRE_ARCHIVO. Prioridad = tiene Plan de corte (día/turno).'},
@@ -1664,7 +1673,7 @@ function dibujarSerigrafia(){
 }
 
 // ================================================================ Fabricación de moldes (Fila de moldes.xlsx)
-const COLOR_HERR = {'Molde':'#8FC5CF', 'Galga':'#E0A030', 'Otro':'#8A9499'};
+const COLOR_HERR = {'Molde':PALETA[0], 'Galga':PALETA[2], 'Otro':COLOR_OTRO};
 let vistaMoldesSerie = 'semanal';
 
 function tarjetaResumenMoldes(MO){
