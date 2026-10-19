@@ -108,6 +108,21 @@
   .pct{display:flex;align-items:center;gap:6px;min-width:120px;padding-left:10px;font-size:12px;color:var(--text-soft)}
   .pct-bar{flex:1;height:6px;border-radius:3px;background:var(--grid);overflow:hidden;min-width:50px}
   .pct-bar i{display:block;height:100%;border-radius:3px}
+  .rk{display:flex;flex-direction:column}
+  .rk-fila{display:grid;grid-template-columns:22px minmax(150px,1.2fr) minmax(120px,3fr) 52px 60px 92px 110px;align-items:center;gap:12px;padding:7px 4px;border-bottom:1px solid var(--grid);font-size:12.5px}
+  .rk-fila.cab{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft);padding-top:0}
+  .rk-fila.pie{border-bottom:0;border-top:1px solid var(--border);font-weight:700}
+  .rk-pos{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:700;background:var(--pend);color:var(--text-soft)}
+  .rk-fila.top .rk-pos{background:var(--brand);color:var(--on-brand)}
+  .rk-nom{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rk-bar{display:flex;gap:2px;height:14px}
+  .rk-bar i{display:block;height:100%}
+  .rk-bar i:first-child{border-radius:3px 0 0 3px}
+  .rk-bar i:last-child{border-radius:0 3px 3px 0}
+  .rk-bar i:only-child{border-radius:3px}
+  .rk-n{text-align:right;font-weight:700;color:var(--text);font-size:13.5px}
+  .rk-pct,.rk-prom{text-align:right;color:var(--text-soft)}
+  @media (max-width:900px){ .rk-fila{grid-template-columns:22px minmax(110px,1fr) minmax(80px,2fr) 44px 52px} .rk-fila > :nth-child(n+6){display:none} }
   .lista-tipo{display:flex;flex-direction:column;gap:2px}
   .lt-fila{display:grid;grid-template-columns:minmax(120px,1.3fr) minmax(60px,1.6fr) 44px 46px 96px;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--grid);font-size:12.5px}
   .lt-fila:last-child{border-bottom:0}
@@ -1842,14 +1857,15 @@ function vistaMantenimiento(M){
   </div>
 
   <div class="sec-fila">
-    <h2 class="sec">Análisis por periodo <small id="mat-rango"></small></h2>
+    <h2 class="sec">Productividad por persona <small id="mat-rango"></small></h2>
     <div class="prod-ctrl">
       <button class="btn-volver" id="mat-volver" hidden>← Volver</button>
       <div class="seg" id="mat-vista"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div>
     </div>
   </div>
   <div class="panel">
-    <div class="panel-head"><div><h3 id="mat-tit">${t('mant_personas')}</h3><p id="mat-sub"></p></div></div>
+    <div class="panel-head"><div><h3 id="mat-tit">${t('mant_personas')}</h3><p id="mat-sub"></p></div>
+      <div class="seg" id="mat-modo"><button aria-pressed="true" data-m="ranking">Ranking</button><button aria-pressed="false" data-m="mapa">Detalle por periodo</button></div></div>
     <div class="tabla" style="max-height:none" id="mant-matriz"></div>
   </div>
 
@@ -1858,9 +1874,6 @@ function vistaMantenimiento(M){
     <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3><p id="reinc-sub"></p></div></div><div class="tabla" id="mant-reinc"></div></div>
   </div>
 
-  <div class="panel" style="margin-top:16px"><details><summary>${t('mant_lista_abiertos')} (${fmt(M.abiertos.length)})</summary>
-    <div class="tabla"><table><thead><tr><th>Desde</th><th>Molde</th><th>Vehículo</th><th>Categoría</th><th>Persona</th><th>Estado</th><th>Tipo</th></tr></thead><tbody>${
-      M.abiertos.map(a => `<tr><td style="white-space:nowrap">${fHora(a.inicio)}</td><td class="num">${esc(a.molde)}</td><td>${esc(a.vehiculo||'—')}</td><td>${esc(nomCat(a.categoria))}</td><td>${esc(a.persona)}</td><td>${esc(a.estatus)}</td><td>${esc(a.tipo_mant||'—')}</td></tr>`).join('')}</tbody></table></div></details></div>
   </section>`;
 }
 
@@ -1882,7 +1895,7 @@ function topMoldesHTML(c){
 // ---- Análisis por periodo: la matriz por matricero, la distribución por tipo y los moldes recurrentes se arman en
 //      el navegador desde los registros de lo finalizado (≈13 meses). Diario = 14 días; Semanal = 12 semanas (clic en
 //      una semana = sus 7 días); Mensual = 12 meses (clic en un mes = sus semanas). Respeta el filtro por vehículo.
-let vistaMat = 'diaria', zoomMat = null;
+let vistaMat = 'diaria', zoomMat = null, modoMat = 'ranking';
 const sumarDias = (iso, n) => { const f = fecha(iso); f.setDate(f.getDate() + n); return isoDe(f); };
 const fDiaMes = iso => { const f = fecha(iso); return `${f.getDate()} ${MESES[f.getMonth()].slice(0,3).toLowerCase()}`; };
 const hexA = (hex, a) => { const h = hex.replace('#',''); return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`; };
@@ -1955,6 +1968,29 @@ function analisisBasico(M){
     moldes: M.reincidentes_30.filter(r => visibles.has(r.categoria))
       .map(r => ({molde: r.molde, n: r.n, cat: r.categoria, vehiculo: r.vehiculo, personas: null, ultima: null}))};
 }
+// Ranking de matriceros del periodo: barra apilada por vehículo (escala = el que más hizo), total, % del equipo,
+// promedio por periodo activo y mini-tendencia por columna del periodo.
+function dibujarRankingMat(M, A, op, unidad){
+  const max = Math.max(1, ...A.personas.map(p => p.total)), tot = A.equipo.total || 1;
+  const segsTot = p => { const s = {}; p.segs.forEach(x => { for(const k in x) s[k] = (s[k] || 0) + x[k]; }); return s; };
+  const fila = (p, i) => { const s = segsTot(p), prom = p.activos ? p.total / p.activos : 0;
+    return `<div class="rk-fila ${i < 3 ? 'top' : ''}" data-tip="${esc(tipSegs(`${p.nombre} · ${fmt(p.total)} finalizados`, s,
+      `<div class="r" style="margin-top:6px"><span>${unidad === 'día' ? 'Días' : unidad === 'semana' ? 'Semanas' : 'Meses'} con actividad</span><span>${fmt(p.activos)} de ${fmt(A.cols.length)}</span></div>`, op))}">
+      <span class="rk-pos">${i + 1}</span><span class="rk-nom" title="${esc(p.nombre)}">${esc(p.nombre)}</span>
+      <span class="rk-bar" style="width:${p.total / max * 100}%">${op.orden.filter(c => s[c]).map(c => `<i style="flex:${s[c]};background:${op.colores[c]}"></i>`).join('')}</span>
+      <span class="rk-n">${fmt(p.total)}</span><span class="rk-pct">${fmt(p.total / tot * 100)} %</span>
+      <span class="rk-prom">${fmt(prom, 1)} / ${unidad}</span>${sparkMini(p.n, PALETA[0])}</div>`; };
+  $('#mant-matriz').innerHTML = A.personas.length ? `<div class="rk">
+      <div class="legend" style="margin-bottom:6px">${op.orden.map(c => `<span><i style="background:${op.colores[c]}"></i>${esc((op.nombres || {})[c] || c)}</span>`).join('')}</div>
+      <div class="rk-fila cab"><span></span><span>Matricero</span><span>Finalizados por vehículo</span><span style="text-align:right">Total</span><span style="text-align:right">% equipo</span><span style="text-align:right">Prom. ${unidad} activo</span><span>Tendencia</span></div>
+      ${A.personas.map(fila).join('')}
+      <div class="rk-fila pie"><span></span><span>Total del equipo</span><span></span><span class="rk-n">${fmt(A.equipo.total)}</span><span class="rk-pct">100 %</span><span></span>${sparkMini(A.equipo.n, 'var(--text-soft)')}</div>
+    </div>` : `<div class="vacio">${t('sin_datos')}</div>`;
+  document.querySelectorAll('#mant-matriz [data-tip]').forEach(el => {
+    el.addEventListener('mousemove', ev => mostrarTip(ev, el.dataset.tip));
+    el.addEventListener('mouseleave', ocultarTip);
+  });
+}
 function sparkMini(serie, color){
   if(!serie) return '<span></span>'; // mini barras alineadas a las columnas del periodo
   const W = 96, H = 22, n = serie.length, max = Math.max(1, ...serie), bw = W / n - 1.5;
@@ -1976,7 +2012,7 @@ function dibujarAnalisisMant(M){
   const rango = `${fDiaMes(A.desde)}${A.desde.slice(0,4) !== A.hasta.slice(0,4) ? ' ' + A.desde.slice(0,4) : ''} – ${fDiaMes(A.hasta)} ${A.hasta.slice(0,4)}`;
   $('#mat-rango').textContent = (zoomMat ? zoomMat.titulo : rango) + (catMant ? ` · solo ${nomCat(catMant)}` : '');
   $('#mat-sub').innerHTML = `<b>${fmt(A.equipo.total)}</b> finalizados · <b>${fmt(A.personas.length)}</b> matriceros · ${cols.length} ${plural}` +
-    (cols.some(c => c.zoom) ? ` · clic en ${unidad === 'semana' ? 'una semana' : 'un mes'} para ver el detalle` : '');
+    (modoMat === 'mapa' && cols.some(c => c.zoom) ? ` · clic en ${unidad === 'semana' ? 'una semana' : 'un mes'} para ver el detalle` : '');
   // ---- matriz: mapa de calor de un solo tono (aguamarina), columnas no laborales rayadas, totales del equipo
   const maxN = Math.max(1, ...A.personas.flatMap(p => p.n)), base = PALETA[0];
   const fondo = n => n ? hexA(base, (.16 + .7 * n / maxN).toFixed(2)) : 'transparent';
@@ -1986,7 +2022,9 @@ function dibujarAnalisisMant(M){
   const tipCelda = (titulo, x, i) => tipSegs(titulo, x.segs[i], Object.keys(x.tipos[i]).length ? '<div style="margin-top:6px;opacity:.85">' +
     Object.entries(x.tipos[i]).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join('') + '</div>' : '', op);
   const prom = p => p.activos ? p.total / p.activos : 0;
-  $('#mant-matriz').innerHTML = A.personas.length ? `<table class="matriz"><thead><tr><th class="p">Matricero</th>${cols.map((c, i) =>
+  document.querySelectorAll('#mat-modo button').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === modoMat));
+  if(modoMat === 'ranking'){ dibujarRankingMat(M, A, op, unidad); }
+  else $('#mant-matriz').innerHTML = A.personas.length ? `<table class="matriz"><thead><tr><th class="p">Matricero</th>${cols.map((c, i) =>
       `<th class="${c.actual ? 'hoy' : ''} ${c.lab ? '' : 'nolab'} ${c.zoom ? 'zoom' : ''}" data-col="${i}" title="${esc(c.titulo)}${c.zoom ? ' · clic para ver el detalle' : ''}">${esc(c.et1)}<br>${esc(c.et2)}</th>`).join('')}
       <th class="n">${t('total')}</th><th class="n" style="text-align:left;padding-left:10px">% del equipo</th><th class="n" title="Promedio en los ${plural} en que el matricero finalizó al menos uno">Prom. por ${unidad} activo</th></tr></thead>
     <tbody>${A.personas.map(p => `<tr><td class="p" title="${esc(p.nombre)}">${esc(p.nombre)}</td>${p.n.map((n, i) =>
@@ -2261,6 +2299,8 @@ document.addEventListener('click', ev => {
   if(c){ catMant = catMant === c.dataset.cat ? null : c.dataset.cat; dibujarMantenimiento(); return; }
   const bv = ev.target.closest('#mat-vista button');
   if(bv){ vistaMat = bv.dataset.v; zoomMat = null; dibujarMantenimiento(); return; }
+  const bmo = ev.target.closest('#mat-modo button');
+  if(bmo){ modoMat = bmo.dataset.m; dibujarMantenimiento(); return; }
   if(ev.target.closest('#mat-volver')){ zoomMat = null; dibujarMantenimiento(); return; }
   const bm = ev.target.closest('#mant-vista button');
   if(bm){ vistaMant = bm.dataset.v; dibujarMantenimiento(); return; }
