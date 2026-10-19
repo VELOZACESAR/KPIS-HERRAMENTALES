@@ -100,6 +100,17 @@
   .cat h4{margin:0;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:6px}
   .cat .big{font:700 30px/1 var(--font);font-variant-numeric:tabular-nums}
   .cat .big small{font-size:12px;color:var(--text-soft);font-weight:500}
+  .top-m{display:flex;flex-direction:column;gap:5px;margin-top:4px;padding-top:10px;border-top:1px solid var(--border)}
+  .top-m-tit{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft)}
+  .top-m-fila{display:grid;grid-template-columns:16px 7ch minmax(28px,1fr) auto;align-items:center;gap:8px;font-size:12px}
+  .top-m-pos{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;background:var(--pend);color:var(--text-soft)}
+  .top-m-fila.primero .top-m-pos{background:var(--c);color:#fff}
+  .top-m-nom{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+  .top-m-bar{height:6px;border-radius:3px;background:var(--grid);overflow:hidden}
+  .top-m-bar i{display:block;height:100%;border-radius:3px;background:var(--c)}
+  .top-m-n{font-weight:700;color:var(--text);min-width:22px;text-align:right}
+  .top-m-n small{font-weight:500;color:var(--text-soft);margin-left:1px}
+  .vacio-m{font-size:12px;color:var(--muted)}
   .cat .fila3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:11.5px;color:var(--text-soft)}
   .cat .fila3 b{display:block;font:700 15px var(--font);color:var(--text)}
   .sub-aceros{margin-bottom:6px}
@@ -1434,7 +1445,7 @@ function vistaMantenimiento(M){
     <div class="cat ${catMant===c.categoria?'sel':''}" data-cat="${esc(c.categoria)}" style="--c:${colorCat(c.categoria)}" tabindex="0">
       <h4>${esc(c.categoria)} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
       <div class="big">${fmt(c.fin_30)} <small>finalizados</small></div>
-      <div class="desc" title="${esc(c.vehiculos.map(v => v.vehiculo + ': ' + v.n).join(' · '))}">${c.top_moldes.length ? 'Más atendidos: ' + c.top_moldes.slice(0,3).map(m => `<b>${esc(m.molde)}</b> (${fmt(m.n)})`).join(', ') : 'Sin mantenimientos en 30 días'}</div>
+      ${topMoldesHTML(c)}
     </div>`).join('')}</div>
 
   <div class="panel" style="margin-top:16px">
@@ -1459,6 +1470,21 @@ function vistaMantenimiento(M){
     <div class="tabla"><table><thead><tr><th>Desde</th><th>Molde</th><th>Vehículo</th><th>Categoría</th><th>Persona</th><th>Estado</th><th>Tipo</th></tr></thead><tbody>${
       M.abiertos.map(a => `<tr><td style="white-space:nowrap">${fHora(a.inicio)}</td><td class="num">${esc(a.molde)}</td><td>${esc(a.vehiculo||'—')}</td><td>${esc(a.categoria)}</td><td>${esc(a.persona)}</td><td>${esc(a.estatus)}</td><td>${esc(a.tipo_mant||'—')}</td></tr>`).join('')}</tbody></table></div></details></div>
   </section>`;
+}
+
+// "Más atendidos" de una categoría: mini ranking (posición · molde · barra relativa al primero · veces)
+function topMoldesHTML(c){
+  const top = c.top_moldes.slice(0, 3);
+  if(!top.length) return `<div class="top-m vacio-m">Sin mantenimientos en 30 días</div>`;
+  const max = top[0].n || 1;
+  return `<div class="top-m" title="${esc(c.vehiculos.map(v => v.vehiculo + ': ' + v.n).join(' · '))}">
+    <div class="top-m-tit">Más atendidos</div>
+    ${top.map((m, i) => `<div class="top-m-fila${i === 0 ? ' primero' : ''}">
+      <span class="top-m-pos">${i + 1}</span>
+      <span class="top-m-nom num">${esc(m.molde)}</span>
+      <span class="top-m-bar"><i style="width:${m.n / max * 100}%"></i></span>
+      <span class="top-m-n num">${fmt(m.n)}<small>×</small></span>
+    </div>`).join('')}</div>`;
 }
 
 function segsFiltrados(segs){ return catMant ? (segs[catMant] ? {[catMant]: segs[catMant]} : {}) : segs; }
