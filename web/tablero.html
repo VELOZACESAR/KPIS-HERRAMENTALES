@@ -396,24 +396,24 @@ const TXT = {
        resumen:'Resumen del área', aceros:'Aceros', mantenimiento:'Mantenimiento de moldes', moldes:'Fabricación de moldes', serigrafia:'Serigrafía',
        servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
-       mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Promedio diario (30 días)', mant_mediana:'Duración típica',
-       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos por persona y por día', mant_cat:'Por vehículo',
-       mant_serie:'Mantenimientos finalizados', mant_tipos:'Tipo de mantenimiento (30 días)', mant_reinc:'Moldes con más mantenimientos (30 días)',
+       mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
+       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por técnico · últimos 14 días', mant_cat:'Histórico de mantenimientos por vehículo · 30 días',
+       mant_serie:'Evolución de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento · 30 días', mant_reinc:'Moldes con mayor recurrencia · 30 días',
        mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
-       moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Pendientes por vehículo',
-       moldes_serie:'Herramentales entregados', moldes_fab:'Quién fabricó (90 días)', moldes_detalle:'Detalle de pendientes',
+       moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Herramentales pendientes por vehículo',
+       moldes_serie:'Herramentales entregados · moldes y galgas', moldes_fab:'Herramentales fabricados por persona · 90 días', moldes_detalle:'Detalle de herramentales pendientes',
        diario:'Diario', semanal:'Semanal', mensual:'Mensual', dias:'días', persona:'Persona', total:'Total', minutos:'min'},
   pt: {titulo:'Indicadores da Área · Ferramentaria', actualizar:'⟳ Atualizar agora', actualizando:'Atualizando…', cargando:'Carregando indicadores…',
        error_carga:'Não foi possível conectar ao servidor do painel.', reintentar:'Tentar novamente', en_vivo:'Ao vivo', sin_conexion:'Sem conexão',
        resumen:'Resumo da área', aceros:'Aços', mantenimiento:'Manutenção de moldes', moldes:'Fabricação de moldes', serigrafia:'Serigrafia',
        servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
-       mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Média diária (30 dias)', mant_mediana:'Duração típica',
-       mant_abiertos:'Abertas agora', mant_personas:'Manutenções por pessoa e por dia', mant_cat:'Por veículo',
-       mant_serie:'Manutenções finalizadas', mant_tipos:'Tipo de manutenção (30 dias)', mant_reinc:'Moldes com mais manutenções (30 dias)',
+       mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
+       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por técnico · últimos 14 dias', mant_cat:'Histórico de manutenções por veículo · 30 dias',
+       mant_serie:'Evolução das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção · 30 dias', mant_reinc:'Moldes com maior recorrência · 30 dias',
        mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
-       moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Pendentes por veículo',
-       moldes_serie:'Ferramentais entregues', moldes_fab:'Quem fabricou (90 dias)', moldes_detalle:'Detalhe dos pendentes',
+       moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Ferramentais pendentes por veículo',
+       moldes_serie:'Ferramentais entregues · moldes e calibres', moldes_fab:'Ferramentais fabricados por pessoa · 90 dias', moldes_detalle:'Detalhe dos ferramentais pendentes',
        diario:'Diário', semanal:'Semanal', mensual:'Mensal', dias:'dias', persona:'Pessoa', total:'Total', minutos:'min'},
 };
 const leerPref = (k, d) => { try { return localStorage.getItem(k) || d; } catch(e){ return d; } };
@@ -757,8 +757,8 @@ function dibujarResumen(){
               {vals:filas.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
     return;
   }
-  $('#res-titulo').textContent = 'Producción semanal vs. capacidad';
-  $('#res-sub').textContent = 'Clic en una semana para ver sus días · la capacidad de cada semana se escribe debajo de su barra';
+  $('#res-titulo').textContent = 'Producción semanal de aceros vs. capacidad';
+  $('#res-sub').textContent = '';
   $('#res-cap').innerHTML = '';
   const sem = A.semanal.map(s => {
     const cap = capSemana(s);
@@ -860,7 +860,7 @@ function render(){
     if(el.dataset.subIr) cambiarSubAceros(el.dataset.subIr, false);
     irA(el.dataset.ir);
   });
-  $('#pie').innerHTML = `<h2 class="sec">${t('fuentes')} <small>los Excel se leen solos apenas OneDrive los sincroniza · mantenimiento sale en vivo de la app Control Inventarios</small></h2>
+  $('#pie').innerHTML = `<h2 class="sec">${t('fuentes')}</h2>
     <div class="fuentes">${Object.keys(NOMBRE_FUENTE).map(k => { const f = F[k] || {};
       return `<div class="fuente"><b>${esc(NOMBRE_FUENTE[k])} <span class="chip ${f.estado==='ok'?'ok':f.ultimo_ok?'near':'bad'}">${f.estado==='ok'?'✓ OK':f.ultimo_ok?'● Con aviso':'✖ Sin datos'}</span></b>
         ${f.modificado ? `Guardado en SharePoint: ${fHora(f.modificado)}<br>` : ''}${f.ultimo_ok ? `Cargado a la base: ${fHora(f.ultimo_ok)} · ${fmt(f.filas)} filas` : ''}
@@ -906,7 +906,7 @@ function vistaResumen(A){
           </div>
         </div>
         <div class="kpi ra-chart">
-          <div class="lbl"><span id="res-titulo">Producción semanal vs. capacidad</span>
+          <div class="lbl"><span id="res-titulo">Producción semanal de aceros vs. capacidad</span>
             <span class="prod-ctrl"><button class="btn-volver" id="res-volver" hidden>← Semanas</button>
             <span id="res-cap"></span></span></div>
           <div class="desc" id="res-sub"></div>
@@ -923,7 +923,7 @@ function vistaResumen(A){
       <div class="desc">Para activarlo se necesita: ${p.necesita.map(esc).join(' · ')}</div></article>`).join('');
   return `<section class="vista" id="v-resumen" hidden>
     ${frase ? `<div class="frase">${frase}</div>` : ''}
-    <h2 class="sec">${t('servicios')} <small>${t('clic_servicio')}</small></h2>
+    <h2 class="sec">${t('servicios')}</h2>
     <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
 }
 
@@ -1062,10 +1062,10 @@ function vistaAceros(A){
     <button data-sub="oem" aria-pressed="${subAceros==='oem'}">Aceros OEM · BMW X5</button>
   </div>
   <div id="aceros-retrofit" ${subAceros==='retrofit'?'':'hidden'}>
-  <h2 class="sec">Ayer vs. proyección <small>${fLarga(a.fecha)}</small></h2>
+  <h2 class="sec">Resultado de ayer <small>${fLarga(a.fecha)}</small></h2>
   <div class="grid-ayer">
     <div class="kpi hero span2">
-      <div class="lbl"><span>Aceros comprometidos para ayer</span>${chip(eProd)}</div>
+      <div class="lbl"><span>Cumplimiento de compromisos · ayer</span>${chip(eProd)}</div>
       <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos</small></div>
       ${barraProyeccion(a.comprometidos_segs, a.comprometidos_hechos, a.comprometidos, {marca:'Comprometidos', falta:'No cumplidos', faltaCorto:'faltan'})}
       <div class="desc" style="margin-top:8px">Cumplido = fabricado en la fecha comprometida o antes. Producción total del día: <b>${fmt(a.fabricados)}</b> aceros (incluye adelantos y atrasos).</div>
@@ -1073,12 +1073,12 @@ function vistaAceros(A){
     </div>
     ${kpi('Rechazos de ayer', fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
     <div class="kpi hero span2">
-      <div class="lbl"><span>Aceros por matricero · ayer</span><span class="chip neutral">Meta ${A.meta_turno} por turno</span></div>
+      <div class="lbl"><span>Producción por matricero · ayer</span><span class="chip neutral">Meta ${A.meta_turno} por turno</span></div>
       ${tarjetaMatriceros(a.matriceros, A.meta_turno)}
     </div>
   </div>
 
-  <h2 class="sec">Estado actual</h2>
+  <h2 class="sec">Estado actual de la producción</h2>
   <div class="grid-estado">
     <div class="kpi"><div class="lbl"><span>Fila en fabricación</span></div>
       <div class="multi">
@@ -1095,7 +1095,7 @@ function vistaAceros(A){
   </div>
 
   <div class="panel" style="margin-top:16px">
-    <div class="panel-head"><div><h3 id="prod-titulo">Producción vs. capacidad</h3><p id="prod-sub"></p></div>
+    <div class="panel-head"><div><h3 id="prod-titulo">Producción de aceros vs. capacidad</h3><p id="prod-sub"></p></div>
       <div class="prod-ctrl">
         <button class="btn-volver" id="prod-volver" hidden>← Volver</button>
         <div class="seg" id="prod-vista"><button aria-pressed="true" data-v="diaria">Diario</button><button aria-pressed="false" data-v="semanal">Semanal</button><button aria-pressed="false" data-v="mensual">Mensual</button></div>
@@ -1105,7 +1105,7 @@ function vistaAceros(A){
   </div>
 
   <div style="margin-top:16px">
-    <div class="panel"><div class="panel-head"><div><h3 id="comp-titulo">Cumplimiento de compromisos</h3><p id="comp-sub"></p></div>
+    <div class="panel"><div class="panel-head"><div><h3 id="comp-titulo">Cumplimiento de entregas comprometidas</h3><p id="comp-sub"></p></div>
       <div class="prod-ctrl">
         <button class="btn-volver" id="comp-volver" hidden>← Volver</button>
         <div class="seg" id="comp-vista"><button aria-pressed="true" data-v="diaria">Diario</button><button aria-pressed="false" data-v="semanal">Semanal</button><button aria-pressed="false" data-v="mensual">Mensual</button></div>
@@ -1114,10 +1114,10 @@ function vistaAceros(A){
   </div>
 
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3 id="rech-titulo">Rechazos por semana</h3><p id="rech-desc"></p></div>
+    <div class="panel"><div class="panel-head"><div><h3 id="rech-titulo">Rechazos de aceros por semana</h3><p id="rech-desc"></p></div>
       <button class="btn-volver" id="rech-volver" hidden>← Semanas</button></div>
       <div class="chart" id="ch-rech"></div><div class="tabla" id="tb-rech"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Piezas sin acero en planta</h3><p>Puestos de la línea de proceso, de Corte a Recorte. Clic en un puesto para ver sus órdenes.</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas por falta de acero · por puesto</h3></div></div>
       <div id="ch-cuellos"></div><div class="tabla" id="tb-cuellos"></div></div>
   </div>
   </div>
@@ -1134,22 +1134,22 @@ function vistaAcerosOem(){
   const tm = X.filas.reduce((s,f)=>s+f.matriceria,0), tc = X.filas.reduce((s,f)=>s+f.calidad,0);
   const fechaInv = mod ? fLarga(mod.slice(0,10)) : '—';
   return `<div id="aceros-oem" ${subAceros==='oem'?'':'hidden'}>
-  <h2 class="sec">Inventario aceros OEM · BMW X5 <small>sale de "Inventario Aceros X5.xlsx" · Excel guardado ${mod ? fHora(mod) : '—'}</small></h2>
+  <h2 class="sec">Inventario de aceros OEM · BMW X5</h2>
   <div class="grid-kpi">
     ${kpi('Inventario total', fmt(tm+tc), 'aceros', `${fmt(X.filas.length)} piezas`, '', 'hero')}
     ${kpi('Inventario matricería', fmt(tm), 'aceros', `${fmt((tm+tc) ? tm/(tm+tc)*100 : 0)} % del total`)}
     ${kpi('Inventario calidad (piso)', fmt(tc), 'aceros', `${fmt((tm+tc) ? tc/(tm+tc)*100 : 0)} % del total`)}
   </div>
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Inventario por pieza</h3><p>Corte del ${fechaInv}</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Inventario X5 por pieza</h3><p>Corte del ${fechaInv}</p></div></div>
       <div class="tabla"><table><thead><tr><th>Fecha</th><th>Pieza</th><th class="n">Inv. matricería</th><th class="n">Inv. calidad</th><th class="n">Total inventario</th></tr></thead><tbody>${
         X.filas.map(f => `<tr><td style="white-space:nowrap">${mod ? fCorta(mod.slice(0,10)) : '—'}</td><td>${esc(f.pieza)}</td><td class="n">${fmt(f.matriceria)}</td><td class="n">${fmt(f.calidad)}</td><td class="n"><b>${fmt(f.matriceria+f.calidad)}</b></td></tr>`).join('')}
         <tr><td></td><td><b>${t('total')}</b></td><td class="n"><b>${fmt(tm)}</b></td><td class="n"><b>${fmt(tc)}</b></td><td class="n"><b>${fmt(tm+tc)}</b></td></tr></tbody></table></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Inventario X5 OEM</h3><p id="x5-desc"></p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Inventario X5 OEM por pieza</h3><p id="x5-desc"></p></div></div>
       <div class="legend"><span><i style="background:${COLOR_X5['Matricería']}"></i>Matricería</span><span><i style="background:${COLOR_X5['Calidad (piso)']}"></i>Calidad (piso)</span></div>
       <div class="chart" id="ch-x5"></div></div>
   </div>
-  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3>Histórico del inventario</h3><p>Foto diaria que guarda el tablero (el Excel no conserva historia: su FECHA es =HOY()).</p></div></div>
+  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3>Evolución del inventario X5</h3></div></div>
     <div class="legend"><span><i style="background:${COLOR_X5['Matricería']}"></i>Matricería</span><span><i style="background:${COLOR_X5['Calidad (piso)']}"></i>Calidad (piso)</span></div>
     <div class="chart" id="ch-x5-hist"></div></div>
   <div class="grid-manual" style="grid-template-columns:minmax(0,1fr)">${tarjetaX5()}</div>
@@ -1198,7 +1198,7 @@ function dibujarAceros(){
   if(D.x5 && $('#ch-x5') && !$('#aceros-oem').hidden){
     const tm = D.x5.filas.reduce((s,f)=>s+f.matriceria,0), tc = D.x5.filas.reduce((s,f)=>s+f.calidad,0);
     const modX5 = D.fuentes && D.fuentes.x5 && D.fuentes.x5.modificado;
-    $('#x5-desc').innerHTML = `<b>${fmt(tm+tc)}</b> aceros = <b>${fmt(tm)}</b> en Matricería + <b>${fmt(tc)}</b> en Calidad (piso)${modX5?` · Excel guardado ${fHora(modX5)}`:''}`;
+    $('#x5-desc').innerHTML = `<b>${fmt(tm+tc)}</b> aceros = <b>${fmt(tm)}</b> en Matricería + <b>${fmt(tc)}</b> en Calidad (piso)`;
     barrasH($('#ch-x5'), D.x5.filas.map(f => ({etiqueta:f.pieza, valor:f.matriceria+f.calidad,
       segs:[{v:f.matriceria, color:COLOR_X5['Matricería']}, {v:f.calidad, color:COLOR_X5['Calidad (piso)']}],
       tip:`<b>${esc(f.pieza)}</b><div class="r"><span>Matricería</span><span>${fmt(f.matriceria)}</span></div><div class="r"><span>Calidad (piso)</span><span>${fmt(f.calidad)}</span></div><div class="r"><span>Total</span><span>${fmt(f.matriceria+f.calidad)}</span></div>`})),
@@ -1235,7 +1235,7 @@ function dibujarProduccion(){
   const celdaDia = d => { const i = infoDia(d.fecha);
     return {clave: claveCapDia(d.fecha), resp: i.lab ? fmt(capDiaSemanaIso(lunesDe(d.fecha))) : '0', titulo: fLarga(d.fecha)}; };
 
-  let filas, celdas = null, tituloCeldas = 'Cap. día', titulo = 'Producción vs. capacidad', sub = '', onClick = null, porDia = true;
+  let filas, celdas = null, tituloCeldas = 'Cap. día', titulo = 'Producción de aceros vs. capacidad', sub = '', onClick = null, porDia = true;
   if(vistaProd === 'diaria'){
     const dias = A.diaria.slice(-14);
     filas = dias.map(barraDia); celdas = dias.map(celdaDia);
@@ -1261,7 +1261,6 @@ function dibujarProduccion(){
     if(vistaProd === 'semanal'){ tituloCeldas = 'Cap./día';
       celdas = A.semanal.map(s => ({clave: claveCap(s), resp: fmt(capDiaRespaldo()), titulo: s.etiqueta})); }
     onClick = (it, i) => { zoomProd = i; dibujarProduccion(); };
-    sub = 'Clic en una barra para ver sus días';
   }
   $('#prod-titulo').textContent = titulo;
   $('#prod-sub').textContent = sub;
@@ -1322,12 +1321,12 @@ function dibujarCumplimiento(){
   const A = D.aceros, enZoom = zoomComp !== null && vistaComp !== 'diaria';
   $('#comp-volver').hidden = !enZoom;
   document.querySelectorAll('#comp-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaComp));
-  let items, titulo = 'Cumplimiento de compromisos', sub, onClick = null;
+  let items, titulo = 'Cumplimiento de entregas comprometidas', sub, onClick = null;
   if(vistaComp === 'diaria'){
     const fut = A.cumplimiento.filter(c => c.futuro).slice(0, 4);
     const pas = A.cumplimiento.filter(c => !c.futuro).slice(-(BARRAS_COMP - fut.length));
     items = pas.concat(fut).map(barraCompDia);
-    sub = 'Últimos días y próximos días con aceros asignados ("prog."), por fecha de entrega a producción.';
+    sub = '';
   } else if(enZoom){
     const p = periodosComp(vistaComp)[zoomComp];
     const dias = vistaComp === 'semanal'
@@ -1353,7 +1352,7 @@ function dibujarCumplimiento(){
           filasComp(p, p.estado !== 'pasado') + extra + '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>')};
     });
     onClick = (it, i) => { zoomComp = i; dibujarCumplimiento(); };
-    sub = `${mensual ? 'Últimos 10 meses' : 'Últimas 10 semanas'} (incluye las programadas) por fecha de entrega a producción. En curso: % hasta ayer. Clic en una barra para ver sus días.`;
+    sub = '';
   }
   $('#comp-titulo').textContent = titulo;
   $('#comp-sub').textContent = sub;
@@ -1367,8 +1366,8 @@ function dibujarRechazos(){
   const A = D.aceros, cont = $('#ch-rech'), tabla = $('#tb-rech');
   $('#rech-volver').hidden = semRech === null;
   if(semRech === null){
-    $('#rech-titulo').textContent = 'Rechazos por semana';
-    $('#rech-desc').textContent = 'Órdenes registradas en la hoja "9. Rechazos". Clic en una semana para ver sus días.';
+    $('#rech-titulo').textContent = 'Rechazos de aceros por semana';
+    $('#rech-desc').textContent = '';
     tabla.innerHTML = '';
     barrasApiladas(cont, A.rechazos_semanal.map(r => ({etiqueta:r.etiqueta.replace('Sem ','S'), segs:{'Otro':r.total}, total:r.total,
       tip:`<b>${r.etiqueta}${r.en_curso?' · en curso':''}</b><div>${fCorta(r.desde)} en adelante</div><div class="r"><span>Rechazos</span><span>${fmt(r.total)}</span></div><div style="margin-top:4px;opacity:.75">Clic para ver los días</div>`})),
@@ -1464,13 +1463,13 @@ function vistaMantenimiento(M){
   </div>
 
   <div class="panel" style="margin-top:16px">
-    <div class="panel-head"><div><h3>${t('mant_personas')}</h3><p id="mant-mat-sub">Mantenimientos finalizados por cada persona en los últimos 14 días (el día cuenta cuando se finaliza). Pasa el mouse por una casilla para ver el detalle.</p></div></div>
+    <div class="panel-head"><div><h3>${t('mant_personas')}</h3><p id="mant-mat-sub"></p></div></div>
     <div class="tabla" style="max-height:none" id="mant-matriz"></div>
   </div>
 
   <div class="grid-2">
     <div class="panel"><div class="panel-head"><div><h3>${t('mant_tipos')}</h3></div></div><div class="chart" id="ch-mant-tipos"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3><p>Un molde que vuelve muchas veces a mantenimiento puede necesitar revisión de fondo.</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3></div></div>
       <div class="tabla"><table><thead><tr><th>Molde</th><th>Vehículo</th><th>Categoría</th><th class="n">Veces</th></tr></thead><tbody>${
         M.reincidentes_30.map(r => `<tr><td class="num">${esc(r.molde)}</td><td>${esc(r.vehiculo||'—')}</td><td><span class="etq" style="background:${colorCat(r.categoria)}33;color:var(--text)">${esc(r.categoria)}</span></td><td class="n">${fmt(r.n)}</td></tr>`).join('') || `<tr><td colspan="4">${t('sin_datos')}</td></tr>`}</tbody></table></div></div>
   </div>
@@ -1572,7 +1571,7 @@ function vistaSerigrafia(S){
   if(!S) return `<section class="vista" id="v-serigrafia" hidden><div class="aviso warn">⚠ <span>Todavía no hay datos de Serigrafía. Revisa el estado de las fuentes al final de la página.</span></div></section>`;
   const r = S.retenidas;
   const ret = r ? `
-  <h2 class="sec">Piezas retenidas y screens <small>Indicadores diarios.xlsx · ${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
+  <h2 class="sec">Piezas retenidas y screens <small>${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
   <div class="grid-kpi">
     ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Vitrojet (falta de archivo) <b>${fmt(r.falta_archivo)}</b> · Malla (falta de malla) <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
     ${kpi('Screens a pedir', fmt(r.screens_total), '', 'Mallas + logos + trazabilidades en fabricación', '', 'hero')}
@@ -1581,10 +1580,10 @@ function vistaSerigrafia(S){
     ${kpi('Trazabilidades', fmt(r.screens.trazabilidades), '', 'en fabricación')}
   </div>
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas por día</h3><p>Vitrojet = falta de archivo · Mallas = falta de malla</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas por día · por causa</h3></div></div>
       <div class="legend">${Object.keys(COLOR_RET).map(k => `<span><i style="background:${COLOR_RET[k]}"></i>${k}</span>`).join('')}</div>
       <div class="chart" id="ch-seri-ret"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Screens a pedir por día</h3></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Screens pendientes por pedir · por día</h3></div></div>
       <div class="legend">${Object.keys(COLOR_SCR).map(k => `<span><i style="background:${COLOR_SCR[k]}"></i>${k}</span>`).join('')}</div>
       <div class="chart" id="ch-seri-scr"></div></div>
   </div>` : '';
@@ -1599,7 +1598,7 @@ function bloqueSeri(b, X){
   const extra = b.id === 'logos'
     ? kpi('Con prioridad', fmt(X.prioridad), b.unidad, `Tienen plan de corte · ${fmt(X.sin_prioridad)} sin prioridad`, X.prioridad ? '<span class="chip bad">▼ Urgente</span>' : '')
     : kpi('Vitros distintos', fmt(X.carga_vitros), b.unidad, b.id === 'vitros' ? `${fmt(X.inventario_vitros)} vitros ya existen en inventario` : 'Una pantalla sirve para varias órdenes');
-  return `<h2 class="sec">${esc(b.titulo)} <small>${esc(b.reglaCarga)}</small></h2>
+  return `<h2 class="sec">${esc(b.titulo)}</h2>
   <div class="grid-kpi">
     ${kpi('Carga', fmt(X.carga), b.id === 'logos' ? b.unidad : 'órdenes', 'Lo que falta por hacer hoy', '', 'hero')}
     ${extra}
@@ -1610,9 +1609,9 @@ function bloqueSeri(b, X){
       <div class="desc">Se escribe a mano · ${cap ? `la carga actual son <b>${fmt(X.carga / cap, 1)}</b> días` : 'escríbela para ver los días de carga'}</div></div>` : ''}
   </div>
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Hechos por día vs. capacidad</h3><p>Últimos 14 días${b.id === 'logos' ? ' (sale de la foto diaria: el Excel no tiene fecha de cada logo)' : ''}</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Producción diaria vs. capacidad · últimos 14 días</h3></div></div>
       <div class="chart" id="ch-seri-${b.id}"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Productividad por persona y por día</h3></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Productividad diaria por persona</h3></div></div>
       <div class="tabla" style="max-height:none" id="mx-seri-${b.id}"></div></div>
   </div>
   ${detalleSeri(b, X)}`;
@@ -1696,7 +1695,7 @@ function vistaMoldes(MO){
   const k = MO.kpis;
   const calidad = k.sin_estatus ? `<div class="aviso warn" style="margin-top:12px">⚠ <span><b>${fmt(k.sin_estatus)}</b> de ${fmt(k.total_registros)} filas del Excel no tienen Estatus (ni OK ni Pendiente) y no entran en la cola.</span></div>` : '';
   return `<section class="vista" id="v-moldes" hidden>
-  <h2 class="sec">${t('moldes_cola')} <small>misma cuenta del Excel: horas pendientes ÷ ${fmt(k.horas_turno)} h por turno ÷ matriceros</small></h2>
+  <h2 class="sec">${t('moldes_cola')}</h2>
   <div class="grid-kpi">
     ${kpi(t('moldes_cola'), fmt(k.cola_dias,1), t('dias'), `${fmt(k.turnos,1)} turnos entre ${fmt(k.matriceros)} matriceros`, '', 'hero')}
     ${kpi(t('moldes_pend'), fmt(k.pendientes), '', `${fmt(MO.vehiculos.length)} vehículos`)}
@@ -1705,10 +1704,10 @@ function vistaMoldes(MO){
     ${kpi(t('moldes_entregados'), fmt(k.entregados_30), '', 'Con estatus OK y fecha de entrega en los últimos 30 días')}
   </div>${calidad}
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>${t('moldes_vehiculo')}</h3><p>Ordenados por la entrega más próxima. La barra es el tiempo en turnos.</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('moldes_vehiculo')}</h3><p>Barra = turnos de trabajo pendientes · ordenados por la entrega más próxima</p></div></div>
       <div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span></div>
       <div class="chart" id="ch-moldes-veh"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3 id="moldes-serie-tit">${t('moldes_serie')}</h3><p>Herramentales con estatus OK por fecha de entrega.</p></div>
+    <div class="panel"><div class="panel-head"><div><h3 id="moldes-serie-tit">${t('moldes_serie')}</h3></div>
       <div class="seg" id="moldes-vista"><button aria-pressed="true" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div></div>
       <div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span></div>
       <div class="chart" id="ch-moldes-serie"></div></div>
