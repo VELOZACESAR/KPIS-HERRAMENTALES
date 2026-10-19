@@ -4,9 +4,11 @@ rem Usa la carpeta Inicio de Windows: no necesita permisos de administrador.
 rem (OneDrive solo sincroniza con la sesion abierta, por eso es al iniciar sesion y no al encender.)
 rem Para quitarlo: borrar "Tablero Herramentales.lnk" de la carpeta  shell:startup
 cd /d "%~dp0"
+rem Se usa el pythonw del mismo Python que tiene instalados los paquetes (puede haber varios Python en el PC).
 set "PYW="
-for /f "delims=" %%i in ('where pythonw 2^>nul') do if not defined PYW set "PYW=%%i"
-if not defined PYW (echo No encontre pythonw.exe. & pause & exit /b 1)
+for /f "delims=" %%i in ('python -c "import sys,os;print(os.path.join(os.path.dirname(sys.executable),'pythonw.exe'))" 2^>nul') do set "PYW=%%i"
+if not exist "%PYW%" (echo No encontre pythonw.exe junto a python.exe. & pause & exit /b 1)
+python -c "import flask, waitress, pyodbc, openpyxl, dotenv" 2>nul || (echo Faltan paquetes: corre primero "1. Instalar.bat". & pause & exit /b 1)
 powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Startup')+'\Tablero Herramentales.lnk'); $s.TargetPath='%PYW%'; $s.Arguments='\"%~dp0servidor.py\"'; $s.WorkingDirectory='%~dp0'; $s.WindowStyle=7; $s.Save()" || (echo No se pudo crear el acceso directo de inicio. & pause & exit /b 1)
 netstat -ano | findstr ":8050 " | findstr LISTENING >nul && (
   echo El tablero ya esta corriendo. Desde el proximo inicio de sesion arranca solo.

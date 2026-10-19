@@ -7,7 +7,7 @@ from . import db
 from .excel import norm
 
 # En las columnas de responsable también se escriben estados; esos no son personas.
-NO_PERSONAS = {"", "REALIZADO", "REALIZANDO", "POR HACER", "EN ESPERA", "PENDIENTE"}
+NO_PERSONAS = {"", "REALIZADO", "REALIZANDO", "POR HACER", "EN ESPERA", "PENDIENTE", "ASIGNADO"}
 PUESTOS_PASTA_PLATA = {"01CORTE", "02CNC", "03SERIG", "PLANEACION"}
 DIAS_MATRIZ = 14
 
