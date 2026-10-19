@@ -443,7 +443,7 @@ const TXT = {
        resumen:'Resumen del área', aceros:'Aceros', mantenimiento:'Mantenimiento de moldes', moldes:'Fabricación de moldes', serigrafia:'Serigrafía',
        servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
-       mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
+       mant_ayer:'Finalizados el', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
        mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por matricero', mant_cat:'Histórico de mantenimientos Retrofit/OEM · 30 días',
        mant_serie:'Histórico de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento', mant_reinc:'Moldes con mayor recurrencia',
        mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
@@ -455,7 +455,7 @@ const TXT = {
        resumen:'Resumo da área', aceros:'Aços', mantenimiento:'Manutenção de moldes', moldes:'Fabricação de moldes', serigrafia:'Serigrafia',
        servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
-       mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
+       mant_ayer:'Finalizadas em', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
        mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por ferramenteiro', mant_cat:'Histórico de manutenções Retrofit/OEM · 30 dias',
        mant_serie:'Histórico das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção', mant_reinc:'Moldes com maior recorrência',
        mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
@@ -900,7 +900,7 @@ function render(){
   armarServicios();
 
   // encabezado
-  $('#sub-ayer').textContent = A ? `${t('ayer')} = ${fLarga(A.ayer.fecha)} · comparado contra lo proyectado` : '';
+  $('#sub-ayer').textContent = A ? `Resultados del ${fLarga(A.ayer.fecha)} · comparado contra lo proyectado` : '';
   const F = D.fuentes || {};
   $('#frescura').innerHTML = `<span class="vivo"><i></i>${t('en_vivo')}</span> · ${t('actualizado')} <b>${fHora(D.generado)}</b>` +
     (F.consolidado && F.consolidado.modificado ? `<br>Consolidado guardado: ${fHora(F.consolidado.modificado)}` : '');
@@ -948,8 +948,8 @@ function vistaResumen(A){
   if(A){
     const a = A.ayer, e = estado(a.comprometidos_hechos, a.comprometidos);
     const verbo = e.cls==='ok' ? 'cumplió sus compromisos' : e.cls==='near' ? 'quedó cerca de sus compromisos' : e.cls==='bad' ? 'quedó por debajo de sus compromisos' : 'no tenía aceros comprometidos';
-    frase = `<b>Ayer (${fLarga(a.fecha)})</b>: Aceros ${verbo}: <b>${fmt(a.comprometidos_hechos)}</b> de <b>${fmt(a.comprometidos)}</b> aceros comprometidos cumplidos${e.pct!=null?` (${fmt(e.pct*100)} %)`:''}${a.comprometidos > a.comprometidos_hechos ? `, ${fmt(a.comprometidos - a.comprometidos_hechos)} no cumplidos` : ''}. ` +
-            (D.mantenimiento ? ` Mantenimiento: <b>${fmt(D.mantenimiento.kpis.ayer)}</b> moldes/galgas finalizados ayer.` : '') +
+    frase = `<b>Resultados del ${fLarga(a.fecha)}</b>: Aceros ${verbo}: <b>${fmt(a.comprometidos_hechos)}</b> de <b>${fmt(a.comprometidos)}</b> aceros comprometidos cumplidos${e.pct!=null?` (${fmt(e.pct*100)} %)`:''}${a.comprometidos > a.comprometidos_hechos ? `, ${fmt(a.comprometidos - a.comprometidos_hechos)} no cumplidos` : ''}. ` +
+            (D.mantenimiento ? ` Mantenimiento: <b>${fmt(D.mantenimiento.kpis.ayer)}</b> moldes/galgas finalizados el ${fLarga(D.mantenimiento.kpis.fecha_ayer)}.` : '') +
             (D.moldes ? ` Cola de fabricación de moldes: <b>${fmt(D.moldes.kpis.cola_dias,1)}</b> días.` : '');
     const k = A.kpis, md = metaDiaria(), eProd = estado(k.productividad, md);
     // fila vs. meta de días de fila (menos es mejor): en meta / cerca (hasta 1,5×) / sobre la meta
@@ -1097,7 +1097,7 @@ function barraProyeccion(segs, real, proy, txt={marca:'Proyectado', falta:'Falt�
 
 // Matriceros: lo hecho va sobre la barra, la meta ("de 20") al lado, y el estado al final
 function tarjetaMatriceros(lista, meta){
-  if(!lista.length) return '<div class="desc" style="padding:12px 0">Nadie registró aceros entregados ayer.</div>';
+  if(!lista.length) return '<div class="desc" style="padding:12px 0">Nadie registró aceros entregados ese día.</div>';
   const conNombre = lista.filter(m => m.nombre !== 'Sin matricero registrado');
   const total = lista.reduce((s,m)=>s+m.n,0), metaTotal = meta * conNombre.length;
   const max = Math.max(meta, ...lista.map(m => m.n)), eT = estado(total, metaTotal);
@@ -1133,18 +1133,18 @@ function vistaAceros(A){
     <button data-sub="oem" aria-pressed="${subAceros==='oem'}">Aceros OEM · BMW X5</button>
   </div>
   <div id="aceros-retrofit" ${subAceros==='retrofit'?'':'hidden'}>
-  <h2 class="sec">Resultado de ayer <small>${fLarga(a.fecha)}</small></h2>
+  <h2 class="sec">Resultados del ${fLarga(a.fecha)}</h2>
   <div class="grid-ayer">
     <div class="kpi hero span2">
-      <div class="lbl"><span>Cumplimiento de compromisos · ayer</span>${chip(eProd)}</div>
+      <div class="lbl"><span>Cumplimiento de compromisos · ${fCorta(a.fecha)}</span>${chip(eProd)}</div>
       <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos</small></div>
       ${barraProyeccion(a.comprometidos_segs, a.comprometidos_hechos, a.comprometidos, {marca:'Comprometidos', falta:'No cumplidos', faltaCorto:'faltan'})}
       <div class="desc" style="margin-top:8px">Cumplido = fabricado en la fecha comprometida o antes. Producción total del día: <b>${fmt(a.fabricados)}</b> aceros (incluye adelantos y atrasos).</div>
       ${tablaNoCump}
     </div>
-    ${kpi('Rechazos de ayer', fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
+    ${kpi(`Rechazos · ${fCorta(a.fecha)}`, fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
     <div class="kpi hero span2">
-      <div class="lbl"><span>Producción por matricero · ayer</span><span class="chip neutral">Meta ${A.meta_turno} por turno</span></div>
+      <div class="lbl"><span>Producción por matricero · ${fCorta(a.fecha)}</span><span class="chip neutral">Meta ${A.meta_turno} por turno</span></div>
       ${tarjetaMatriceros(a.matriceros, A.meta_turno)}
     </div>
   </div>
@@ -1550,12 +1550,12 @@ function tarjetasMant(M){
       <div class="mk-sep"><div class="mk-tit">Matriceros hoy</div>${tecsMant(M, 'hoy')}</div>
     </div>
     <div class="kpi hero mk">
-      <div class="lbl"><span>${t('mant_ayer')} · ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
+      <div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
       <div class="val">${fmt(k.ayer)} <small>${sAyer ? `vs. ${fmt(sAyer.med)} de un ${tipoDia(labAyer)} típico` : 'finalizados'}</small></div>
       ${sAyer ? `<div class="mk-ref">${Math.round(k.ayer - sAyer.med) === 0 ? 'Igual a' : `<b>${k.ayer > sAyer.med ? '+' : ''}${fmt(k.ayer - sAyer.med)}</b> frente a`} la mediana de los ${fmt(sAyer.n)} ${labAyer ? 'días laborales' : 'domingos/festivos'} del mes</div>` : ''}
       ${rangoMant(k.ayer, sAyer, false, eAyer.cls)}
       <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'ayer') || '<div class="mk-ref">Sin finalizados</div>'}</div>
-      <div class="mk-sep"><div class="mk-tit">Matriceros ayer</div>${tecsMant(M, 'ayer')}</div>
+      <div class="mk-sep"><div class="mk-tit">Matriceros · ${fCorta(k.fecha_ayer)}</div>${tecsMant(M, 'ayer')}</div>
     </div>
   </div>`;
 }
@@ -1567,7 +1567,7 @@ function tarjetaResumenMant(M){
   return `<article class="serv-largo" data-ir="mantenimiento" tabindex="0">
     <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver">${t('ver_detalle')}</span></div>
     <div class="sl-grid" style="grid-template-columns:minmax(0,1.8fr) repeat(2,minmax(0,1fr))">
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')} · ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
+      <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
         <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} ${k.personas_ayer === 1 ? 'matricero' : 'matriceros'}</small></div>
         ${minibarras(M.diaria.slice(-14).map(d => ({total:d.total, lab:false})), 0)}
         <div class="desc">${catsVisibles(M).map(c => { const x = M.por_categoria.find(p => p.categoria === c);
