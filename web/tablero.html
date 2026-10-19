@@ -458,15 +458,15 @@ aplicarTema(leerPref('tablero-tema', 'oscuro'));
 aplicarIdioma();
 
 // ---------------------------------------------------------------- utilidades
-// Paleta corporativa AGP: el aguamarina de la marca es el color principal y el resto lo acompaña (navy, aguamarina
-// claro, arena, petróleo profundo, gris cálido). Una sola paleta en orden fijo para todas las gráficas; cada tema
-// tiene sus tonos para que todo se lea sobre su fondo (el 2.º color es siempre el de mayor contraste).
-// Validada con simulación de daltonismo (OKLab): todos los pares se separan ≥ 8 y los vecinos ≥ 15 con visión normal.
+// Paleta corporativa AGP: el aguamarina de la marca es el color principal. Lo acompañan tonos de matices distintos
+// (navy, salvia, rosa viejo, azul acero, oliva) pero con la MISMA saturación suave del aguamarina, para que no se
+// confundan entre sí y ninguno grite. Cada tema tiene sus tonos (el 2.º es siempre el de mayor contraste).
+// Validada con simulación de daltonismo (OKLab): los 6 colores se separan ≥ 9 entre TODOS los pares.
 const PALETAS = {
-  claro:  ['#5BB0C0', '#0F3D5E', '#B3DDE3', '#B89A66', '#1F7A8A', '#4E4740'],
-  oscuro: ['#5BB0C0', '#C4E6EB', '#4A82B5', '#C9B48A', '#2F5F8F', '#8A7F72'],
+  claro:  ['#5BB0C0', '#0F3D5E', '#B6C688', '#BE7A7A', '#5472A3', '#6F6424'],
+  oscuro: ['#5BB0C0', '#DCE3EA', '#7A884C', '#DD9C85', '#2F698F', '#7D432F'],
 };
-const OTROS = {claro:'#B9C2CA', oscuro:'#5B6B7C'};
+const OTROS = {claro:'#D5DADF', oscuro:'#707377'};
 let PALETA = PALETAS.oscuro, COLOR_OTRO = OTROS.oscuro;
 // texto blanco sobre colores oscuros, navy sobre los claros
 const tintaSobre = hex => { const h = String(hex).replace('#',''); if(h.length !== 6) return '#0B1626';
@@ -479,7 +479,7 @@ function aplicarPaleta(){
   PALETA = PALETAS[tema]; COLOR_OTRO = OTROS[tema];
   COLOR_MAT = {'Böhler':PALETA[0],'Inox 2,5mm':PALETA[1],'Galvanizado 0,3mm':PALETA[2],'Inox 3mm':PALETA[3],
                'Inox 1mm':PALETA[4],'Gurkha':PALETA[5],'Otro':COLOR_OTRO};
-  COLOR_CAT = {'Retrofit':PALETA[0], 'BMW X5':PALETA[1], 'Express Van':PALETA[4], 'Land Rover Sentinel':PALETA[3], 'BMW Serie 7':PALETA[2]};
+  COLOR_CAT = {'Retrofit':PALETA[0], 'BMW X5':PALETA[1], 'Express Van':PALETA[4], 'Land Rover Sentinel':PALETA[2], 'BMW Serie 7':PALETA[3]};
   COLOR_X5 = {'Matricería':PALETA[0], 'Calidad (piso)':PALETA[1]};
   COLOR_RET = {'Falta de archivo (Vitrojet)':PALETA[0], 'Falta de malla':PALETA[1]};
   COLOR_SCR = {'Mallas':PALETA[0], 'Logos':PALETA[1], 'Trazabilidades':PALETA[3]};
