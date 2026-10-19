@@ -133,7 +133,6 @@
   .catley b{color:var(--text)}
   .tecs{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text-soft)}
   .tecs b{color:var(--text)}
-  .spark{display:block;width:100%;height:56px}
   .cat .fila3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:11.5px;color:var(--text-soft)}
   .cat .fila3 b{display:block;font:700 15px var(--font);color:var(--text)}
   .sub-aceros{margin-bottom:6px}
@@ -421,7 +420,7 @@ const TXT = {
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
        mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
        mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por técnico · últimos 14 días', mant_cat:'Histórico de mantenimientos por vehículo · 30 días',
-       mant_serie:'Evolución de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento · 30 días', mant_reinc:'Moldes con mayor recurrencia · 30 días',
+       mant_serie:'Histórico de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento · 30 días', mant_reinc:'Moldes con mayor recurrencia · 30 días',
        mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
        moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Herramentales pendientes por vehículo',
        moldes_serie:'Herramentales entregados · moldes y galgas', moldes_fab:'Herramentales fabricados por persona · 90 días', moldes_detalle:'Detalle de herramentales pendientes',
@@ -433,7 +432,7 @@ const TXT = {
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
        mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
        mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por técnico · últimos 14 dias', mant_cat:'Histórico de manutenções por veículo · 30 dias',
-       mant_serie:'Evolução das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção · 30 dias', mant_reinc:'Moldes com maior recorrência · 30 dias',
+       mant_serie:'Histórico das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção · 30 dias', mant_reinc:'Moldes com maior recorrência · 30 dias',
        mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
        moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Ferramentais pendentes por veículo',
        moldes_serie:'Ferramentais entregues · moldes e calibres', moldes_fab:'Ferramentais fabricados por pessoa · 90 dias', moldes_detalle:'Detalhe dos ferramentais pendentes',
@@ -550,7 +549,8 @@ function barrasApiladas(cont, items, o={}){
   cont.innerHTML = '';
   if(!items.length){ cont.innerHTML = '<div class="vacio">Sin datos</div>'; return; }
   const lineas = o.lineas || []; // [{vals:[n|null por barra], color, etiquetas:'todas'|'ultima'}] mismo eje que las barras
-  const maxLineas = Math.max(0, ...lineas.flatMap(l => l.vals.filter(v => v != null)));
+  const refs = (o.referencias || []).filter(r => r.valor != null); // líneas horizontales de referencia (ej. mediana)
+  const maxLineas = Math.max(0, ...lineas.flatMap(l => l.vals.filter(v => v != null)), ...refs.map(r => r.valor));
   const eje = escalaEje(Math.max(maxLineas, ...items.map(i => Math.max(i.total||0, i.meta||0, i.fondo||0))) * 1.08), max = eje.max;
   const mL = Math.max(34, fmt(max, eje.paso % 1 ? 1 : 0).length * 7 + 12); // margen según el número más largo del eje
   const H = o.alto || 260, mR = 8, mB = o.sub ? 44 : 28;
@@ -623,7 +623,12 @@ function barrasApiladas(cont, items, o={}){
         svgEl('text', {x:p[0], y:p[1] + (l.abajo ? 16 : -9), 'text-anchor':'middle', class:'linea-num', style:`fill:${l.color}`, 'pointer-events':'none'}, svg).textContent = fmt(l.vals[i]);
     });
   });
-  if(lineas.length) svg.querySelectorAll('text.v').forEach(t => { t.classList.add('halo'); svg.appendChild(t); }); // totales por encima de las líneas
+  refs.forEach(r => { // de lado a lado, punteada, con su etiqueta arriba a la derecha
+    const yy = y(r.valor);
+    svgEl('line', {x1:mL, x2:W-mR, y1:yy, y2:yy, stroke:r.color, 'stroke-width':1.8, 'stroke-dasharray':'6 4', 'pointer-events':'none'}, svg);
+    svgEl('text', {x:W-mR, y:yy-6, 'text-anchor':'end', class:'linea-num', style:`fill:${r.color}`, 'pointer-events':'none'}, svg).textContent = r.etiqueta;
+  });
+  if(lineas.length || refs.length) svg.querySelectorAll('text.v').forEach(t => { t.classList.add('halo'); svg.appendChild(t); }); // totales por encima de las líneas
 }
 
 /* Barras horizontales: rows [{etiqueta, valor, segs?, meta?, color?, tip?}] */
@@ -1496,28 +1501,12 @@ function tecsMant(M, campo){
   return `<div class="tecs">${xs.slice(0, 4).map(p => `<span title="${esc(p.nombre)}">${esc(nombreCorto(p.nombre))} <b>${fmt(p[campo])}</b></span>`).join('')}${xs.length > 4 ? `<span>+${xs.length - 4} más</span>` : ''}</div>
     <div class="mk-ref"><b>${fmt(tot / xs.length, 1)}</b> por técnico · ${fmt(xs.length)} ${xs.length === 1 ? 'técnico' : 'técnicos'}</div>`;
 }
-function sparkMant(M, s){
-  const W = 300, H = 56, xs = M.diaria, n = xs.length, bw = W / n - 2;
-  const max = Math.max(1, ...xs.map(d => d.total)), y = v => H - 2 - v / max * (H - 8);
-  let svg = `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`;
-  xs.forEach((d, i) => {
-    const h = Math.max(1, H - 2 - y(d.total));
-    svg += `<rect x="${i * W / n}" y="${y(d.total)}" width="${bw}" height="${h}" rx="1.5" fill="${d.hoy ? PALETA[1] : d.lab ? PALETA[0] : 'var(--pend)'}"><title>${fLarga(d.fecha)}: ${d.total}</title></rect>`;
-  });
-  if(s) svg += `<line x1="0" x2="${W}" y1="${y(s.med)}" y2="${y(s.med)}" stroke="var(--text)" stroke-width="1" stroke-dasharray="4 3"/>`;
-  return svg + '</svg>';
-}
 function tarjetasMant(M){
   const k = M.kpis, hoyD = M.diaria.find(d => d.hoy), ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer);
   const labHoy = hoyD ? !!hoyD.lab : true, labAyer = ayerD ? !!ayerD.lab : true;
-  const sHoy = statsMant(M, labHoy), sAyer = statsMant(M, labAyer), sLab = statsMant(M, true);
+  const sHoy = statsMant(M, labHoy), sAyer = statsMant(M, labAyer);
   const eAyer = nivelMant(k.ayer, sAyer);
   const avance = sHoy && sHoy.med ? k.hoy / sHoy.med : null;
-  // tendencia: días laborales de la última semana vs. los 30 días
-  const ult7 = M.diaria.filter(d => !d.hoy && d.lab).slice(-6), prom7 = ult7.length ? ult7.reduce((a, d) => a + d.total, 0) / ult7.length : null;
-  const tend = prom7 != null && sLab && sLab.prom ? prom7 / sLab.prom - 1 : null;
-  const eTend = tend == null ? null : tend >= .05 ? {cls:'ok', ico:'▲'} : tend <= -.05 ? {cls:'bad', ico:'▼'} : {cls:'neutral', ico:'●'};
-  const pctGalgas = k.fin_30 ? k.galgas_30 / k.fin_30 * 100 : 0;
   return `<div class="grid-mant">
     <div class="kpi hero mk">
       <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
@@ -1534,14 +1523,6 @@ function tarjetasMant(M){
       ${rangoMant(k.ayer, sAyer, false, eAyer.cls)}
       <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'ayer') || '<div class="mk-ref">Sin finalizados</div>'}</div>
       <div class="mk-sep"><div class="mk-tit">Técnicos ayer</div>${tecsMant(M, 'ayer')}</div>
-    </div>
-    <div class="kpi hero mk">
-      <div class="lbl"><span>${t('mant_prom')}</span>${eTend ? `<span class="chip ${eTend.cls}">${eTend.ico} ${tend >= 0 ? '+' : ''}${fmt(tend * 100)} % última semana</span>` : ''}</div>
-      <div class="val">${sLab ? fmt(sLab.prom, 1) : '—'} <small>por día laboral</small></div>
-      <div class="mk-ref">${prom7 != null ? `Última semana: <b>${fmt(prom7, 1)}</b>/día laboral · ` : ''}mediana <b>${sLab ? fmt(sLab.med) : '—'}</b></div>
-      ${sparkMant(M, sLab)}
-      <div class="rango-ley"><span>${fCorta(M.diaria[0].fecha)}</span><span>── mediana día laboral · gris = domingos/festivos</span><span>${t('hoy')}</span></div>
-      <div class="mk-sep"><div class="mk-ref"><b>${fmt(k.fin_30)}</b> finalizados en 30 días · <b>${fmt(k.galgas_30)}</b> galgas (${fmt(pctGalgas)} %)</div></div>
     </div>
   </div>`;
 }
@@ -1634,9 +1615,24 @@ function dibujarMantenimiento(){
     return {etiqueta, segs, total, sub: p.hoy || p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
       tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>`, op)};
   });
-  $('#mant-serie-sub').textContent = catMant ? `Solo ${catMant}` : '';
-  $('#mant-leyenda').innerHTML = `<div class="legend">${M.categorias.filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(c)}</span>`).join('')}</div>`;
-  barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo'});
+  // mediana de referencia: diario = días laborales; semanal/mensual = periodos ya cerrados (sin el que va en curso)
+  const base = M[vistaMant].map((p, i) => ({...p, total: serie[i].total}))
+    .filter(p => vistaMant === 'diaria' ? (!p.hoy && p.lab) : !p.en_curso).map(p => p.total).sort((a, b) => a - b);
+  const mediana = base.length ? (base.length % 2 ? base[(base.length - 1) / 2] : (base[base.length / 2 - 1] + base[base.length / 2]) / 2) : null;
+  const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
+  // ritmo de los últimos 30 días (días laborales): promedio y tendencia de la última semana
+  const lab30 = M.diaria.filter(d => !d.hoy && d.lab).map(d => totalSegs(segsFiltrados(d.segs)));
+  const prom30 = lab30.length ? lab30.reduce((a, b) => a + b, 0) / lab30.length : null;
+  const ult = lab30.slice(-6), prom7 = ult.length ? ult.reduce((a, b) => a + b, 0) / ult.length : null;
+  const tend = prom30 && prom7 != null ? prom7 / prom30 - 1 : null;
+  $('#mant-serie-sub').innerHTML = (catMant ? `<b>Solo ${esc(catMant)}</b> · ` : '') + (prom30 != null
+    ? `Ritmo 30 días: <b>${fmt(prom30, 1)}</b> por día laboral · última semana <b>${fmt(prom7, 1)}</b>` +
+      (tend != null ? ` <span style="color:${tend >= .05 ? 'var(--ok)' : tend <= -.05 ? 'var(--bad)' : 'var(--text-soft)'}">(${tend >= 0 ? '+' : ''}${fmt(tend * 100)} %)</span>` : '')
+    : '');
+  $('#mant-leyenda').innerHTML = `<div class="legend">${M.categorias.filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(c)}</span>`).join('')}` +
+    (mediana != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana por ${unidad}</span>` : '') + `</div>`;
+  barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
+    referencias: mediana != null ? [{valor: mediana, color:'var(--text)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
 
   const meta = M.kpis.meta_persona_dia;
   const filas = M.personas.map(p => ({...p, celdas: p.celdas.map(c => { const s = segsFiltrados(c.segs); return {...c, n: totalSegs(s), segs: s}; })}))
