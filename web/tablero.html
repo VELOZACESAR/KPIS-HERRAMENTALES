@@ -840,7 +840,7 @@ function dibujarResumen(){
   const md = metaDiaria(), hist = A.historial || {};
   $('#res-volver').hidden = zoomRes === null;
   const leyendaLineas = `<span><i class="linea punteada" style="color:${COLOR_META}"></i>${zoomRes===null?'Capacidad semanal (suma de la capacidad de cada día)':'Capacidad del día'}</span>` +
-    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>Piezas retenidas</span>`;
+    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>${retPisoPorDia() ? 'Piezas retenidas/refundidas en piso' : 'Piezas retenidas'}</span>`;
 
   if(zoomRes !== null){ // ---- zoom: los 7 días de la semana elegida
     const s = A.semanal[zoomRes];
@@ -859,7 +859,7 @@ function dibujarResumen(){
         const propia = valorManual(claveCapDia(d.fecha), null) != null, resp = d.lab ? fmt(capDiaSemana(s)) : '0';
         return `<span class="${propia?'propia':''}" title="${fLarga(d.fecha)}: vacía = ${resp}">${inputManual(claveCapDia(d.fecha), null, resp)}</span>`; }).join('')}</div>`;
     const filas = dias.map(d => {
-      const c = capDeDia(s, d.info), cap = c ? c : null, ret = hist[d.fecha] ? hist[d.fecha].retenidas : null, e = estado(d.total, cap || 0);
+      const c = capDeDia(s, d.info), cap = c ? c : null, ret = retPisoDia(d.fecha), e = estado(d.total, cap || 0);
       return {cap, ret, item:{etiqueta:fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
         sub: cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro ? COLOR_EST[e.cls] : 'var(--muted)',
         tip: tipSegs(fLarga(d.fecha), d.segs,
@@ -879,8 +879,7 @@ function dibujarResumen(){
   $('#res-cap').innerHTML = '';
   const sem = A.semanal.map(s => {
     const cap = capSemana(s);
-    const fechas = Object.keys(hist).filter(f => f >= s.desde && f <= s.hasta).sort();
-    const ret = fechas.length ? hist[fechas[fechas.length-1]].retenidas : null;   // última foto de la semana
+    const ret = retPisoRango(s.desde, s.hasta);   // piezas retenidas/refundidas en piso registradas en la semana
     const capHastaAyer = diasDeSemana(s).filter(d => d.iso < D.hoy).reduce((t, d) => t + capDeDia(s, d), 0);
     const e = estado(s.total, s.en_curso ? capHastaAyer : cap);
     const ajustados = diasDeSemana(s).filter(d => valorManual(claveCapDia(d.iso), null) != null).length;
@@ -1358,6 +1357,10 @@ function retPisoPorDia(){
   const R = D.aceros && D.aceros.retenidas_piso; if(!R) return null;
   const m = {}; R.filas.forEach(f => m[f.fecha] = (m[f.fecha] || 0) + 1); return m;
 }
+function retPisoDia(iso){ // piezas registradas ese día (o la foto diaria anterior si la tabla aún no existe)
+  const m = retPisoPorDia(); if(!m){ const h = (D.aceros && D.aceros.historial) || {}; return h[iso] ? h[iso].retenidas : null; }
+  return iso > D.hoy ? null : (m[iso] || 0);
+}
 function retPisoRango(desde, hasta){
   const m = retPisoPorDia(); if(!m) return retenidasRango(desde, hasta);
   if(desde > D.hoy) return null;
@@ -1365,7 +1368,7 @@ function retPisoRango(desde, hasta){
 }
 function dibujarProduccion(){
   const A = D.aceros, hist = A.historial || {}, enZoom = zoomProd !== null && vistaProd !== 'diaria';
-  const retDia = iso => { const m = retPisoPorDia(); if(!m) return hist[iso] ? hist[iso].retenidas : null; return iso > D.hoy ? null : (m[iso] || 0); };
+  const retDia = retPisoDia;
   $('#prod-volver').hidden = !enZoom;
   const barraDia = d => {
     const cap = capDeDiaIso(d.fecha) || null, ret = retDia(d.fecha), e = estado(d.total, cap || 0);
