@@ -1420,7 +1420,7 @@ function vistaMantenimiento(M){
   if(!M) return `<section class="vista" id="v-mantenimiento" hidden><div class="aviso err">✖ No se pudo leer la base de mantenimientos (Control Inventarios).<button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div></section>`;
   const k = M.kpis;
   return `<section class="vista" id="v-mantenimiento" hidden>
-  <h2 class="sec">${t('hoy')} · ${t('ayer')} <small>se actualiza solo cada minuto desde la app Control Inventarios</small></h2>
+  <h2 class="sec">${t('hoy')} · ${t('ayer')}</h2>
   <div class="grid-kpi">
     ${kpi(t('mant_hoy'), fmt(k.hoy), '', `${fmt(k.personas_hoy)} personas · en vivo`, '<span class="chip ok">● En vivo</span>', 'hero')}
     ${kpi(t('mant_ayer'), fmt(k.ayer), '', `${fLarga(k.fecha_ayer)} · ${fmt(k.personas_ayer)} personas`, '', 'hero')}
@@ -1429,7 +1429,7 @@ function vistaMantenimiento(M){
     ${kpi(t('mant_abiertos'), fmt(k.abiertos), '', `Pendientes o en proceso abiertos en los últimos ${k.dias_viejo} días`)}
   </div>
 
-  <h2 class="sec">${t('mant_cat')} <small>últimos 30 días · clic en un vehículo para filtrar las gráficas y la tabla por persona</small></h2>
+  <h2 class="sec">${t('mant_cat')}</h2>
   <div class="cats" id="mant-cats">${M.por_categoria.map(c => `
     <div class="cat ${catMant===c.categoria?'sel':''}" data-cat="${esc(c.categoria)}" style="--c:${colorCat(c.categoria)}" tabindex="0">
       <h4>${esc(c.categoria)} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
@@ -1477,7 +1477,7 @@ function dibujarMantenimiento(){
     return {etiqueta, segs, total, sub: p.hoy || p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
       tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>`, op)};
   });
-  $('#mant-serie-sub').textContent = (catMant ? `Solo ${catMant} · ` : '') + (vistaMant === 'diaria' ? 'Últimos 30 días' : vistaMant === 'semanal' ? 'Últimas 12 semanas' : 'Últimos 12 meses');
+  $('#mant-serie-sub').textContent = catMant ? `Solo ${catMant}` : '';
   $('#mant-leyenda').innerHTML = `<div class="legend">${M.categorias.filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(c)}</span>`).join('')}</div>`;
   barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo'});
 
