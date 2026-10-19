@@ -1434,7 +1434,6 @@ function vistaMantenimiento(M){
     <div class="cat ${catMant===c.categoria?'sel':''}" data-cat="${esc(c.categoria)}" style="--c:${colorCat(c.categoria)}" tabindex="0">
       <h4>${esc(c.categoria)} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
       <div class="big">${fmt(c.fin_30)} <small>finalizados</small></div>
-      <div class="fila3"><span><b>${fmt(c.ayer)}</b>${t('ayer').toLowerCase()}</span><span><b>${fmt(c.abiertos)}</b>abiertos</span><span><b>${c.mediana_min==null?'—':fmt(c.mediana_min)}</b>min típico</span></div>
       <div class="desc" title="${esc(c.vehiculos.map(v => v.vehiculo + ': ' + v.n).join(' · '))}">${c.top_moldes.length ? 'Más atendidos: ' + c.top_moldes.slice(0,3).map(m => `<b>${esc(m.molde)}</b> (${fmt(m.n)})`).join(', ') : 'Sin mantenimientos en 30 días'}</div>
     </div>`).join('')}</div>
 
