@@ -93,6 +93,31 @@
   .matriz td.c.cero{color:var(--muted);font-weight:400}
   .matriz td.t{font-family:var(--mono);font-weight:700;padding-left:8px;text-align:right}
   .matriz th.hoy,.matriz td.hoy{outline:2px solid var(--brand);outline-offset:-2px}
+  /* análisis por periodo */
+  .sec-fila{display:flex;justify-content:space-between;align-items:center;gap:10px 16px;flex-wrap:wrap;margin:26px 0 10px}
+  .sec-fila h2.sec{margin:0}
+  .matriz th.zoom{cursor:pointer}
+  .matriz th.zoom:hover{color:var(--text);text-decoration:underline}
+  .matriz th.nolab{color:var(--muted)}
+  .matriz td.c.nolab.cero{background-image:repeating-linear-gradient(135deg,var(--grid) 0 3px,transparent 3px 7px)}
+  .matriz td.c.vacio-c{background:transparent;color:var(--border)}
+  .matriz tr.pie td{border-top:1px solid var(--border);padding-top:4px;font-weight:700;color:var(--text)}
+  .matriz tr.pie td.p,.matriz tr.pie2 td.p{font-weight:600;color:var(--text-soft)}
+  .matriz tr.pie2 td{color:var(--text-soft);font-weight:500;text-align:center}
+  .matriz th.n,.matriz td.t{white-space:nowrap}
+  .pct{display:flex;align-items:center;gap:6px;min-width:120px;padding-left:10px;font-size:12px;color:var(--text-soft)}
+  .pct-bar{flex:1;height:6px;border-radius:3px;background:var(--grid);overflow:hidden;min-width:50px}
+  .pct-bar i{display:block;height:100%;border-radius:3px}
+  .lista-tipo{display:flex;flex-direction:column;gap:2px}
+  .lt-fila{display:grid;grid-template-columns:minmax(120px,1.3fr) minmax(60px,1.6fr) 44px 46px 96px;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--grid);font-size:12.5px}
+  .lt-fila:last-child{border-bottom:0}
+  .lt-fila.cab{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft);padding-top:0}
+  .lt-nom{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lt-bar{height:8px;border-radius:4px;background:var(--grid);overflow:hidden}
+  .lt-bar i{display:block;height:100%;border-radius:4px}
+  .lt-n{text-align:right;font-weight:700;color:var(--text)}
+  .lt-pct{text-align:right;color:var(--text-soft)}
+  .lt-spark{width:96px;height:22px;display:block}
   .cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
   .cat{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--c);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:box-shadow .15s}
   .cat:hover,.cat.sel{box-shadow:var(--sombra)}
@@ -419,8 +444,8 @@ const TXT = {
        servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
        mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
-       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por matricero · últimos 14 días', mant_cat:'Histórico de mantenimientos Retrofit/OEM · 30 días',
-       mant_serie:'Histórico de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento · 30 días', mant_reinc:'Moldes con mayor recurrencia · 30 días',
+       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por matricero', mant_cat:'Histórico de mantenimientos Retrofit/OEM · 30 días',
+       mant_serie:'Histórico de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento', mant_reinc:'Moldes con mayor recurrencia',
        mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
        moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Herramentales pendientes por vehículo',
        moldes_serie:'Herramentales entregados · moldes y galgas', moldes_fab:'Herramentales fabricados por persona · 90 días', moldes_detalle:'Detalle de herramentales pendientes',
@@ -431,8 +456,8 @@ const TXT = {
        servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
        mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
-       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por ferramenteiro · últimos 14 dias', mant_cat:'Histórico de manutenções Retrofit/OEM · 30 dias',
-       mant_serie:'Histórico das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção · 30 dias', mant_reinc:'Moldes com maior recorrência · 30 dias',
+       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por ferramenteiro', mant_cat:'Histórico de manutenções Retrofit/OEM · 30 dias',
+       mant_serie:'Histórico das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção', mant_reinc:'Moldes com maior recorrência',
        mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
        moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Ferramentais pendentes por veículo',
        moldes_serie:'Ferramentais entregues · moldes e calibres', moldes_fab:'Ferramentais fabricados por pessoa · 90 dias', moldes_detalle:'Detalhe dos ferramentais pendentes',
@@ -1575,16 +1600,21 @@ function vistaMantenimiento(M){
     <div id="mant-leyenda"></div><div class="chart" id="ch-mant"></div>
   </div>
 
-  <div class="panel" style="margin-top:16px">
-    <div class="panel-head"><div><h3>${t('mant_personas')}</h3><p id="mant-mat-sub"></p></div></div>
+  <div class="sec-fila">
+    <h2 class="sec">Análisis por periodo <small id="mat-rango"></small></h2>
+    <div class="prod-ctrl">
+      <button class="btn-volver" id="mat-volver" hidden>← Volver</button>
+      <div class="seg" id="mat-vista"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h3 id="mat-tit">${t('mant_personas')}</h3><p id="mat-sub"></p></div></div>
     <div class="tabla" style="max-height:none" id="mant-matriz"></div>
   </div>
 
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>${t('mant_tipos')}</h3></div></div><div class="chart" id="ch-mant-tipos"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3></div></div>
-      <div class="tabla"><table><thead><tr><th>Molde</th><th>Vehículo</th><th>Categoría</th><th class="n">Veces</th></tr></thead><tbody>${
-        M.reincidentes_30.filter(r => !CAT_OCULTAS.includes(r.categoria)).map(r => `<tr><td class="num">${esc(r.molde)}</td><td>${esc(r.vehiculo||'—')}</td><td><span class="etq" style="background:${colorCat(r.categoria)}33;color:var(--text)">${esc(nomCat(r.categoria))}</span></td><td class="n">${fmt(r.n)}</td></tr>`).join('') || `<tr><td colspan="4">${t('sin_datos')}</td></tr>`}</tbody></table></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('mant_tipos')}</h3><p id="tipos-sub"></p></div></div><div id="mant-tipos"></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3><p id="reinc-sub"></p></div></div><div class="tabla" id="mant-reinc"></div></div>
   </div>
 
   <div class="panel" style="margin-top:16px"><details><summary>${t('mant_lista_abiertos')} (${fmt(M.abiertos.length)})</summary>
@@ -1606,6 +1636,125 @@ function topMoldesHTML(c){
       <span class="top-m-bar"><i style="width:${m.n / max * 100}%"></i></span>
       <span class="top-m-n num">${fmt(m.n)}<small>×</small></span>
     </div>`).join('')}</div>`;
+}
+
+// ---- Análisis por periodo: la matriz por matricero, la distribución por tipo y los moldes recurrentes se arman en
+//      el navegador desde los registros de lo finalizado (≈13 meses). Diario = 14 días; Semanal = 12 semanas (clic en
+//      una semana = sus 7 días); Mensual = 12 meses (clic en un mes = sus semanas). Respeta el filtro por vehículo.
+let vistaMat = 'diaria', zoomMat = null;
+const sumarDias = (iso, n) => { const f = fecha(iso); f.setDate(f.getDate() + n); return isoDe(f); };
+const fDiaMes = iso => { const f = fecha(iso); return `${f.getDate()} ${MESES[f.getMonth()].slice(0,3).toLowerCase()}`; };
+const hexA = (hex, a) => { const h = hex.replace('#',''); return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`; };
+function periodosMat(){
+  const hoy = D.hoy, out = [];
+  const dia = iso => { const f = fecha(iso), i = infoDia(iso);
+    return {desde: iso, hasta: iso, et1: DIAS[f.getDay()], et2: String(f.getDate()), titulo: fLarga(iso), lab: i.lab, actual: iso === hoy, unidad: 'día'}; };
+  const semana = lunes => { const dom = sumarDias(lunes, 6);
+    return {desde: lunes, hasta: dom, et1: 'S' + semanaIso(lunes), et2: fDiaMes(lunes), titulo: `Semana ${semanaIso(lunes)} · ${fDiaMes(lunes)} – ${fDiaMes(dom)}`,
+            lab: true, actual: lunes <= hoy && hoy <= dom, zoom: vistaMat === 'semanal', unidad: 'semana'}; };
+  if(vistaMat === 'diaria'){ for(let k = 13; k >= 0; k--) out.push(dia(sumarDias(hoy, -k))); return out; }
+  if(vistaMat === 'semanal'){
+    if(zoomMat) return diasRango(zoomMat.desde, zoomMat.hasta).map(d => dia(d.iso));
+    const l = lunesDe(hoy); for(let k = 11; k >= 0; k--) out.push(semana(sumarDias(l, -7 * k))); return out;
+  }
+  if(zoomMat){ // semanas del mes, recortadas a sus días
+    for(let l = lunesDe(zoomMat.desde); l <= zoomMat.hasta && l <= hoy; l = sumarDias(l, 7)){ // sin semanas que aún no llegan
+      const s = semana(l); s.desde = s.desde < zoomMat.desde ? zoomMat.desde : s.desde; s.hasta = s.hasta > zoomMat.hasta ? zoomMat.hasta : s.hasta;
+      s.et2 = fDiaMes(s.desde); s.titulo = `Semana ${semanaIso(l)} · ${fDiaMes(s.desde)} – ${fDiaMes(s.hasta)}`; s.zoom = false; out.push(s);
+    }
+    return out;
+  }
+  const f = fecha(hoy);
+  for(let k = 11; k >= 0; k--){
+    const a = new Date(f.getFullYear(), f.getMonth() - k, 1), desde = isoDe(a), hasta = isoDe(new Date(a.getFullYear(), a.getMonth() + 1, 0));
+    out.push({desde, hasta, et1: MESES[a.getMonth()].slice(0,3), et2: String(a.getFullYear()).slice(2), titulo: `${MESES[a.getMonth()]} ${a.getFullYear()}`,
+              lab: true, actual: desde <= hoy && hoy <= hasta, zoom: true, unidad: 'mes'});
+  }
+  return out;
+}
+function analisisMat(M){
+  const R = M.registros, cols = periodosMat(), desde = cols[0].desde, hasta = cols[cols.length - 1].hasta;
+  const visibles = new Set(catsVisibles(M).filter(c => !catMant || c === catMant));
+  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({}))});
+  const per = {}, tip = {}, mol = {}, equipo = nuevo();
+  for(const r of (R ? R.filas : [])){
+    if(r[0] < desde || r[0] > hasta) continue;
+    const cat = R.categorias[r[2]]; if(!visibles.has(cat)) continue;
+    const i = cols.findIndex(c => r[0] >= c.desde && r[0] <= c.hasta); if(i < 0) continue;
+    const nombre = R.personas[r[1]], tipo = R.tipos[r[3]], molde = R.moldes[r[4]];
+    for(const x of [per[nombre] = per[nombre] || nuevo(), equipo]){
+      x.total++; x.n[i]++; x.segs[i][cat] = (x.segs[i][cat] || 0) + 1; x.tipos[i][tipo] = (x.tipos[i][tipo] || 0) + 1;
+    }
+    const tp = tip[tipo] = tip[tipo] || {n: 0, serie: cols.map(() => 0)}; tp.n++; tp.serie[i]++;
+    const m = mol[molde] = mol[molde] || {n: 0, cat, vehiculo: R.vehiculos[r[5]], personas: new Set(), ultima: r[0]};
+    m.n++; m.personas.add(nombre); if(r[0] > m.ultima) m.ultima = r[0];
+  }
+  return {cols, desde, hasta, equipo,
+    personas: Object.entries(per).map(([nombre, x]) => ({nombre, ...x, activos: x.n.filter(v => v).length})).sort((a, b) => b.total - a.total),
+    tipos: Object.entries(tip).map(([tipo, x]) => ({tipo, ...x})).sort((a, b) => b.n - a.n),
+    moldes: Object.entries(mol).filter(([, x]) => x.n > 1).map(([molde, x]) => ({molde, ...x})).sort((a, b) => b.n - a.n || (a.ultima < b.ultima ? 1 : -1)).slice(0, 10)};
+}
+function sparkMini(serie, color){ // mini barras alineadas a las columnas del periodo
+  const W = 96, H = 22, n = serie.length, max = Math.max(1, ...serie), bw = W / n - 1.5;
+  return `<svg class="lt-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${serie.map((v, i) => {
+    const h = v ? Math.max(1.5, v / max * (H - 2)) : 1; return `<rect x="${i * W / n}" y="${H - h}" width="${bw}" height="${h}" rx="1" fill="${v ? color : 'var(--grid)'}"/>`; }).join('')}</svg>`;
+}
+function dibujarAnalisisMant(M){
+  document.querySelectorAll('#mat-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMat));
+  $('#mat-volver').hidden = !zoomMat;
+  if(!M.registros){ $('#mant-matriz').innerHTML = `<div class="vacio">${t('sin_datos')}</div>`; return; }
+  const A = analisisMat(M), cols = A.cols, op = {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT};
+  const unidad = cols[0].unidad, plural = {día:'días', semana:'semanas', mes:'meses'}[unidad];
+  const rango = `${fDiaMes(A.desde)}${A.desde.slice(0,4) !== A.hasta.slice(0,4) ? ' ' + A.desde.slice(0,4) : ''} – ${fDiaMes(A.hasta)} ${A.hasta.slice(0,4)}`;
+  $('#mat-rango').textContent = (zoomMat ? zoomMat.titulo : rango) + (catMant ? ` · solo ${nomCat(catMant)}` : '');
+  $('#mat-sub').innerHTML = `<b>${fmt(A.equipo.total)}</b> finalizados · <b>${fmt(A.personas.length)}</b> matriceros · ${cols.length} ${plural}` +
+    (cols.some(c => c.zoom) ? ` · clic en ${unidad === 'semana' ? 'una semana' : 'un mes'} para ver el detalle` : '');
+  // ---- matriz: mapa de calor de un solo tono (aguamarina), columnas no laborales rayadas, totales del equipo
+  const maxN = Math.max(1, ...A.personas.flatMap(p => p.n)), base = PALETA[0];
+  const fondo = n => n ? hexA(base, (.16 + .7 * n / maxN).toFixed(2)) : 'transparent';
+  const claro = document.documentElement.dataset.tema === 'claro'; // en oscuro el número va siempre claro
+  const tinta = n => claro && n / maxN > .6 ? '#0B2F36' : 'var(--text)';
+  const meta = unidad === 'día' ? M.kpis.meta_persona_dia : null;
+  const tipCelda = (titulo, x, i) => tipSegs(titulo, x.segs[i], Object.keys(x.tipos[i]).length ? '<div style="margin-top:6px;opacity:.85">' +
+    Object.entries(x.tipos[i]).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join('') + '</div>' : '', op);
+  const prom = p => p.activos ? p.total / p.activos : 0;
+  $('#mant-matriz').innerHTML = A.personas.length ? `<table class="matriz"><thead><tr><th class="p">Matricero</th>${cols.map((c, i) =>
+      `<th class="${c.actual ? 'hoy' : ''} ${c.lab ? '' : 'nolab'} ${c.zoom ? 'zoom' : ''}" data-col="${i}" title="${esc(c.titulo)}${c.zoom ? ' · clic para ver el detalle' : ''}">${esc(c.et1)}<br>${esc(c.et2)}</th>`).join('')}
+      <th class="n">${t('total')}</th><th class="n" style="text-align:left;padding-left:10px">% del equipo</th><th class="n" title="Promedio en los ${plural} en que el matricero finalizó al menos uno">Prom. por ${unidad} activo</th></tr></thead>
+    <tbody>${A.personas.map(p => `<tr><td class="p" title="${esc(p.nombre)}">${esc(p.nombre)}</td>${p.n.map((n, i) =>
+      `<td class="c ${n ? '' : 'cero'} ${cols[i].lab ? '' : 'nolab'} ${cols[i].actual ? 'hoy' : ''}" style="background-color:${fondo(n)};color:${n ? tinta(n) : ''}${meta && n && n < meta && cols[i].lab ? ';box-shadow:inset 0 -3px 0 var(--bad)' : ''}"
+         ${n ? `data-tip="${esc(tipCelda(`${p.nombre} · ${cols[i].titulo}`, p, i))}"` : ''}>${n || '·'}</td>`).join('')}
+      <td class="t">${fmt(p.total)}</td>
+      <td><div class="pct"><span class="pct-bar"><i style="width:${p.total / A.equipo.total * 100}%;background:${base}"></i></span>${fmt(p.total / A.equipo.total * 100)} %</div></td>
+      <td class="t" style="color:var(--text-soft);font-weight:600">${fmt(prom(p), 1)}</td></tr>`).join('')}
+      <tr class="pie"><td class="p">Total del equipo</td>${A.equipo.n.map((n, i) => `<td class="t" style="text-align:center;padding:4px 0 0" ${n ? `data-tip="${esc(tipCelda(`Equipo · ${cols[i].titulo}`, A.equipo, i))}"` : ''}>${fmt(n)}</td>`).join('')}
+        <td class="t">${fmt(A.equipo.total)}</td><td></td><td></td></tr>
+      <tr class="pie2"><td class="p">Matriceros activos</td>${cols.map((c, i) => `<td>${fmt(A.personas.filter(p => p.n[i]).length)}</td>`).join('')}<td></td><td></td><td></td></tr>
+    </tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`;
+  document.querySelectorAll('#mant-matriz [data-tip]').forEach(td => {
+    td.addEventListener('mousemove', ev => mostrarTip(ev, td.dataset.tip));
+    td.addEventListener('mouseleave', ocultarTip);
+  });
+  document.querySelectorAll('#mant-matriz th.zoom').forEach(th => th.addEventListener('click', () => {
+    const c = cols[+th.dataset.col]; zoomMat = {desde: c.desde, hasta: c.hasta, titulo: c.titulo}; dibujarAnalisisMant(M);
+  }));
+  // ---- distribución por tipo: participación del periodo + cómo se movió en cada columna
+  const totT = A.tipos.reduce((a, x) => a + x.n, 0), maxT = Math.max(1, ...A.tipos.map(x => x.n));
+  $('#tipos-sub').textContent = (zoomMat ? zoomMat.titulo : rango) + ` · ${fmt(totT)} finalizados`;
+  $('#mant-tipos').innerHTML = A.tipos.length ? `<div class="lista-tipo">
+      <div class="lt-fila cab"><span>Tipo</span><span>Participación</span><span style="text-align:right">Cant.</span><span style="text-align:right">%</span><span>Por ${unidad}</span></div>
+      ${A.tipos.map(x => `<div class="lt-fila"><span class="lt-nom" title="${esc(x.tipo)}">${esc(x.tipo)}</span>
+        <span class="lt-bar"><i style="width:${x.n / maxT * 100}%;background:${base}"></i></span>
+        <span class="lt-n">${fmt(x.n)}</span><span class="lt-pct">${fmt(x.n / totT * 100)} %</span>${sparkMini(x.serie, base)}</div>`).join('')}</div>`
+    : `<div class="vacio">${t('sin_datos')}</div>`;
+  // ---- moldes que más vuelven a mantenimiento en el periodo
+  const maxM = Math.max(1, ...A.moldes.map(x => x.n));
+  $('#reinc-sub').textContent = (zoomMat ? zoomMat.titulo : rango) + ' · moldes con 2 o más mantenimientos';
+  $('#mant-reinc').innerHTML = `<table><thead><tr><th>Molde</th><th>Vehículo</th><th class="n">Veces</th><th class="n">Matriceros</th><th>Último</th></tr></thead><tbody>${
+    A.moldes.map(x => `<tr><td class="num" style="white-space:nowrap"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${colorCat(x.cat)}" title="${esc(nomCat(x.cat))}"></i>${esc(x.molde)}</td>
+      <td>${esc(x.vehiculo || '—')}</td>
+      <td class="n"><div class="pct" style="min-width:90px;justify-content:flex-end"><span class="pct-bar" style="max-width:60px"><i style="width:${x.n / maxM * 100}%;background:${colorCat(x.cat)}"></i></span><b style="color:var(--text)">${fmt(x.n)}</b></div></td>
+      <td class="n">${fmt(x.personas.size)}</td><td style="white-space:nowrap">${fCorta(x.ultima)}</td></tr>`).join('') || `<tr><td colspan="5">Ningún molde se repitió en el periodo</td></tr>`}</tbody></table>`;
 }
 
 function segsFiltrados(segs){ // quita los vehículos ocultos y, si hay uno elegido, deja solo ese
@@ -1638,25 +1787,7 @@ function dibujarMantenimiento(){
   barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
     referencias: mediana != null ? [{valor: mediana, color:'var(--text)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
 
-  const meta = M.kpis.meta_persona_dia;
-  const filas = M.personas.map(p => ({...p, celdas: p.celdas.map(c => { const s = segsFiltrados(c.segs); return {...c, n: totalSegs(s), segs: s}; })}))
-    .map(p => ({...p, total: p.celdas.reduce((a, c) => a + c.n, 0)})).filter(p => p.total).sort((a, b) => b.total - a.total);
-  const maxN = Math.max(1, ...filas.flatMap(p => p.celdas.map(c => c.n)));
-  const fondo = n => { if(!n) return 'transparent'; const a = .18 + .62 * n / maxN; return `rgba(143,197,207,${a.toFixed(2)})`; };
-  const tinta = n => n / maxN > .55 ? '#0B2F36' : 'var(--text)';
-  $('#mant-matriz').innerHTML = filas.length ? `<table class="matriz"><thead><tr><th class="p">${t('persona')}</th>${M.dias14.map(d => {
-      const f = fecha(d), lab = infoDia(d).lab; return `<th class="${d===D.hoy?'hoy':''}" style="${lab?'':'color:var(--muted)'}">${DIAS[f.getDay()]}<br>${f.getDate()}</th>`; }).join('')}<th class="n">${t('total')}</th><th class="n">Prom/día</th></tr></thead>
-    <tbody>${filas.map(p => `<tr><td class="p" title="${esc(p.nombre)}">${esc(p.nombre)}</td>${p.celdas.map(c =>
-      `<td class="c ${c.n?'':'cero'} ${c.fecha===D.hoy?'hoy':''}" style="background:${fondo(c.n)};color:${c.n?tinta(c.n):''}${meta && c.n && c.n < meta ? ';box-shadow:inset 0 -3px 0 var(--bad)' : ''}"
-         data-tip="${esc(tipSegs(`${p.nombre} · ${fLarga(c.fecha)}`, c.segs, c.min!=null?`<div class="r" style="margin-top:6px"><span>Duración típica</span><span>${fmt(c.min)} min</span></div>`:'', op))}">${c.n || '·'}</td>`).join('')}
-      <td class="t">${fmt(p.total)}</td><td class="t" style="color:var(--text-soft)">${fmt(p.total / Math.max(1, p.celdas.filter(c => c.n).length), 1)}</td></tr>`).join('')}
-      <tr><td class="p">${t('total')}</td>${M.dias14.map((d, i) => `<td class="t" style="text-align:center;padding:0">${fmt(filas.reduce((a, p) => a + p.celdas[i].n, 0))}</td>`).join('')}<td class="t">${fmt(filas.reduce((a, p) => a + p.total, 0))}</td><td></td></tr>
-    </tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`;
-  document.querySelectorAll('#mant-matriz [data-tip]').forEach(td => {
-    td.addEventListener('mousemove', ev => mostrarTip(ev, td.dataset.tip));
-    td.addEventListener('mouseleave', ocultarTip);
-  });
-  barrasH($('#ch-mant-tipos'), M.tipos_30.map(x => ({etiqueta:x.tipo, valor:x.n})), {mL:190, aria:'Tipos de mantenimiento'});
+  dibujarAnalisisMant(M);
 }
 
 // ================================================================ Serigrafía
@@ -1860,6 +1991,9 @@ function dibujarMoldes(){
 document.addEventListener('click', ev => {
   const c = ev.target.closest('#mant-cats .cat');
   if(c){ catMant = catMant === c.dataset.cat ? null : c.dataset.cat; dibujarMantenimiento(); return; }
+  const bv = ev.target.closest('#mat-vista button');
+  if(bv){ vistaMat = bv.dataset.v; zoomMat = null; dibujarMantenimiento(); return; }
+  if(ev.target.closest('#mat-volver')){ zoomMat = null; dibujarMantenimiento(); return; }
   const bm = ev.target.closest('#mant-vista button');
   if(bm){ vistaMant = bm.dataset.v; dibujarMantenimiento(); return; }
   const bs = ev.target.closest('#aceros-sub button');
