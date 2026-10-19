@@ -82,6 +82,7 @@ class Ingestor:
             ultimo = self._ultimo_ok(fuente)
             if ultimo and ultimo["sha256"] == huella and not forzar:
                 e["visto"], e["error"] = firma, None
+                self._cerrar_error(fuente, ruta, huella, st.st_mtime, ultimo["filas"])
                 return False
             inicio = dt.datetime.now()
             try:
@@ -111,6 +112,16 @@ class Ingestor:
     def _ultimo_ok(self, fuente):
         r = db.consultar("SELECT TOP 1 sha256, filas FROM cesar.cargue WHERE fuente = ? AND estado = 'ok' ORDER BY id DESC", fuente)
         return r[0] if r else None
+
+    def _cerrar_error(self, fuente, ruta, huella, mtime, filas):
+        """Si el último registro es un error (ej. el archivo desapareció un rato mientras OneDrive reorganizaba
+        carpetas) y el archivo volvió igual, se deja constancia de que la fuente quedó bien otra vez."""
+        r = db.consultar("SELECT TOP 1 estado FROM cesar.cargue WHERE fuente = ? ORDER BY id DESC", fuente)
+        if r and r[0]["estado"] == "error":
+            ahora_ = ahora()
+            db.ejecutar("""INSERT INTO cesar.cargue (fuente, archivo, sha256, modificado, inicio, fin, filas, estado, mensaje)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, 'ok', N'Archivo encontrado de nuevo, sin cambios')""",
+                        fuente, str(ruta), huella, dt.datetime.fromtimestamp(mtime).replace(microsecond=0), ahora_, ahora_, filas)
 
     def _cargar(self, fuente, ruta, huella, mtime, inicio, tablas, extra, total):
         with db.transaccion() as cur:

@@ -62,6 +62,26 @@ FUENTES = {
         "archivo": "Fila de moldes.xlsx",
         "pistas": ["Full kit", "Herramentales"],
     },
+    "logos": {
+        "variable": "RUTA_LOGOS",
+        "archivo": "Herramienta Logos Actual.xlsx",
+        "pistas": ["Herramienta_Logos", "Logos Vitrojet"],
+    },
+    "vitrojet": {
+        "variable": "RUTA_VITROJET",
+        "archivo": "INVENTARIO VITROJET.xlsx",
+        "pistas": ["Herramentales de serigrafia"],
+    },
+    "pasta_plata": {
+        "variable": "RUTA_PASTA_PLATA",
+        "archivo": "Archivos Pasta de PLata.xlsx",
+        "pistas": ["Herramentales de serigrafia"],
+    },
+    "indicadores_diarios": {
+        "variable": "RUTA_INDICADORES_DIARIOS",
+        "archivo": "Indicadores diarios.xlsx",
+        "pistas": ["Indicadores Generales Herramentales"],
+    },
 }
 
 CARPETAS_IGNORADAS = {"archivos de chat de microsoft teams", "papelera", "$recycle.bin"}
@@ -72,16 +92,28 @@ def ruta_fuente(clave):
     explicita = os.environ.get(f["variable"])
     if explicita:
         return Path(explicita)
-    candidatos = []
+    # Primero los accesos directos/sincronizaciones de SharePoint (Shortcuts, "GRP - ..."), y solo si no
+    # aparece ahí se busca en todo OneDrive: así nunca gana una copia vieja que alguien bajó a otra carpeta.
+    for raices in (_raices_sharepoint(), raices_onedrive()):
+        candidatos = []
+        for raiz in raices:
+            for ruta in _buscar(raiz, f["archivo"], profundidad=5):
+                texto = str(ruta).lower()
+                puntaje = sum(1 for p in f["pistas"] if p.lower() in texto)
+                candidatos.append((puntaje, ruta.stat().st_mtime, ruta))
+        if candidatos:
+            candidatos.sort(key=lambda c: (c[0], c[1]), reverse=True)
+            return candidatos[0][2]
+    return None
+
+
+def _raices_sharepoint():
+    salida = []
     for raiz in raices_onedrive():
-        for ruta in _buscar(raiz, f["archivo"], profundidad=5):
-            texto = str(ruta).lower()
-            puntaje = sum(1 for p in f["pistas"] if p.lower() in texto)
-            candidatos.append((puntaje, ruta.stat().st_mtime, ruta))
-    if not candidatos:
-        return None
-    candidatos.sort(key=lambda c: (c[0], c[1]), reverse=True)
-    return candidatos[0][2]
+        for hijo in [raiz / "Shortcuts", *sorted(raiz.glob("GRP - *"))]:
+            if hijo.is_dir():
+                salida.append(hijo)
+    return salida
 
 
 def _buscar(raiz, nombre, profundidad):

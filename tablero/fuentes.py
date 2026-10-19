@@ -41,7 +41,8 @@ MAPA_CONSOLIDADO = {
 }
 
 COLUMNAS_RECHAZOS = ["fila", "orden", "zfer", "zhal", "acero", "vehiculo", "plano", "fecha"]
-MAPA_RECHAZOS = {"orden": ["Orden fabricacion", "Orden"], "zfer": ["Zfer"], "zhal": ["Zhal"], "acero": ["Acero"],
+# En la versión de oct-2026 la columna de la orden quedó titulada "20000"; antes era "Orden fabricacion".
+MAPA_RECHAZOS = {"orden": ["Orden fabricacion", "Orden", "20000"], "zfer": ["Zfer"], "zhal": ["Zhal"], "acero": ["Acero"],
                  "vehiculo": ["Vehiculo"], "plano": ["Plano"], "fecha": ["Fecha"]}
 
 
@@ -190,3 +191,7 @@ LECTORES = {
     "x5": leer_x5,
     "fila_moldes": leer_fila_moldes,
 }
+
+from .fuentes_serigrafia import LECTORES_SERIGRAFIA  # noqa: E402
+
+LECTORES.update(LECTORES_SERIGRAFIA)

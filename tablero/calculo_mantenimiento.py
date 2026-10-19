@@ -22,7 +22,7 @@ def calcular(hoy, R):
                               AND estatus <> 'Cancelado'""", desde, desde)
     categorias = [c["categoria"] for c in db.consultar(
         "SELECT categoria FROM cesar.categoria_vehiculo GROUP BY categoria ORDER BY MIN(orden)")] + ["Retrofit"]
-    viejo = R.entero("mant_dias_abierto_viejo", 30)
+    viejo = R.entero("mant_dias_abierto_viejo", 3)
     meta = R.num("mant_meta_persona_dia", 0)
 
     for r in filas:

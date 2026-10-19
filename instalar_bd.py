@@ -36,7 +36,8 @@ PARAMETROS = [
     ("meta_dias_fila", "2", "Meta de días de fila de aceros (valor inicial, se ajusta en el tablero)"),
     ("moldes_horas_turno", "8", "Horas por turno para la cola de fabricación de moldes"),
     ("mant_meta_persona_dia", "0", "Meta de mantenimientos finalizados por persona por día (0 = sin meta)"),
-    ("mant_dias_abierto_viejo", "30", "Días después de los cuales un mantenimiento abierto se considera abandonado"),
+    ("seri_capacidad_logos", "0", "Capacidad diaria de logos (0 = se escribe en el tablero)"),
+    ("mant_dias_abierto_viejo", "3", "Solo se muestran los mantenimientos abiertos en los últimos N días"),
 ]
 
 
@@ -98,7 +99,8 @@ def migrar_historial_json():
 
 def main():
     print("Esquema:")
-    correr_sql(config.RAIZ / "sql" / "001_esquema_cesar.sql")
+    for archivo in sorted((config.RAIZ / "sql").glob("*.sql")):
+        correr_sql(archivo)
     print("Configuración inicial:")
     sembrar()
     migrar_historial_json()

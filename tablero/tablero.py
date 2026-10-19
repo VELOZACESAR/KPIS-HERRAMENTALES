@@ -5,15 +5,12 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, db, reglas
+from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, calculo_serigrafia, db, reglas
 from .ingesta import estado_fuentes
 
 log = logging.getLogger("tablero")
 
-SERVICIOS_PENDIENTES = [
-    {"id": "serigrafia", "nombre": "Serigrafía",
-     "necesita": ["Solicitudes y entregas de pantallas con fecha", "Rechazos y bajas de pantallas con su causa"]},
-]
+SERVICIOS_PENDIENTES = []
 
 SEGUNDOS_CACHE = 60
 _cache = {"clave": None, "t": 0, "datos": None}
@@ -51,6 +48,9 @@ def construir(hoy=None):
         "moldes": ("Fabricación de moldes", lambda: calculo_moldes.calcular(hoy, R)),
         "historial_moldes": ("Historial de moldes", lambda: historial(["moldes_cola_dias", "moldes_pendientes"])),
         "mantenimiento": ("Mantenimiento de moldes", lambda: calculo_mantenimiento.calcular(hoy, R)),
+        "serigrafia": ("Serigrafía", lambda: calculo_serigrafia.calcular(hoy)),
+        "historial_seri": ("Historial de serigrafía", lambda: historial(["seri_retenidas", "seri_screens", "seri_carga_logos",
+                                                                           "seri_carga_vitros", "seri_carga_pp"])),
         "fuentes": ("Estado de fuentes", estado_fuentes),
         "manuales": ("Valores manuales", manuales),
     }
@@ -61,7 +61,9 @@ def construir(hoy=None):
         resultado["aceros"]["historial"] = resultado["historial"] or {}
     if resultado["moldes"]:
         resultado["moldes"]["historial"] = resultado["historial_moldes"] or {}
-    for k in ("aceros", "cortes", "x5", "moldes", "mantenimiento"):
+    if resultado["serigrafia"]:
+        resultado["serigrafia"]["historial"] = resultado["historial_seri"] or {}
+    for k in ("aceros", "cortes", "x5", "moldes", "mantenimiento", "serigrafia"):
         datos[k] = resultado[k]
     datos["fuentes"] = resultado["fuentes"] or {}
     datos["manuales"] = resultado["manuales"] or {}
@@ -140,6 +142,22 @@ def guardar_foto(hoy=None):
             valores.update(moldes_cola_dias=m["kpis"]["cola_dias"], moldes_pendientes=m["kpis"]["pendientes"])
     except Exception:
         log.exception("Foto de moldes")
+    try:
+        s = calculo_serigrafia.calcular(hoy) or {}
+        if s.get("retenidas"):
+            valores.update(seri_retenidas=s["retenidas"]["total"], seri_screens=s["retenidas"]["screens_total"])
+        if s.get("vitros"):
+            valores.update(seri_carga_vitros=s["vitros"]["carga"])
+        if s.get("pasta_plata"):
+            valores.update(seri_carga_pp=s["pasta_plata"]["carga"])
+        if s.get("logos"):
+            valores.update(seri_carga_logos=s["logos"]["carga"])
+            # El Excel de logos no dice cuándo se hizo cada logo: con la foto diaria de lo hecho por persona
+            # se saca la productividad por día (diferencia contra la foto del día anterior).
+            for persona, n in s["logos"]["hechos_por_persona"].items():
+                valores[f"logos_hechos:{persona}"[:60]] = n
+    except Exception:
+        log.exception("Foto de serigrafía")
     if not valores:
         return
     ahora = db.ahora()
