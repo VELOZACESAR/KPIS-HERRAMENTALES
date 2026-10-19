@@ -419,7 +419,7 @@ const TXT = {
        servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
        mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
-       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por técnico · últimos 14 días', mant_cat:'Histórico de mantenimientos por vehículo · 30 días',
+       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por matricero · últimos 14 días', mant_cat:'Histórico de mantenimientos por vehículo · 30 días',
        mant_serie:'Histórico de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento · 30 días', mant_reinc:'Moldes con mayor recurrencia · 30 días',
        mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
        moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Herramentales pendientes por vehículo',
@@ -431,7 +431,7 @@ const TXT = {
        servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
        mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
-       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por técnico · últimos 14 dias', mant_cat:'Histórico de manutenções por veículo · 30 dias',
+       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por ferramenteiro · últimos 14 dias', mant_cat:'Histórico de manutenções por veículo · 30 dias',
        mant_serie:'Histórico das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção · 30 dias', mant_reinc:'Moldes com maior recorrência · 30 dias',
        mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
        moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Ferramentais pendentes por veículo',
@@ -1496,10 +1496,10 @@ function catsMant(M, campo){
 const nombreCorto = n => { const p = String(n || '').split(/\s+/); return p.length > 2 ? `${p[0]} ${p[p.length > 3 ? 2 : 1]}` : n; };
 function tecsMant(M, campo){
   const xs = M.personas.filter(p => p[campo]).sort((a, b) => b[campo] - a[campo]);
-  if(!xs.length) return '<div class="tecs">Sin técnicos con mantenimientos finalizados</div>';
+  if(!xs.length) return '<div class="tecs">Sin matriceros con mantenimientos finalizados</div>';
   const tot = xs.reduce((a, p) => a + p[campo], 0);
   return `<div class="tecs">${xs.slice(0, 4).map(p => `<span title="${esc(p.nombre)}">${esc(nombreCorto(p.nombre))} <b>${fmt(p[campo])}</b></span>`).join('')}${xs.length > 4 ? `<span>+${xs.length - 4} más</span>` : ''}</div>
-    <div class="mk-ref"><b>${fmt(tot / xs.length, 1)}</b> por técnico · ${fmt(xs.length)} ${xs.length === 1 ? 'técnico' : 'técnicos'}</div>`;
+    <div class="mk-ref"><b>${fmt(tot / xs.length, 1)}</b> por matricero · ${fmt(xs.length)} ${xs.length === 1 ? 'matricero' : 'matriceros'}</div>`;
 }
 function tarjetasMant(M){
   const k = M.kpis, hoyD = M.diaria.find(d => d.hoy), ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer);
@@ -1514,7 +1514,7 @@ function tarjetasMant(M){
       ${avance != null ? `<div class="mk-ref">Avance del día: <b>${fmt(avance * 100)} %</b> de lo típico</div>` : ''}
       ${rangoMant(k.hoy, sHoy, true)}
       <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'hoy') || '<div class="mk-ref">Aún sin finalizados hoy</div>'}</div>
-      <div class="mk-sep"><div class="mk-tit">Técnicos hoy</div>${tecsMant(M, 'hoy')}</div>
+      <div class="mk-sep"><div class="mk-tit">Matriceros hoy</div>${tecsMant(M, 'hoy')}</div>
     </div>
     <div class="kpi hero mk">
       <div class="lbl"><span>${t('mant_ayer')} · ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
@@ -1522,7 +1522,7 @@ function tarjetasMant(M){
       ${sAyer ? `<div class="mk-ref">${Math.round(k.ayer - sAyer.med) === 0 ? 'Igual a' : `<b>${k.ayer > sAyer.med ? '+' : ''}${fmt(k.ayer - sAyer.med)}</b> frente a`} la mediana de los ${fmt(sAyer.n)} ${labAyer ? 'días laborales' : 'domingos/festivos'} del mes</div>` : ''}
       ${rangoMant(k.ayer, sAyer, false, eAyer.cls)}
       <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'ayer') || '<div class="mk-ref">Sin finalizados</div>'}</div>
-      <div class="mk-sep"><div class="mk-tit">Técnicos ayer</div>${tecsMant(M, 'ayer')}</div>
+      <div class="mk-sep"><div class="mk-tit">Matriceros ayer</div>${tecsMant(M, 'ayer')}</div>
     </div>
   </div>`;
 }
@@ -1535,12 +1535,12 @@ function tarjetaResumenMant(M){
     <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver">${t('ver_detalle')}</span></div>
     <div class="sl-grid" style="grid-template-columns:minmax(0,1.8fr) repeat(2,minmax(0,1fr))">
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')} · ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
-        <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} personas</small></div>
+        <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} ${k.personas_ayer === 1 ? 'matricero' : 'matriceros'}</small></div>
         ${minibarras(M.diaria.slice(-14).map(d => ({total:d.total, lab:false})), 0)}
         <div class="desc">${M.categorias.map(c => { const x = M.por_categoria.find(p => p.categoria === c);
           return x && x.ayer ? `<span class="etq" style="background:${colorCat(c)}33;color:var(--text)">${esc(c)} ${fmt(x.ayer)}</span>` : ''; }).join(' ')}</div></div>
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_hoy')}</span><span class="vivo" style="color:var(--text)"><i></i></span></div>
-        <div class="val">${fmt(k.hoy)}</div><div class="desc">${fmt(k.personas_hoy)} personas trabajando hoy</div></div>
+        <div class="val">${fmt(k.hoy)}</div><div class="desc">${fmt(k.personas_hoy)} ${k.personas_hoy === 1 ? 'matricero trabajando' : 'matriceros trabajando'} hoy</div></div>
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_prom')}</span></div>
         <div class="val">${sLab ? fmt(sLab.prom,1) : '—'} <small>por día laboral</small></div><div class="desc">${fmt(k.fin_30)} finalizados en 30 días</div></div>
     </div></article>`;
