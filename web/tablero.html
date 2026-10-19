@@ -789,6 +789,7 @@ function capFilaHTML(titulo, celdas){
     celdas.map(c => `<span class="${valorManual(c.clave, null)!=null?'propia':''}" title="${esc(c.titulo)}: vacía = ${c.resp}">${inputManual(c.clave, null, c.resp)}</span>`).join('')}</div>`;
 }
 function dibujarResumen(){
+  if(D && !$('#v-resumen').hidden) BLOQUES_RESUMEN.forEach(b => b.dibujar()); // secciones con gráfica por periodo (ej. Mantenimiento)
   const A = D && D.aceros, cont = $('#ch-res-prod'); if(!A || !cont || $('#v-resumen').hidden) return;
   const md = metaDiaria(), hist = A.historial || {};
   $('#res-volver').hidden = zoomRes === null;
@@ -995,7 +996,7 @@ function vistaResumen(A){
   return `<section class="vista" id="v-resumen" hidden>
     ${frase ? `<div class="frase">${frase}</div>` : ''}
     <h2 class="sec">${t('servicios')}</h2>
-    <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
+    <div class="lista-serv">${tarjAceros}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenOem()}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
 }
 
 function kpi(lbl, val, unidad, desc, extra='', cls=''){
@@ -1560,22 +1561,129 @@ function tarjetasMant(M){
   </div>`;
 }
 
+// ================================================================ Resumen: secciones con gráfica por periodo
+// Componente reutilizable (Mantenimiento hoy; Fabricación de moldes y Serigrafía después). Cada servicio registra un
+// bloque en BLOQUES_RESUMEN con:
+//   id                 prefijo de los elementos (#<id>-titulo, #<id>-vista, #<id>-volver, #<id>-sub, #<id>-leyenda, #ch-<id>)
+//   titulo, aria       textos de la gráfica
+//   periodos(vista)    barras de 'diaria' | 'semanal' | 'mensual': [{etiqueta, nombre, segs, total, enCurso, futuro, nota, desde, hasta, detalle}]
+//   dias(desde, hasta) barras de los días de una semana (para el detalle)
+//   mediana(vista)     valor de la línea de referencia (o null) y su unidad
+//   op                 {orden, colores, nombres} para apilar, la leyenda y el tooltip
+//   estado             {vista, zoom} propio del bloque
+const BLOQUES_RESUMEN = [];
+function htmlGraficaResumen(id, titulo){
+  return `<div class="kpi ra-chart">
+    <div class="lbl"><span id="${id}-titulo">${esc(titulo)}</span>
+      <span class="prod-ctrl"><button class="btn-volver" id="${id}-volver" hidden>← Semanas</button>
+        <span class="seg" id="${id}-vista"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></span></span></div>
+    <div class="desc" id="${id}-sub"></div>
+    <div id="${id}-leyenda"></div>
+    <div class="chart" id="ch-${id}"></div>
+  </div>`;
+}
+function dibujarGraficaResumen(b){
+  const cont = $('#ch-' + b.id); if(!cont) return;
+  const e = b.estado, zoom = e.vista === 'semanal' && e.zoom;
+  document.querySelectorAll(`#${b.id}-vista button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+  $(`#${b.id}-volver`).hidden = !zoom;
+  const barras = zoom ? b.dias(e.zoom.desde, e.zoom.hasta) : b.periodos(e.vista);
+  const items = barras.map(x => ({etiqueta: x.etiqueta, segs: x.segs, total: x.total, etiquetaValor: x.futuro ? '' : undefined,
+    sub: x.enCurso ? 'en curso' : (x.nota || ''), subColor: 'var(--muted)',
+    tip: tipSegs(x.nombre + (x.enCurso ? ' · en curso' : ''), x.segs,
+      `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>${t('total')}</span><span>${x.futuro ? '—' : fmt(x.total)}</span></div>` +
+      (e.vista === 'semanal' && !zoom ? `<div style="margin-top:4px;opacity:.75">${x.detalle ? 'Clic para ver los días' : 'Detalle por día disponible al reiniciar el servidor'}</div>` : ''), b.op)}));
+  const med = b.mediana(zoom ? 'diaria' : e.vista);
+  $(`#${b.id}-titulo`).textContent = zoom ? `${b.titulo} · ${e.zoom.titulo}` : b.titulo;
+  $(`#${b.id}-sub`).textContent = '';
+  $(`#${b.id}-leyenda`).innerHTML = `<div class="legend">${b.op.orden.map(c => `<span><i style="background:${b.op.colores[c]}"></i>${esc((b.op.nombres || {})[c] || c)}</span>`).join('')}` +
+    (med.valor != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana por ${med.unidad}</span>` : '') + '</div>';
+  barrasApiladas(cont, items, {...b.op, sub: true, alto: 280, aria: b.aria,
+    onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; if(!x.detalle) return;
+      e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; dibujarGraficaResumen(b); } : null,
+    referencias: med.valor != null ? [{valor: med.valor, color: 'var(--text)', etiqueta: `Mediana ${fmt(med.valor)}`}] : []});
+}
+document.addEventListener('click', ev => {
+  for(const b of BLOQUES_RESUMEN){
+    const bv = ev.target.closest(`#${b.id}-vista button`);
+    if(bv){ b.estado.vista = bv.dataset.v; b.estado.zoom = null; dibujarGraficaResumen(b); return; }
+    if(ev.target.closest(`#${b.id}-volver`)){ b.estado.zoom = null; dibujarGraficaResumen(b); return; }
+  }
+});
+
+// ---- Mantenimiento de moldes en el Resumen: mismas series, filtros y orden que el módulo (sin el filtro por clic
+//      en un vehículo, que es propio del módulo). Los días salen de "registros" (13 meses) o, si el servidor aún no
+//      los envía, de la serie diaria de 30 días.
+const segsSinOcultos = segs => { const s = {}; for(const k in segs) if(!CAT_OCULTAS.includes(k)) s[k] = segs[k]; return s; };
+let cacheDiasMant = {ref: null, dias: {}};
+function diasMant(M){ // fecha → segs por vehículo (sin ocultos)
+  if(cacheDiasMant.ref === M) return cacheDiasMant.dias;
+  const dias = {};
+  if(M.registros){
+    const R = M.registros;
+    for(const r of R.filas){ const c = R.categorias[r[2]]; if(CAT_OCULTAS.includes(c)) continue; const s = dias[r[0]] = dias[r[0]] || {}; s[c] = (s[c] || 0) + 1; }
+  } else M.diaria.forEach(d => dias[d.fecha] = segsSinOcultos(d.segs));
+  cacheDiasMant = {ref: M, dias};
+  return dias;
+}
+const medianaDe = xs => { if(!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const BLOQUE_RESUMEN_MANT = {
+  id: 'rm', titulo: 'Histórico de mantenimientos finalizados', aria: 'Mantenimientos finalizados por periodo',
+  estado: {vista: 'diaria', zoom: null},
+  get op(){ const M = D.mantenimiento; return {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT}; },
+  dias(desde, hasta){
+    const M = D.mantenimiento, dias = diasMant(M), primero = M.registros ? '0000' : M.diaria[0].fecha;
+    return diasRango(desde, hasta).map(d => {
+      const segs = d.iso >= primero ? (dias[d.iso] || {}) : {}, futuro = d.iso > D.hoy;
+      return {etiqueta: d.iso === D.hoy ? t('hoy') : fCorta(d.iso), nombre: fLarga(d.iso), segs, total: totalSegs(segs), futuro,
+              enCurso: d.iso === D.hoy, nota: futuro ? '' : d.festivo ? 'Festivo' : d.domingo ? 'Domingo' : ''};
+    });
+  },
+  periodos(vista){
+    const M = D.mantenimiento;
+    if(vista === 'diaria'){ const l = lunesDe(D.hoy); return this.dias(l, sumarDias(l, 6)); }  // solo la semana actual
+    const primero = M.registros ? '0000' : M.diaria[0].fecha;
+    return M[vista].map(p => {
+      const segs = segsSinOcultos(p.segs), mensual = vista === 'mensual';
+      return {etiqueta: mensual ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
+              nombre: mensual ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
+              segs, total: totalSegs(segs), enCurso: p.en_curso, desde: p.desde, hasta: p.hasta,
+              detalle: !mensual && p.desde >= primero};
+    });
+  },
+  mediana(vista){ // igual que en el módulo: días laborales / semanas cerradas / meses cerrados
+    const M = D.mantenimiento;
+    const xs = vista === 'diaria' ? M.diaria.filter(d => !d.hoy && d.lab).map(d => totalSegs(segsSinOcultos(d.segs)))
+                                  : M[vista].filter(p => !p.en_curso).map(p => totalSegs(segsSinOcultos(p.segs)));
+    return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
+  },
+  dibujar(){ if(D.mantenimiento) dibujarGraficaResumen(this); },
+};
+BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MANT);
+
 function tarjetaResumenMant(M){
-  if(!M) return `<article class="serv-largo" data-ir="mantenimiento"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
-  const k = M.kpis, ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer), sLab = statsMant(M, true);
-  const eAyer = nivelMant(k.ayer, statsMant(M, ayerD ? !!ayerD.lab : true));
-  return `<article class="serv-largo" data-ir="mantenimiento" tabindex="0">
-    <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver">${t('ver_detalle')}</span></div>
-    <div class="sl-grid" style="grid-template-columns:minmax(0,1.8fr) repeat(2,minmax(0,1fr))">
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
-        <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} ${k.personas_ayer === 1 ? 'matricero' : 'matriceros'}</small></div>
-        ${minibarras(M.diaria.slice(-14).map(d => ({total:d.total, lab:false})), 0)}
-        <div class="desc">${catsVisibles(M).map(c => { const x = M.por_categoria.find(p => p.categoria === c);
-          return x && x.ayer ? `<span class="etq" style="background:${colorCat(c)}33;color:var(--text)">${esc(nomCat(c))} ${fmt(x.ayer)}</span>` : ''; }).join(' ')}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_hoy')}</span><span class="vivo" style="color:var(--text)"><i></i></span></div>
-        <div class="val">${fmt(k.hoy)}</div><div class="desc">${fmt(k.personas_hoy)} ${k.personas_hoy === 1 ? 'matricero trabajando' : 'matriceros trabajando'} hoy</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_prom')}</span></div>
-        <div class="val">${sLab ? fmt(sLab.prom,1) : '—'} <small>por día laboral</small></div><div class="desc">${fmt(k.fin_30)} finalizados en 30 días</div></div>
+  if(!M) return `<article class="serv-largo"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
+  const k = M.kpis, hoyD = M.diaria.find(d => d.hoy), ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer);
+  const labHoy = hoyD ? !!hoyD.lab : true, labAyer = ayerD ? !!ayerD.lab : true;
+  const sHoy = statsMant(M, labHoy), sAyer = statsMant(M, labAyer), eAyer = nivelMant(k.ayer, sAyer);
+  return `<article class="serv-largo">
+    <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver" data-ir="mantenimiento" tabindex="0">${t('ver_detalle')}</span></div>
+    <div class="ra-grid">
+      <div class="ra-col">
+        <div class="kpi">
+          <div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
+          <div class="val">${fmt(k.ayer)} <small>${sAyer ? `vs. ${fmt(sAyer.med)} de un ${tipoDia(labAyer)} típico` : 'finalizados'}</small></div>
+          ${rangoMant(k.ayer, sAyer, false, eAyer.cls)}
+          <div class="desc">${fmt(k.personas_ayer)} ${k.personas_ayer === 1 ? 'matricero' : 'matriceros'}</div>
+        </div>
+        <div class="kpi">
+          <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
+          <div class="val">${fmt(k.hoy)} <small>${sHoy ? `de ~${fmt(sHoy.med)} en un ${tipoDia(labHoy)} típico` : 'finalizados'}</small></div>
+          ${rangoMant(k.hoy, sHoy, true)}
+          <div class="desc">${sHoy && sHoy.med ? `Avance del día: <b>${fmt(k.hoy / sHoy.med * 100)} %</b> · ` : ''}${fmt(k.personas_hoy)} ${k.personas_hoy === 1 ? 'matricero' : 'matriceros'}</div>
+        </div>
+      </div>
+      ${htmlGraficaResumen(BLOQUE_RESUMEN_MANT.id, BLOQUE_RESUMEN_MANT.titulo)}
     </div></article>`;
 }
 
