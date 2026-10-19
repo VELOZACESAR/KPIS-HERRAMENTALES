@@ -344,6 +344,11 @@
   .pu-bar{height:8px;border-radius:4px;background:var(--grid);overflow:hidden}
   .pu-bar i{display:block;height:100%;border-radius:4px}
   .pu-n{text-align:right;font-weight:700;color:var(--text)}
+  #comp-detalle{margin-top:10px}
+  .ents{display:flex;flex-wrap:wrap;gap:4px}
+  .ent{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;background:var(--ok-bg);color:var(--text);white-space:nowrap}
+  .ent.tarde{background:var(--bad-bg)}
+  .ent b{margin-left:2px}
   /* piezas retenidas / refundidas en piso */
   .ret-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 8px}
   .ret-form input,.ret-form select,.ret-tabla select{font:500 13px var(--font);color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 9px}
@@ -1197,7 +1202,7 @@ function vistaAceros(A){
     <div class="kpi hero span2">
       <div class="lbl"><span>Cumplimiento de compromisos · ${fCorta(a.fecha)}</span>${chip(eProd)}</div>
       <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos${a.comprometidos_tarde ? ` · ${fmt(a.comprometidos_tarde)} entregados tarde` : ''}</small></div>
-      ${barraProyeccion(a.comprometidos_segs, a.comprometidos_hechos, a.comprometidos, {marca:'Comprometidos', falta:'No cumplidos', faltaCorto:'faltan', tarde: a.comprometidos_tarde || 0})}
+      ${barraProyeccion(conTarde({segs: a.comprometidos_segs, segs_tarde: a.comprometidos_segs_tarde}), a.comprometidos_hechos + (a.comprometidos_tarde || 0), a.comprometidos, {marca:'Comprometidos', falta:'Sin fabricar', faltaCorto:'faltan'})}
       ${tablaNoCump}
     </div>
     ${kpi(`Rechazos · ${fCorta(a.fecha)}`, fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
@@ -1237,7 +1242,7 @@ function vistaAceros(A){
         <button class="btn-volver" id="comp-volver" hidden>← Volver</button>
         <div class="seg" id="comp-vista"><button aria-pressed="true" data-v="diaria">Diario</button><button aria-pressed="false" data-v="semanal">Semanal</button><button aria-pressed="false" data-v="mensual">Mensual</button></div>
       </div></div>
-      <div id="comp-leyenda"></div><div class="chart" id="ch-comp"></div></div>
+      <div id="comp-leyenda"></div><div class="chart" id="ch-comp"></div><div class="tabla" id="comp-detalle"></div></div>
     <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas / refundidas en piso</h3><p id="ret-sub"></p></div></div>
       <div id="ret-cuerpo"></div></div>
   </div>
@@ -1498,14 +1503,27 @@ function semanaIso(iso){
   const e = new Date(f.getFullYear(), 0, 4);
   return 1 + Math.round(((f - e) / 864e5 - 3 + ((e.getDay() + 6) % 7)) / 7);
 }
-const TARDE = 'Entregado tarde';
-const conTarde = c => c.tarde ? {...c.segs, [TARDE]: c.tarde} : c.segs;   // el tramo "tarde" va encima de los materiales
-const opComp = () => ({orden: [...D.orden_materiales, TARDE], colores: {...COLOR_MAT, [TARDE]: COLOR_TARDE}});
+// Lo entregado después de la fecha comprometida también cierra la barra, con el color de su material.
+const conTarde = c => { const s = {...c.segs}; for(const m in (c.segs_tarde || {})) s[m] = (s[m] || 0) + c.segs_tarde[m]; return s; };
+const sumarObj = (dias, campo) => { const o = {}; dias.forEach(d => Object.entries(d[campo] || {}).forEach(([k, v]) => o[k] = (o[k] || 0) + v)); return o; };
+// Detalle del zoom: por cada fecha comprometida, cuántos se entregaron a tiempo, tarde y pendientes, y en qué fechas
+// se entregaron (las fechas posteriores al compromiso van marcadas como tarde).
+function tablaEntregasComp(dias){
+  const chip = (iso, n, tarde) => `<span class="ent ${tarde ? 'tarde' : ''}" title="${fLarga(iso)}${tarde ? ' · después del compromiso' : ''}">${fCorta(iso)} <b>${fmt(n)}</b></span>`;
+  return `<table><thead><tr><th>Compromiso</th><th class="n">Comprometidos</th><th class="n">A tiempo</th><th class="n">Tarde</th><th class="n">Pendientes</th><th>Fechas de entrega</th></tr></thead><tbody>${
+    dias.map(d => { const pend = d.comprometidos - d.hechos - (d.tarde || 0);
+      const ent = Object.entries(d.entregas || {}).sort((a, b) => a[0] < b[0] ? -1 : 1);
+      return `<tr><td style="white-space:nowrap;font-weight:600">${fLarga(d.fecha)}</td><td class="n">${fmt(d.comprometidos)}</td>
+        <td class="n" style="color:var(--ok);font-weight:700">${fmt(d.hechos)}</td>
+        <td class="n" style="color:${d.tarde ? 'var(--bad)' : 'var(--muted)'};font-weight:700">${fmt(d.tarde || 0)}</td>
+        <td class="n" style="color:${pend > 0 ? 'var(--text)' : 'var(--muted)'}">${fmt(pend)}</td>
+        <td><div class="ents">${ent.map(([iso, n]) => chip(iso, n, iso > d.fecha)).join('') || '—'}</div></td></tr>`; }).join('')}</tbody></table>`;
+}
 function sumarComp(dias){
   const segs = {};
   dias.forEach(d => Object.entries(d.segs).forEach(([m, v]) => segs[m] = (segs[m] || 0) + v));
   return {segs, comprometidos: dias.reduce((s, d) => s + d.comprometidos, 0), hechos: dias.reduce((s, d) => s + d.hechos, 0),
-          tarde: dias.reduce((s, d) => s + (d.tarde || 0), 0)};
+          tarde: dias.reduce((s, d) => s + (d.tarde || 0), 0), segs_tarde: sumarObj(dias, 'segs_tarde'), entregas: sumarObj(dias, 'entregas')};
 }
 function periodosComp(vista){
   const dias = D.aceros.cumplimiento, grupos = {};
@@ -1525,15 +1543,15 @@ function periodosComp(vista){
 }
 function filasComp(c, futuro){
   return `<div class="r" style="margin-top:6px"><span>Comprometidos</span><span>${fmt(c.comprometidos)}</span></div>` +
-    `<div class="r"><span>${futuro ? 'Ya fabricados (adelantados)' : 'Fabricados'}</span><span>${fmt(c.hechos)}</span></div>` +
-    (c.tarde ? `<div class="r"><span style="color:${COLOR_TARDE}">Entregados tarde</span><span>${fmt(c.tarde)}</span></div>` : '') +
+    `<div class="r"><span>${futuro ? 'Ya fabricados (adelantados)' : 'Entregados a tiempo'}</span><span>${fmt(c.hechos)}</span></div>` +
+    (c.tarde ? `<div class="r"><span>Entregados tarde</span><span>${fmt(c.tarde)}</span></div>` : '') +
     `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - c.hechos - (c.tarde || 0))}</span></div>`;
 }
 function barraCompDia(c){
   const e = estado(c.hechos, c.comprometidos), i = infoDia(c.fecha);
   const sub = c.futuro ? (c.comprometidos ? 'prog.' : '') : c.comprometidos ? `${fmt(e.pct*100)} %` : (i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : '');
   return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:conTarde(c), total:c.hechos + (c.tarde || 0), fondo:c.comprometidos,
-    etiquetaValor: c.comprometidos ? `${fmt(c.hechos)}/${fmt(c.comprometidos)}` : '',
+    etiquetaValor: c.comprometidos ? `${fmt(c.hechos + (c.tarde || 0))}/${fmt(c.comprometidos)}` : '',
     sub, subColor: c.futuro || !c.comprometidos ? 'var(--muted)' : COLOR_EST[e.cls],
     tip: tipSegs(fLarga(c.fecha) + (c.futuro ? ' · programado' : ''), c.segs, filasComp(c, c.futuro))};
 }
@@ -1541,7 +1559,7 @@ function dibujarCumplimiento(){
   const A = D.aceros, enZoom = zoomComp !== null && vistaComp !== 'diaria';
   $('#comp-volver').hidden = !enZoom;
   document.querySelectorAll('#comp-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaComp));
-  let items, titulo = 'Cumplimiento de fechas de compromiso', sub, onClick = null;
+  let items, titulo = 'Cumplimiento de fechas de compromiso', sub, onClick = null, detalleDias = null;
   if(vistaComp === 'diaria'){
     const fut = A.cumplimiento.filter(c => c.futuro).slice(0, 4);
     const pas = A.cumplimiento.filter(c => !c.futuro).slice(-(BARRAS_COMP - fut.length));
@@ -1553,7 +1571,7 @@ function dibujarCumplimiento(){
       ? diasRango(p.desde, p.hasta).map(x => p.dias.find(d => d.fecha === x.iso) ||
           {fecha:x.iso, comprometidos:0, hechos:0, segs:{}, futuro: x.iso >= D.hoy})
       : p.dias;
-    items = dias.map(barraCompDia);
+    items = dias.map(barraCompDia); detalleDias = dias.filter(d => d.comprometidos);
     titulo = `Cumplimiento · ${vistaComp === 'semanal' ? 'Sem ' + semanaIso(p.desde) : MESES[+p.clave.slice(5)-1] + ' ' + p.clave.slice(0,4)}`;
     sub = `${fLarga(p.desde)} a ${fLarga(p.hasta)} · ${fmt(p.hechos)} de ${fmt(p.comprometidos)} aceros comprometidos`;
   } else {
@@ -1565,7 +1583,7 @@ function dibujarCumplimiento(){
       const extra = p.estado === 'curso'
         ? `<div class="r" style="margin-top:4px"><span>Hasta ayer</span><span>${fmt(p.hastaAyer.hechos)} de ${fmt(p.hastaAyer.comprometidos)} (${fmt(eA.pct*100)} %)</span></div>` : '';
       return {etiqueta: mensual ? mes.slice(0,3) + (p.clave.slice(0,4) !== anio ? ' ' + p.clave.slice(2,4) : '') : 'S' + semanaIso(p.desde),
-        segs:conTarde(p), total:p.hechos + (p.tarde || 0), fondo:p.comprometidos, etiquetaValor:`${fmt(p.hechos)}/${fmt(p.comprometidos)}`,
+        segs:conTarde(p), total:p.hechos + (p.tarde || 0), fondo:p.comprometidos, etiquetaValor:`${fmt(p.hechos + (p.tarde || 0))}/${fmt(p.comprometidos)}`,
         sub: p.estado === 'prog' ? 'prog.' : p.estado === 'curso' ? (p.hastaAyer.comprometidos ? `${fmt(eA.pct*100)} %` : 'en curso') : `${fmt(e.pct*100)} %`,
         subColor: p.estado === 'prog' || !p.hastaAyer.comprometidos ? 'var(--muted)' : COLOR_EST[(p.estado === 'curso' ? eA : e).cls],
         tip: tipSegs(nombre + (p.estado === 'curso' ? ' · en curso' : p.estado === 'prog' ? ' · programado' : ''), p.segs,
@@ -1576,9 +1594,9 @@ function dibujarCumplimiento(){
   }
   $('#comp-titulo').textContent = titulo;
   $('#comp-sub').textContent = sub;
-  $('#comp-leyenda').innerHTML = leyendaMat(matsPresentes(items), (items.some(i => i.segs[TARDE]) ? `<span><i style="background:${COLOR_TARDE}"></i>Entregado tarde</span>` : '') +
-    '<span><i style="background:var(--pend)"></i>Pendiente</span>');
-  barrasApiladas($('#ch-comp'), items, {...opComp(), sub:true, aria:'Cumplimiento de compromisos', onClick});
+  $('#comp-leyenda').innerHTML = leyendaMat(matsPresentes(items), '<span><i style="background:var(--pend)"></i>Pendiente</span>');
+  barrasApiladas($('#ch-comp'), items, {sub:true, aria:'Cumplimiento de compromisos', onClick});
+  $('#comp-detalle').innerHTML = detalleDias ? tablaEntregasComp(detalleDias) : '';
   dibujarRetenidasPiso();
 }
 
