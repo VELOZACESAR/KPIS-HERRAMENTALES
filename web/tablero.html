@@ -419,7 +419,7 @@ const TXT = {
        servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
        mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
-       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por matricero · últimos 14 días', mant_cat:'Histórico de mantenimientos por vehículo · 30 días',
+       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por matricero · últimos 14 días', mant_cat:'Histórico de mantenimientos Retrofit/OEM · 30 días',
        mant_serie:'Histórico de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento · 30 días', mant_reinc:'Moldes con mayor recurrencia · 30 días',
        mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
        moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Herramentales pendientes por vehículo',
@@ -431,7 +431,7 @@ const TXT = {
        servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
        mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
-       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por ferramenteiro · últimos 14 dias', mant_cat:'Histórico de manutenções por veículo · 30 dias',
+       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por ferramenteiro · últimos 14 dias', mant_cat:'Histórico de manutenções Retrofit/OEM · 30 dias',
        mant_serie:'Histórico das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção · 30 dias', mant_reinc:'Moldes com maior recorrência · 30 dias',
        mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
        moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Ferramentais pendentes por veículo',
@@ -524,7 +524,7 @@ const ocultarTip = () => tip.style.opacity = 0;
 function tipSegs(titulo, segs, extra='', esc_={}){
   const orden = esc_.orden || D.orden_materiales, colores = esc_.colores || COLOR_MAT;
   const filas = orden.filter(m => segs && segs[m]).map(m =>
-    `<div class="r"><span><i style="background:${colores[m]}"></i>${m}</span><span>${fmt(segs[m])}</span></div>`).join('');
+    `<div class="r"><span><i style="background:${colores[m]}"></i>${(esc_.nombres || {})[m] || m}</span><span>${fmt(segs[m])}</span></div>`).join('');
   return `<b>${titulo}</b>${filas ? '<div style="margin-top:6px">'+filas+'</div>' : ''}${extra}`;
 }
 
@@ -1459,6 +1459,14 @@ function dibujarFlujo(){
 const colorCat = c => COLOR_CAT[c] || PALETA[5];
 let catMant = null, vistaMant = 'diaria';
 
+// ---- Mantenimiento: orden de los vehículos, nombres a mostrar y los que se ocultan por ahora
+const ORDEN_CAT = ['Retrofit', 'BMW X5', 'Land Rover Sentinel', 'Express Van'];
+const CAT_OCULTAS = ['BMW Serie 7'];
+const NOMBRE_CAT = {'Express Van':'Chevrolet Express Van'};
+const nomCat = c => NOMBRE_CAT[c] || c;
+const catsVisibles = M => [...ORDEN_CAT.filter(c => M.categorias.includes(c)),
+                           ...M.categorias.filter(c => !ORDEN_CAT.includes(c) && !CAT_OCULTAS.includes(c))];
+
 // ---- Mantenimiento: estadística de referencia. Un día se compara con los días del MISMO tipo
 //      (laboral vs. domingo/festivo) de los últimos 30 días: mediana y rango normal (cuartiles 25 %–75 %).
 function statsMant(M, laboral){
@@ -1487,11 +1495,11 @@ function rangoMant(v, s, enCurso, cls){
     <div class="rango-ley"><span>0</span><span>rango normal ${fmt(s.p25)}–${fmt(s.p75)} · mediana ${fmt(s.med)}</span><span>${fmt(Math.round(max))}</span></div>`;
 }
 function catsMant(M, campo){
-  const xs = M.categorias.map(c => ({c, n: (M.por_categoria.find(p => p.categoria === c) || {})[campo] || 0})).filter(x => x.n);
+  const xs = catsVisibles(M).map(c => ({c, n: (M.por_categoria.find(p => p.categoria === c) || {})[campo] || 0})).filter(x => x.n);
   const tot = xs.reduce((a, x) => a + x.n, 0);
   if(!tot) return '';
-  return `<div class="catbar">${xs.map(x => `<i style="width:${x.n / tot * 100}%;background:${colorCat(x.c)}" title="${esc(x.c)}: ${x.n}"></i>`).join('')}</div>
-    <div class="catley">${xs.map(x => `<span><i style="background:${colorCat(x.c)}"></i>${esc(x.c)} <b>${fmt(x.n)}</b></span>`).join('')}</div>`;
+  return `<div class="catbar">${xs.map(x => `<i style="width:${x.n / tot * 100}%;background:${colorCat(x.c)}" title="${esc(nomCat(x.c))}: ${x.n}"></i>`).join('')}</div>
+    <div class="catley">${xs.map(x => `<span><i style="background:${colorCat(x.c)}"></i>${esc(nomCat(x.c))} <b>${fmt(x.n)}</b></span>`).join('')}</div>`;
 }
 const nombreCorto = n => { const p = String(n || '').split(/\s+/); return p.length > 2 ? `${p[0]} ${p[p.length > 3 ? 2 : 1]}` : n; };
 function tecsMant(M, campo){
@@ -1537,8 +1545,8 @@ function tarjetaResumenMant(M){
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')} · ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
         <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} ${k.personas_ayer === 1 ? 'matricero' : 'matriceros'}</small></div>
         ${minibarras(M.diaria.slice(-14).map(d => ({total:d.total, lab:false})), 0)}
-        <div class="desc">${M.categorias.map(c => { const x = M.por_categoria.find(p => p.categoria === c);
-          return x && x.ayer ? `<span class="etq" style="background:${colorCat(c)}33;color:var(--text)">${esc(c)} ${fmt(x.ayer)}</span>` : ''; }).join(' ')}</div></div>
+        <div class="desc">${catsVisibles(M).map(c => { const x = M.por_categoria.find(p => p.categoria === c);
+          return x && x.ayer ? `<span class="etq" style="background:${colorCat(c)}33;color:var(--text)">${esc(nomCat(c))} ${fmt(x.ayer)}</span>` : ''; }).join(' ')}</div></div>
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_hoy')}</span><span class="vivo" style="color:var(--text)"><i></i></span></div>
         <div class="val">${fmt(k.hoy)}</div><div class="desc">${fmt(k.personas_hoy)} ${k.personas_hoy === 1 ? 'matricero trabajando' : 'matriceros trabajando'} hoy</div></div>
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_prom')}</span></div>
@@ -1554,9 +1562,9 @@ function vistaMantenimiento(M){
   ${tarjetasMant(M)}
 
   <h2 class="sec">${t('mant_cat')}</h2>
-  <div class="cats" id="mant-cats">${M.por_categoria.map(c => `
+  <div class="cats" id="mant-cats">${catsVisibles(M).map(n => M.por_categoria.find(p => p.categoria === n)).filter(Boolean).map(c => `
     <div class="cat ${catMant===c.categoria?'sel':''}" data-cat="${esc(c.categoria)}" style="--c:${colorCat(c.categoria)}" tabindex="0">
-      <h4>${esc(c.categoria)} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
+      <h4>${esc(nomCat(c.categoria))} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
       <div class="big">${fmt(c.fin_30)} <small>finalizados</small></div>
       ${topMoldesHTML(c)}
     </div>`).join('')}</div>
@@ -1576,12 +1584,12 @@ function vistaMantenimiento(M){
     <div class="panel"><div class="panel-head"><div><h3>${t('mant_tipos')}</h3></div></div><div class="chart" id="ch-mant-tipos"></div></div>
     <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3></div></div>
       <div class="tabla"><table><thead><tr><th>Molde</th><th>Vehículo</th><th>Categoría</th><th class="n">Veces</th></tr></thead><tbody>${
-        M.reincidentes_30.map(r => `<tr><td class="num">${esc(r.molde)}</td><td>${esc(r.vehiculo||'—')}</td><td><span class="etq" style="background:${colorCat(r.categoria)}33;color:var(--text)">${esc(r.categoria)}</span></td><td class="n">${fmt(r.n)}</td></tr>`).join('') || `<tr><td colspan="4">${t('sin_datos')}</td></tr>`}</tbody></table></div></div>
+        M.reincidentes_30.filter(r => !CAT_OCULTAS.includes(r.categoria)).map(r => `<tr><td class="num">${esc(r.molde)}</td><td>${esc(r.vehiculo||'—')}</td><td><span class="etq" style="background:${colorCat(r.categoria)}33;color:var(--text)">${esc(nomCat(r.categoria))}</span></td><td class="n">${fmt(r.n)}</td></tr>`).join('') || `<tr><td colspan="4">${t('sin_datos')}</td></tr>`}</tbody></table></div></div>
   </div>
 
   <div class="panel" style="margin-top:16px"><details><summary>${t('mant_lista_abiertos')} (${fmt(M.abiertos.length)})</summary>
     <div class="tabla"><table><thead><tr><th>Desde</th><th>Molde</th><th>Vehículo</th><th>Categoría</th><th>Persona</th><th>Estado</th><th>Tipo</th></tr></thead><tbody>${
-      M.abiertos.map(a => `<tr><td style="white-space:nowrap">${fHora(a.inicio)}</td><td class="num">${esc(a.molde)}</td><td>${esc(a.vehiculo||'—')}</td><td>${esc(a.categoria)}</td><td>${esc(a.persona)}</td><td>${esc(a.estatus)}</td><td>${esc(a.tipo_mant||'—')}</td></tr>`).join('')}</tbody></table></div></details></div>
+      M.abiertos.map(a => `<tr><td style="white-space:nowrap">${fHora(a.inicio)}</td><td class="num">${esc(a.molde)}</td><td>${esc(a.vehiculo||'—')}</td><td>${esc(nomCat(a.categoria))}</td><td>${esc(a.persona)}</td><td>${esc(a.estatus)}</td><td>${esc(a.tipo_mant||'—')}</td></tr>`).join('')}</tbody></table></div></details></div>
   </section>`;
 }
 
@@ -1600,14 +1608,18 @@ function topMoldesHTML(c){
     </div>`).join('')}</div>`;
 }
 
-function segsFiltrados(segs){ return catMant ? (segs[catMant] ? {[catMant]: segs[catMant]} : {}) : segs; }
+function segsFiltrados(segs){ // quita los vehículos ocultos y, si hay uno elegido, deja solo ese
+  const s = {};
+  for(const k in segs) if(!CAT_OCULTAS.includes(k) && (!catMant || k === catMant)) s[k] = segs[k];
+  return s;
+}
 function totalSegs(segs){ return Object.values(segs).reduce((a, b) => a + b, 0); }
 
 function dibujarMantenimiento(){
   const M = D && D.mantenimiento; if(!M || $('#v-mantenimiento').hidden) return;
   document.querySelectorAll('#mant-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMant));
   document.querySelectorAll('#mant-cats .cat').forEach(x => x.classList.toggle('sel', x.dataset.cat === catMant));
-  const op = {orden: M.categorias, colores: COLOR_CAT};
+  const op = {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT};
   const serie = M[vistaMant].map(p => {
     const segs = segsFiltrados(p.segs), total = totalSegs(segs);
     const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
@@ -1620,16 +1632,8 @@ function dibujarMantenimiento(){
     .filter(p => vistaMant === 'diaria' ? (!p.hoy && p.lab) : !p.en_curso).map(p => p.total).sort((a, b) => a - b);
   const mediana = base.length ? (base.length % 2 ? base[(base.length - 1) / 2] : (base[base.length / 2 - 1] + base[base.length / 2]) / 2) : null;
   const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
-  // ritmo de los últimos 30 días (días laborales): promedio y tendencia de la última semana
-  const lab30 = M.diaria.filter(d => !d.hoy && d.lab).map(d => totalSegs(segsFiltrados(d.segs)));
-  const prom30 = lab30.length ? lab30.reduce((a, b) => a + b, 0) / lab30.length : null;
-  const ult = lab30.slice(-6), prom7 = ult.length ? ult.reduce((a, b) => a + b, 0) / ult.length : null;
-  const tend = prom30 && prom7 != null ? prom7 / prom30 - 1 : null;
-  $('#mant-serie-sub').innerHTML = (catMant ? `<b>Solo ${esc(catMant)}</b> · ` : '') + (prom30 != null
-    ? `Ritmo 30 días: <b>${fmt(prom30, 1)}</b> por día laboral · última semana <b>${fmt(prom7, 1)}</b>` +
-      (tend != null ? ` <span style="color:${tend >= .05 ? 'var(--ok)' : tend <= -.05 ? 'var(--bad)' : 'var(--text-soft)'}">(${tend >= 0 ? '+' : ''}${fmt(tend * 100)} %)</span>` : '')
-    : '');
-  $('#mant-leyenda').innerHTML = `<div class="legend">${M.categorias.filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(c)}</span>`).join('')}` +
+  $('#mant-serie-sub').innerHTML = catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '';
+  $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
     (mediana != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana por ${unidad}</span>` : '') + `</div>`;
   barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
     referencias: mediana != null ? [{valor: mediana, color:'var(--text)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
