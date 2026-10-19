@@ -111,6 +111,29 @@
   .top-m-n{font-weight:700;color:var(--text);min-width:22px;text-align:right}
   .top-m-n small{font-weight:500;color:var(--text-soft);margin-left:1px}
   .vacio-m{font-size:12px;color:var(--muted)}
+  /* mantenimiento: tarjetas hoy / ayer / ritmo con contexto */
+  .grid-mant{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+  .mk{gap:10px}
+  .mk .val{font-size:34px}
+  .mk-ref{font-size:12.5px;color:var(--text-soft)}
+  .mk-ref b{color:var(--text)}
+  .rango{position:relative;height:10px;border-radius:5px;background:var(--grid);margin:6px 0 2px}
+  .rango-banda{position:absolute;top:0;bottom:0;border-radius:5px;background:var(--pend);outline:1px solid var(--border)}
+  .rango-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:#2F6FB0}
+  .rango-prom{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--text)}
+  .rango-val{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border)}
+  .rango-ley{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+  .mk-sep{border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+  .mk-tit{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft)}
+  .catbar{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;background:var(--grid)}
+  .catbar i{display:block;height:100%}
+  .catley{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text-soft)}
+  .catley span{display:inline-flex;align-items:center;gap:5px}
+  .catley i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .catley b{color:var(--text)}
+  .tecs{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text-soft)}
+  .tecs b{color:var(--text)}
+  .spark{display:block;width:100%;height:56px}
   .cat .fila3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:11.5px;color:var(--text-soft)}
   .cat .fila3 b{display:block;font:700 15px var(--font);color:var(--text)}
   .sub-aceros{margin-bottom:6px}
@@ -1415,13 +1438,106 @@ const COLOR_CAT = {'Retrofit':PALETA[0], 'BMW X5':PALETA[1], 'Express Van':PALET
 const colorCat = c => COLOR_CAT[c] || PALETA[5];
 let catMant = null, vistaMant = 'diaria';
 
+// ---- Mantenimiento: estadística de referencia. Un día se compara con los días del MISMO tipo
+//      (laboral vs. domingo/festivo) de los últimos 30 días: mediana y rango normal (cuartiles 25 %–75 %).
+function statsMant(M, laboral){
+  const xs = M.diaria.filter(d => !d.hoy && !!d.lab === laboral).map(d => d.total).sort((a, b) => a - b);
+  if(!xs.length) return null;
+  const q = p => { const i = (xs.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return xs[lo] + (xs[hi] - xs[lo]) * (i - lo); };
+  return {n: xs.length, prom: xs.reduce((a, b) => a + b, 0) / xs.length, p25: q(.25), med: q(.5), p75: q(.75), max: xs[xs.length - 1]};
+}
+function nivelMant(v, s){
+  if(!s) return {cls:'neutral', ico:'○', txt:'Sin referencia'};
+  if(v < s.p25) return {cls:'bad', ico:'▼', txt:'Bajo lo normal'};
+  if(v > s.p75) return {cls:'ok', ico:'▲', txt:'Sobre lo normal'};
+  return {cls:'ok', ico:'●', txt:'Normal'};
+}
+const tipoDia = laboral => laboral ? 'día laboral' : 'domingo/festivo';
+// barra de rango: banda gris = rango normal, raya = mediana, punto (o relleno si el día va en curso) = el valor
+function rangoMant(v, s, enCurso, cls){
+  if(!s) return '';
+  const max = Math.max(v, s.max, 1) * 1.08, pc = x => Math.min(100, x / max * 100);
+  return `<div class="rango" title="Rango normal ${fmt(s.p25)}–${fmt(s.p75)} · mediana ${fmt(s.med)}">
+      <span class="rango-banda" style="left:${pc(s.p25)}%;width:${Math.max(1, pc(s.p75) - pc(s.p25))}%"></span>
+      ${enCurso ? `<span class="rango-fill" style="width:${pc(v)}%"></span>` : ''}
+      <span class="rango-prom" style="left:${pc(s.med)}%"></span>
+      ${enCurso ? '' : `<span class="rango-val" style="left:${pc(v)}%;background:${COLOR_EST[cls]}"></span>`}
+    </div>
+    <div class="rango-ley"><span>0</span><span>rango normal ${fmt(s.p25)}–${fmt(s.p75)} · mediana ${fmt(s.med)}</span><span>${fmt(Math.round(max))}</span></div>`;
+}
+function catsMant(M, campo){
+  const xs = M.categorias.map(c => ({c, n: (M.por_categoria.find(p => p.categoria === c) || {})[campo] || 0})).filter(x => x.n);
+  const tot = xs.reduce((a, x) => a + x.n, 0);
+  if(!tot) return '';
+  return `<div class="catbar">${xs.map(x => `<i style="width:${x.n / tot * 100}%;background:${colorCat(x.c)}" title="${esc(x.c)}: ${x.n}"></i>`).join('')}</div>
+    <div class="catley">${xs.map(x => `<span><i style="background:${colorCat(x.c)}"></i>${esc(x.c)} <b>${fmt(x.n)}</b></span>`).join('')}</div>`;
+}
+const nombreCorto = n => { const p = String(n || '').split(/\s+/); return p.length > 2 ? `${p[0]} ${p[p.length > 3 ? 2 : 1]}` : n; };
+function tecsMant(M, campo){
+  const xs = M.personas.filter(p => p[campo]).sort((a, b) => b[campo] - a[campo]);
+  if(!xs.length) return '<div class="tecs">Sin técnicos con mantenimientos finalizados</div>';
+  const tot = xs.reduce((a, p) => a + p[campo], 0);
+  return `<div class="tecs">${xs.slice(0, 4).map(p => `<span title="${esc(p.nombre)}">${esc(nombreCorto(p.nombre))} <b>${fmt(p[campo])}</b></span>`).join('')}${xs.length > 4 ? `<span>+${xs.length - 4} más</span>` : ''}</div>
+    <div class="mk-ref"><b>${fmt(tot / xs.length, 1)}</b> por técnico · ${fmt(xs.length)} ${xs.length === 1 ? 'técnico' : 'técnicos'}</div>`;
+}
+function sparkMant(M, s){
+  const W = 300, H = 56, xs = M.diaria, n = xs.length, bw = W / n - 2;
+  const max = Math.max(1, ...xs.map(d => d.total)), y = v => H - 2 - v / max * (H - 8);
+  let svg = `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`;
+  xs.forEach((d, i) => {
+    const h = Math.max(1, H - 2 - y(d.total));
+    svg += `<rect x="${i * W / n}" y="${y(d.total)}" width="${bw}" height="${h}" rx="1.5" fill="${d.hoy ? 'var(--teal)' : d.lab ? PALETA[0] : 'var(--pend)'}"><title>${fLarga(d.fecha)}: ${d.total}</title></rect>`;
+  });
+  if(s) svg += `<line x1="0" x2="${W}" y1="${y(s.med)}" y2="${y(s.med)}" stroke="var(--text)" stroke-width="1" stroke-dasharray="4 3"/>`;
+  return svg + '</svg>';
+}
+function tarjetasMant(M){
+  const k = M.kpis, hoyD = M.diaria.find(d => d.hoy), ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer);
+  const labHoy = hoyD ? !!hoyD.lab : true, labAyer = ayerD ? !!ayerD.lab : true;
+  const sHoy = statsMant(M, labHoy), sAyer = statsMant(M, labAyer), sLab = statsMant(M, true);
+  const eAyer = nivelMant(k.ayer, sAyer);
+  const avance = sHoy && sHoy.med ? k.hoy / sHoy.med : null;
+  // tendencia: días laborales de la última semana vs. los 30 días
+  const ult7 = M.diaria.filter(d => !d.hoy && d.lab).slice(-6), prom7 = ult7.length ? ult7.reduce((a, d) => a + d.total, 0) / ult7.length : null;
+  const tend = prom7 != null && sLab && sLab.prom ? prom7 / sLab.prom - 1 : null;
+  const eTend = tend == null ? null : tend >= .05 ? {cls:'ok', ico:'▲'} : tend <= -.05 ? {cls:'bad', ico:'▼'} : {cls:'neutral', ico:'●'};
+  const pctGalgas = k.fin_30 ? k.galgas_30 / k.fin_30 * 100 : 0;
+  return `<div class="grid-mant">
+    <div class="kpi hero mk">
+      <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
+      <div class="val">${fmt(k.hoy)} <small>${sHoy ? `de ~${fmt(sHoy.med)} en un ${tipoDia(labHoy)} típico` : 'finalizados'}</small></div>
+      ${avance != null ? `<div class="mk-ref">Avance del día: <b>${fmt(avance * 100)} %</b> de lo típico</div>` : ''}
+      ${rangoMant(k.hoy, sHoy, true)}
+      <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'hoy') || '<div class="mk-ref">Aún sin finalizados hoy</div>'}</div>
+      <div class="mk-sep"><div class="mk-tit">Técnicos hoy</div>${tecsMant(M, 'hoy')}</div>
+    </div>
+    <div class="kpi hero mk">
+      <div class="lbl"><span>${t('mant_ayer')} · ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
+      <div class="val">${fmt(k.ayer)} <small>${sAyer ? `vs. ${fmt(sAyer.med)} de un ${tipoDia(labAyer)} típico` : 'finalizados'}</small></div>
+      ${sAyer ? `<div class="mk-ref">${Math.round(k.ayer - sAyer.med) === 0 ? 'Igual a' : `<b>${k.ayer > sAyer.med ? '+' : ''}${fmt(k.ayer - sAyer.med)}</b> frente a`} la mediana de los ${fmt(sAyer.n)} ${labAyer ? 'días laborales' : 'domingos/festivos'} del mes</div>` : ''}
+      ${rangoMant(k.ayer, sAyer, false, eAyer.cls)}
+      <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'ayer') || '<div class="mk-ref">Sin finalizados</div>'}</div>
+      <div class="mk-sep"><div class="mk-tit">Técnicos ayer</div>${tecsMant(M, 'ayer')}</div>
+    </div>
+    <div class="kpi hero mk">
+      <div class="lbl"><span>${t('mant_prom')}</span>${eTend ? `<span class="chip ${eTend.cls}">${eTend.ico} ${tend >= 0 ? '+' : ''}${fmt(tend * 100)} % última semana</span>` : ''}</div>
+      <div class="val">${sLab ? fmt(sLab.prom, 1) : '—'} <small>por día laboral</small></div>
+      <div class="mk-ref">${prom7 != null ? `Última semana: <b>${fmt(prom7, 1)}</b>/día laboral · ` : ''}mediana <b>${sLab ? fmt(sLab.med) : '—'}</b></div>
+      ${sparkMant(M, sLab)}
+      <div class="rango-ley"><span>${fCorta(M.diaria[0].fecha)}</span><span>── mediana día laboral · gris = domingos/festivos</span><span>${t('hoy')}</span></div>
+      <div class="mk-sep"><div class="mk-ref"><b>${fmt(k.fin_30)}</b> finalizados en 30 días · <b>${fmt(k.galgas_30)}</b> galgas (${fmt(pctGalgas)} %)</div></div>
+    </div>
+  </div>`;
+}
+
 function tarjetaResumenMant(M){
   if(!M) return `<article class="serv-largo" data-ir="mantenimiento"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
-  const k = M.kpis;
+  const k = M.kpis, ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer), sLab = statsMant(M, true);
+  const eAyer = nivelMant(k.ayer, statsMant(M, ayerD ? !!ayerD.lab : true));
   return `<article class="serv-largo" data-ir="mantenimiento" tabindex="0">
     <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver">${t('ver_detalle')}</span></div>
-    <div class="sl-grid">
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')}</span><span class="chip neutral">${fCorta(k.fecha_ayer)}</span></div>
+    <div class="sl-grid" style="grid-template-columns:minmax(0,1.8fr) repeat(2,minmax(0,1fr))">
+      <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')} · ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
         <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} personas</small></div>
         ${minibarras(M.diaria.slice(-14).map(d => ({total:d.total, lab:false})), 0)}
         <div class="desc">${M.categorias.map(c => { const x = M.por_categoria.find(p => p.categoria === c);
@@ -1429,9 +1545,7 @@ function tarjetaResumenMant(M){
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_hoy')}</span><span class="vivo" style="color:var(--text)"><i></i></span></div>
         <div class="val">${fmt(k.hoy)}</div><div class="desc">${fmt(k.personas_hoy)} personas trabajando hoy</div></div>
       <div class="sl-bloque"><div class="lbl"><span>${t('mant_prom')}</span></div>
-        <div class="val">${fmt(k.prom_dia_30,1)} <small>/día</small></div><div class="desc">${fmt(k.fin_30)} finalizados en 30 días</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_abiertos')}</span></div>
-        <div class="val">${fmt(k.abiertos)}</div><div class="desc">Duración típica ${k.mediana_min_30==null?'—':fmt(k.mediana_min_30)+' min'}</div></div>
+        <div class="val">${sLab ? fmt(sLab.prom,1) : '—'} <small>por día laboral</small></div><div class="desc">${fmt(k.fin_30)} finalizados en 30 días</div></div>
     </div></article>`;
 }
 
@@ -1439,14 +1553,8 @@ function vistaMantenimiento(M){
   if(!M) return `<section class="vista" id="v-mantenimiento" hidden><div class="aviso err">✖ No se pudo leer la base de mantenimientos (Control Inventarios).<button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div></section>`;
   const k = M.kpis;
   return `<section class="vista" id="v-mantenimiento" hidden>
-  <h2 class="sec">${t('hoy')} · ${t('ayer')}</h2>
-  <div class="grid-kpi">
-    ${kpi(t('mant_hoy'), fmt(k.hoy), '', `${fmt(k.personas_hoy)} personas · en vivo`, '<span class="chip ok">● En vivo</span>', 'hero')}
-    ${kpi(t('mant_ayer'), fmt(k.ayer), '', `${fLarga(k.fecha_ayer)} · ${fmt(k.personas_ayer)} personas`, '', 'hero')}
-    ${kpi(t('mant_prom'), fmt(k.prom_dia_30,1), '/día', `${fmt(k.fin_30)} finalizados · ${fmt(k.galgas_30)} galgas`)}
-    ${kpi(t('mant_mediana'), k.mediana_min_30==null?'—':fmt(k.mediana_min_30), t('minutos'), 'Mediana de lo que dura un mantenimiento (30 días), sin contar los que quedaron abiertos de un día para otro')}
-    ${kpi(t('mant_abiertos'), fmt(k.abiertos), '', `Pendientes o en proceso abiertos en los últimos ${k.dias_viejo} días`)}
-  </div>
+  <h2 class="sec">Desempeño del día</h2>
+  ${tarjetasMant(M)}
 
   <h2 class="sec">${t('mant_cat')}</h2>
   <div class="cats" id="mant-cats">${M.por_categoria.map(c => `
