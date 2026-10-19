@@ -46,7 +46,7 @@ def calcular(hoy, R):
                 fila_pend.append((entrega, mat))
         if entrega and not nmi and tipo_op != "excluido" and not _fuera_de_meta(r["operario"]):
             hecho = fab is not None and fab <= entrega
-            compromisos.append((entrega, mat, hecho))
+            compromisos.append((entrega, mat, hecho, fab is not None and fab > entrega))   # último: entregado tarde
             if hoy - dt.timedelta(days=10) <= entrega < hoy:
                 comp_detalle.append({"entrega": entrega, "hecho": hecho, "mat": mat, "orden": r["orden"], "acero": r["acero"],
                                      "vehiculo": r["vehiculo"], "fab": fab.isoformat() if fab else None, "puesto": puesto})
@@ -105,20 +105,23 @@ def calcular(hoy, R):
                         "segs": segs(ev), "total": len(ev), "eq": round(sum(e["eq"] for e in ev), 1),
                         "meta": dias_lab(ini, fin) * meta_dia, "dias_lab": dias_lab(ini, fin), "en_curso": fin > ayer})
 
-    comp_dia = defaultdict(lambda: {"total": 0, "hechos": 0, "segs": defaultdict(int)})
-    for d, mat, hecho in compromisos:
+    comp_dia = defaultdict(lambda: {"total": 0, "hechos": 0, "tarde": 0, "segs": defaultdict(int)})
+    for d, mat, hecho, tarde in compromisos:
         c = comp_dia[d]
         c["total"] += 1
         if hecho:
             c["hechos"] += 1
             c["segs"][mat] += 1
+        elif tarde:          # se fabricó, pero después de la fecha comprometida: cierra la barra con otro color
+            c["tarde"] += 1
     # Solo hasta 30 días adelante: hay fechas de relleno muy lejanas (ej. 31-dic-2028) que no son compromisos reales.
     cumplimiento, d = [], hoy - dt.timedelta(days=335)
     while d <= hoy + dt.timedelta(days=30):
         c = comp_dia.get(d)
         if (c and c["total"]) or (d <= ayer and es_laboral(d)):
             cumplimiento.append({"fecha": d.isoformat(), "comprometidos": c["total"] if c else 0,
-                                 "hechos": c["hechos"] if c else 0, "segs": dict(c["segs"]) if c else {},
+                                 "hechos": c["hechos"] if c else 0, "tarde": c["tarde"] if c else 0,
+                                 "segs": dict(c["segs"]) if c else {},
                                  "futuro": d > ayer})
         d += dt.timedelta(days=1)
 
@@ -198,7 +201,7 @@ def calcular(hoy, R):
             "fecha": ayer.isoformat(), "fabricados": len(ev_ayer), "eq": round(sum(e["eq"] for e in ev_ayer), 1),
             "segs": segs(ev_ayer), "meta": meta_dia,
             "comprometidos": comp_dia[ayer]["total"], "comprometidos_hechos": comp_dia[ayer]["hechos"],
-            "comprometidos_segs": dict(comp_dia[ayer]["segs"]),
+            "comprometidos_segs": dict(comp_dia[ayer]["segs"]), "comprometidos_tarde": comp_dia[ayer]["tarde"],
             "no_cumplidos": sorted(({k: v for k, v in c.items() if k not in ("entrega", "hecho")}
                                     for c in comp_detalle if c["entrega"] == ayer and not c["hecho"]),
                                    key=lambda x: (x["fab"] is None, x["fab"] or "", str(x["orden"]))),

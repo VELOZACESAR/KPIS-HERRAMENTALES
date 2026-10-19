@@ -316,6 +316,33 @@
   table.tx5 td{padding:4px;color:var(--text)}
   table.tx5 tr.tot td{font-weight:700;border-top:1px solid var(--border);border-bottom:0}
   .grid-estado{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  /* estado actual de aceros en una sola fila */
+  .grid-estado1{display:grid;grid-template-columns:minmax(0,1.7fr) repeat(4,minmax(0,1fr));gap:14px}
+  .grid-estado1 .kpi{padding:14px 16px}
+  .grid-estado1 .kpi .val{font-size:26px}
+  @media (max-width:1200px){ .grid-estado1{grid-template-columns:repeat(3,minmax(0,1fr))} .grid-estado1 > :first-child{grid-column:span 3} }
+  @media (max-width:640px){ .grid-estado1{grid-template-columns:1fr} .grid-estado1 > :first-child{grid-column:auto} }
+  /* no cumplidos por puesto */
+  .puestos{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+  .pu-fila{display:grid;grid-template-columns:120px minmax(0,1fr) 30px;align-items:center;gap:8px;font-size:12.5px}
+  .pu-nom{color:var(--text);font-weight:600;white-space:nowrap}
+  .pu-bar{height:8px;border-radius:4px;background:var(--grid);overflow:hidden}
+  .pu-bar i{display:block;height:100%;border-radius:4px}
+  .pu-n{text-align:right;font-weight:700;color:var(--text)}
+  /* piezas retenidas / refundidas en piso */
+  .ret-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 8px}
+  .ret-form input,.ret-form select,.ret-tabla select{font:500 13px var(--font);color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 9px}
+  .ret-form input{width:150px}
+  .ret-form button{background:var(--brand);color:var(--on-brand);border:0;border-radius:7px;padding:7px 14px;font:700 12.5px var(--font);cursor:pointer}
+  .ret-form button:disabled{opacity:.5;cursor:default}
+  .ret-prev{font-size:12px;color:var(--text-soft);min-height:18px;margin-bottom:6px}
+  .ret-prev b{color:var(--text)}
+  .ret-kpis{display:flex;gap:18px;font-size:12.5px;color:var(--text-soft);margin-bottom:6px}
+  .ret-kpis b{font-size:18px;color:var(--text);margin-right:4px}
+  .ret-tabla td{white-space:nowrap}
+  .ret-tabla .marca{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:700;font-size:12px}
+  .ret-tabla .borrar{background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+  .ret-tabla .borrar:hover{color:var(--bad)}
   /* fila de tarjetas manuales: enviados | en fabricación | X5 por pieza (más ancha) */
   .grid-manual{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,3fr);gap:14px;margin-top:14px}
   .lado{display:grid;grid-template-columns:minmax(150px,200px) 1fr;gap:24px;align-items:start}
@@ -778,6 +805,10 @@ function capDeDiaIso(iso){ // capacidad efectiva de un día: la propia del día 
 }
 function capDeDia(s, d){ return capDeDiaIso(d.iso); }
 function capRango(desde, hasta){ return diasRango(desde, hasta).reduce((t, d) => t + capDeDiaIso(d.iso), 0); }
+function capPromSemana(s){ // promedio de la capacidad efectiva de los días laborales (la propia del día o la de la semana)
+  const lab = diasDeSemana(s).filter(d => d.lab || valorManual(claveCapDia(d.iso), null) != null);
+  return lab.length ? lab.reduce((a, d) => a + capDeDiaIso(d.iso), 0) / lab.length : capDiaRespaldo();
+}
 function capSemana(s){ return capRango(s.desde, s.hasta); }
 function retenidasRango(desde, hasta){ // última foto de piezas retenidas dentro del rango
   const hist = (D.aceros && D.aceros.historial) || {}, f = Object.keys(hist).filter(x => x >= desde && x <= hasta).sort().pop();
@@ -1080,18 +1111,21 @@ function bullet(real, meta){
 }
 
 // Barra de lo fabricado (por material, con el número en cada tramo) contra la marca de lo proyectado
+const COLOR_TARDE = '#C9A04A'; // entregado después de la fecha comprometida (ocre suave)
 function barraProyeccion(segs, real, proy, txt={marca:'Proyectado', falta:'Faltó para lo proyectado', faltaCorto:'faltan'}){
+  const tarde = txt.tarde || 0;
   // la escala llega justo al mayor valor: si se sobre-ejecuta la barra llena todo el ancho;
   // si falta, el faltante (rayado) completa hasta lo proyectado. Nunca queda espacio vacío.
   const max = Math.max(real, proy, 1), mats = D.orden_materiales.filter(m => segs[m]);
   const tramos = mats.map(m => {
     const w = segs[m]/max*100;
     return `<i style="width:${w}%;background:${COLOR_MAT[m]};color:${tintaSobre(COLOR_MAT[m])}" title="${m}: ${segs[m]}">${w>5?fmt(segs[m]):''}</i>`; }).join('');
-  const faltan = Math.max(0, proy - real);
+  const faltan = Math.max(0, proy - real - tarde);
   return `<div><div class="proy">
     ${proy ? `<div class="proy-marca" style="left:${proy/max*100}%"><span>${txt.marca} <b class="num">${fmt(proy)}</b></span></div>` : ''}
-    <div class="proy-bar">${tramos}${faltan ? `<i class="proy-falta" style="width:${faltan/max*100}%" title="${txt.falta}: ${faltan}">${faltan/max*100>5?txt.faltaCorto+' '+fmt(faltan):''}</i>` : ''}</div></div>
+    <div class="proy-bar">${tramos}${tarde ? `<i style="width:${tarde/max*100}%;background:${COLOR_TARDE};color:#fff" title="Entregados tarde: ${tarde}">${tarde/max*100>5?fmt(tarde):''}</i>` : ''}${faltan ? `<i class="proy-falta" style="width:${faltan/max*100}%" title="${txt.falta}: ${faltan}">${faltan/max*100>5?txt.faltaCorto+' '+fmt(faltan):''}</i>` : ''}</div></div>
     <div class="proy-ley">${mats.map(m=>`<span><i style="background:${COLOR_MAT[m]}"></i>${m} <b class="num">${fmt(segs[m])}</b></span>`).join('')}
+      ${tarde ? `<span><i style="background:${COLOR_TARDE}"></i>Entregados tarde <b class="num">${fmt(tarde)}</b></span>` : ''}
       ${faltan ? `<span><i class="proy-falta"></i>${txt.falta} <b class="num">${fmt(faltan)}</b></span>` : proy && real>proy ? `<span>Sobre lo proyectado <b class="num" style="color:var(--ok)">+${fmt(real-proy)}</b></span>` : ''}</div>
   </div>`;
 }
@@ -1123,7 +1157,17 @@ function vistaAceros(A){
   const eProd = estado(a.comprometidos_hechos, a.comprometidos);
   const eRech = estado(a.rechazos, a.rechazos_prom, true);
   const noCump = a.no_cumplidos || [];
-  const tablaNoCump = noCump.length ? `<details class="no-cump"><summary>Ver los ${fmt(noCump.length)} no cumplidos</summary>
+  const pendientes = noCump.filter(x => !x.fab), porPuesto = {};
+  pendientes.forEach(x => { const k = (x.puesto || 'Sin puesto').trim(); porPuesto[k] = (porPuesto[k] || 0) + 1; });
+  const codPuesto = k => { const m = /^(\d{2})/.exec(k); return m ? +m[1] : -1; };   // 07 Recorte = más crítico
+  const nomPuesto = k => { const c = (A.cuellos || []).find(c => c.codigo === k); return c ? `${k.slice(0, 2)} ${c.puesto}` : k; };
+  const puestos = Object.entries(porPuesto).sort((a, b) => codPuesto(b[0]) - codPuesto(a[0]) || b[1] - a[1]);
+  const maxPu = Math.max(1, ...puestos.map(x => x[1]));
+  const resumenPuestos = puestos.length ? `<div class="puestos">${puestos.map(([k, n]) => {
+      const c = codPuesto(k), color = c > 0 ? CALOR[Math.min(CALOR.length - 1, c - 1)] : 'var(--muted)';
+      return `<div class="pu-fila"><span class="pu-nom">${esc(nomPuesto(k))}</span><span class="pu-bar"><i style="width:${n / maxPu * 100}%;background:${color}"></i></span><span class="pu-n">${fmt(n)}</span></div>`; }).join('')}</div>` : '';
+  const tablaNoCump = noCump.length ? `<details class="no-cump"><summary>Ver los ${fmt(pendientes.length)} sin fabricar por puesto${noCump.length > pendientes.length ? ` · ${fmt(noCump.length - pendientes.length)} entregados tarde` : ''}</summary>
+    ${resumenPuestos}
     <div class="tabla"><table><thead><tr><th>Orden</th><th>Acero</th><th>Puesto</th><th>Estado</th></tr></thead><tbody>${
       noCump.map(x => `<tr title="${esc(x.vehiculo)} · ${esc(x.mat)}"><td class="num">${esc(x.orden)}</td><td class="num">${esc(x.acero)}</td><td>${esc(x.puesto)}</td><td style="white-space:nowrap">${
         x.fab ? `Tarde (${fCorta(x.fab)})` : '<b style="color:var(--bad)">Sin fabricar</b>'}</td></tr>`).join('')}</tbody></table></div></details>` : '';
@@ -1138,9 +1182,8 @@ function vistaAceros(A){
   <div class="grid-ayer">
     <div class="kpi hero span2">
       <div class="lbl"><span>Cumplimiento de compromisos · ${fCorta(a.fecha)}</span>${chip(eProd)}</div>
-      <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos</small></div>
-      ${barraProyeccion(a.comprometidos_segs, a.comprometidos_hechos, a.comprometidos, {marca:'Comprometidos', falta:'No cumplidos', faltaCorto:'faltan'})}
-      <div class="desc" style="margin-top:8px">Cumplido = fabricado en la fecha comprometida o antes. Producción total del día: <b>${fmt(a.fabricados)}</b> aceros (incluye adelantos y atrasos).</div>
+      <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos${a.comprometidos_tarde ? ` · ${fmt(a.comprometidos_tarde)} entregados tarde` : ''}</small></div>
+      ${barraProyeccion(a.comprometidos_segs, a.comprometidos_hechos, a.comprometidos, {marca:'Comprometidos', falta:'No cumplidos', faltaCorto:'faltan', tarde: a.comprometidos_tarde || 0})}
       ${tablaNoCump}
     </div>
     ${kpi(`Rechazos · ${fCorta(a.fecha)}`, fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
@@ -1151,7 +1194,7 @@ function vistaAceros(A){
   </div>
 
   <h2 class="sec">Estado actual de la producción</h2>
-  <div class="grid-estado">
+  <div class="grid-estado1">
     <div class="kpi"><div class="lbl"><span>Fila en fabricación</span></div>
       <div class="multi">
         <div><div class="val">${fmt(k.fila)}</div><div class="desc">aceros en fila</div></div>
@@ -1159,9 +1202,7 @@ function vistaAceros(A){
         <div><div class="val" style="color:${k.vencidos?'var(--bad)':'var(--ok)'}">${fmt(k.vencidos)}</div><div class="desc">${k.vencidos?'▼ ':''}con fecha vencida</div></div>
       </div></div>
     ${kpi('Productividad promedio', fmt(k.productividad,1), 'aceros/día', `Últimos ${k.dias_prom} días con producción`)}
-    ${kpi('Fabricación por rechazo', fmt(k.pct_rechazo_30,1)+' %', '', `De lo fabricado en 30 días fue reposición por rechazo · ${fmt(k.rechazos_30)} rechazos registrados`)}
-  </div>
-  <div class="grid-manual" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    ${kpi('Fabricación por rechazo', fmt(k.pct_rechazo_30,1)+' %', '', `${fmt(k.rechazos_30)} rechazos en 30 días`)}
     ${tarjetaCortes()}
     ${kpiManual('en-fabricacion', 'Aceros en fabricación', 'aceros')}
   </div>
@@ -1176,13 +1217,15 @@ function vistaAceros(A){
     <div class="cap-fila" id="prod-cap-fila"></div>
   </div>
 
-  <div style="margin-top:16px">
-    <div class="panel"><div class="panel-head"><div><h3 id="comp-titulo">Cumplimiento de entregas comprometidas</h3><p id="comp-sub"></p></div>
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><div><h3 id="comp-titulo">Cumplimiento de fechas de compromiso</h3><p id="comp-sub"></p></div>
       <div class="prod-ctrl">
         <button class="btn-volver" id="comp-volver" hidden>← Volver</button>
         <div class="seg" id="comp-vista"><button aria-pressed="true" data-v="diaria">Diario</button><button aria-pressed="false" data-v="semanal">Semanal</button><button aria-pressed="false" data-v="mensual">Mensual</button></div>
       </div></div>
       <div id="comp-leyenda"></div><div class="chart" id="ch-comp"></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas / refundidas en piso</h3><p id="ret-sub"></p></div></div>
+      <div id="ret-cuerpo"></div></div>
   </div>
 
   <div class="grid-2">
@@ -1294,11 +1337,23 @@ function filaDia(iso){ // datos reales del día o un día vacío si aún no lleg
   return real || {fecha: iso, segs: {}, total: 0, eq: 0, futuro: true,
     nota: i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : (iso === D.hoy ? 'Hoy' : 'Pendiente')};
 }
+// Piezas retenidas / refundidas en piso registradas cada día (tabla cesar.aceros_retenidas_piso). Si la tabla aún
+// no existe en el servidor, la línea sigue saliendo de la foto diaria de piezas retenidas como antes.
+function retPisoPorDia(){
+  const R = D.aceros && D.aceros.retenidas_piso; if(!R) return null;
+  const m = {}; R.filas.forEach(f => m[f.fecha] = (m[f.fecha] || 0) + 1); return m;
+}
+function retPisoRango(desde, hasta){
+  const m = retPisoPorDia(); if(!m) return retenidasRango(desde, hasta);
+  if(desde > D.hoy) return null;
+  let n = 0; for(const f in m) if(f >= desde && f <= hasta) n += m[f]; return n;
+}
 function dibujarProduccion(){
   const A = D.aceros, hist = A.historial || {}, enZoom = zoomProd !== null && vistaProd !== 'diaria';
+  const retDia = iso => { const m = retPisoPorDia(); if(!m) return hist[iso] ? hist[iso].retenidas : null; return iso > D.hoy ? null : (m[iso] || 0); };
   $('#prod-volver').hidden = !enZoom;
   const barraDia = d => {
-    const cap = capDeDiaIso(d.fecha) || null, ret = hist[d.fecha] ? hist[d.fecha].retenidas : null, e = estado(d.total, cap || 0);
+    const cap = capDeDiaIso(d.fecha) || null, ret = retDia(d.fecha), e = estado(d.total, cap || 0);
     return {cap, ret, item:{etiqueta:fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
       sub: cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro ? COLOR_EST[e.cls] : 'var(--muted)',
       tip: tipSegs(fLarga(d.fecha), d.segs, filasTip(d.total, cap, d.eq, ret))}};
@@ -1319,7 +1374,7 @@ function dibujarProduccion(){
   } else {
     porDia = false;
     filas = A[vistaProd].map(s => {
-      const cap = capRango(s.desde, s.hasta), ret = retenidasRango(s.desde, s.hasta);
+      const cap = capRango(s.desde, s.hasta), ret = retPisoRango(s.desde, s.hasta);
       const capHastaAyer = capRango(s.desde, s.hasta < D.hoy ? s.hasta : isoDe(new Date(fecha(D.hoy).getTime() - 864e5)));
       const e = estado(s.total, s.en_curso ? capHastaAyer : cap);
       const mensual = vistaProd === 'mensual';
@@ -1330,19 +1385,90 @@ function dibujarProduccion(){
           '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>')}};
     });
     if(vistaProd === 'semanal'){ tituloCeldas = 'Cap./día';
-      celdas = A.semanal.map(s => ({clave: claveCap(s), resp: fmt(capDiaRespaldo()), titulo: s.etiqueta})); }
+      // vacía = promedio de la capacidad de los días laborales de la semana (incluye las que se escribieron por día)
+      celdas = A.semanal.map(s => ({clave: claveCap(s), resp: fmt(capPromSemana(s), 0), titulo: `${s.etiqueta}: promedio de la capacidad diaria`})); }
     onClick = (it, i) => { zoomProd = i; dibujarProduccion(); };
   }
   $('#prod-titulo').textContent = titulo;
   $('#prod-sub').textContent = sub;
   $('#prod-leyenda').innerHTML = leyendaMat(matsPresentes(filas.map(x => x.item)),
     `<span><i class="linea punteada" style="color:${COLOR_META}"></i>${porDia ? 'Capacidad del día' : 'Capacidad (suma de la capacidad de cada día)'}</span>` +
-    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>Piezas retenidas</span>`);
+    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>${retPisoPorDia() ? 'Piezas retenidas/refundidas en piso' : 'Piezas retenidas'}</span>`);
   barrasApiladas($('#ch-prod'), filas.map(x => x.item), {sub:true, alto:300, aria:'Producción de aceros vs. capacidad', onClick,
     lineas:[{vals:filas.map(x=>x.cap), color:COLOR_META, etiquetas:'ultima', punteada:true},
             {vals:filas.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
   $('#prod-cap-fila').innerHTML = celdas ? capFilaHTML(tituloCeldas, celdas) : '';
 }
+
+// ---- Piezas retenidas / refundidas en piso: se escribe la orden y el tablero trae del consolidado su compromiso,
+//      ZHAL, acero, fecha de entrega y matricero; el estatus se elige a mano. Queda el histórico en la base.
+function dibujarRetenidasPiso(){
+  const cont = $('#ret-cuerpo'); if(!cont) return;
+  const R = D.aceros.retenidas_piso;
+  if(!R){ cont.innerHTML = '<div class="vacio">Disponible cuando se cree la tabla en la base (instalar_bd.py) y se reinicie el servidor.</div>'; $('#ret-sub').textContent = ''; return; }
+  const hoyN = R.filas.filter(f => f.fecha === D.hoy).length, sem = R.filas.filter(f => f.fecha >= lunesDe(D.hoy)).length;
+  const hace30 = sumarDias(D.hoy, -29), n30 = R.filas.filter(f => f.fecha >= hace30).length;
+  $('#ret-sub').textContent = 'Escribe la orden; el compromiso, ZHAL, acero, entrega y matricero salen del consolidado';
+  const opts = sel => ['', ...R.estatus].map(e => `<option value="${esc(e)}" ${e === (sel || '') ? 'selected' : ''}>${e ? esc(e) : '— Estatus —'}</option>`).join('');
+  const marca = (txt, color) => txt ? `<span class="marca" style="background:${hexA(color, .18)};color:var(--text);box-shadow:inset 0 0 0 1px ${hexA(color, .55)}">${esc(txt)}</span>` : '—';
+  cont.innerHTML = `
+    <div class="ret-form"><input id="ret-orden" inputmode="numeric" placeholder="N.º de orden" autocomplete="off">
+      <select id="ret-estatus">${opts('Retenida')}</select><button id="ret-guardar" disabled>Registrar</button></div>
+    <div class="ret-prev" id="ret-prev"></div>
+    <div class="ret-kpis"><span><b>${fmt(hoyN)}</b>hoy</span><span><b>${fmt(sem)}</b>esta semana</span><span><b>${fmt(n30)}</b>últimos 30 días</span></div>
+    <div class="tabla ret-tabla"><table><thead><tr><th>Registro</th><th>Orden</th><th>Compromiso</th><th>ZHAL</th><th>Acero</th><th>Entrega</th><th>Matricero</th><th>Estatus</th><th></th></tr></thead><tbody>${
+      R.filas.map(f => `<tr title="${esc(f.vehiculo || '')}${f.puesto ? ' · ' + esc(f.puesto) : ''}">
+        <td>${fCorta(f.fecha)}</td><td class="num">${esc(f.orden)}</td>
+        <td>${f.compromiso ? fCorta(f.compromiso) : (f.encontrada ? '—' : '<span style="color:var(--bad)">No está en el consolidado</span>')}</td>
+        <td class="num">${esc(f.zhal || '—')}</td><td class="num">${esc(f.acero || '—')}</td>
+        <td>${f.entrega ? marca(fLarga(f.entrega), PALETA[0]) : marca('Sin entregar', '#C0392B')}</td>
+        <td>${marca(f.matricero, PALETA[1])}</td>
+        <td><select data-ret-estatus="${f.id}">${opts(f.estatus)}</select></td>
+        <td><button class="borrar" data-ret-borrar="${f.id}" title="Borrar este registro">✕</button></td></tr>`).join('') ||
+      '<tr><td colspan="9" style="color:var(--muted)">Aún no hay piezas registradas</td></tr>'}</tbody></table></div>`;
+}
+async function llamarRetenidas(metodo, ruta, cuerpo){
+  const headers = {'Content-Type':'application/json'};
+  let clave = null; try { clave = sessionStorage.getItem('tablero-clave'); } catch(e){}
+  if(clave) headers['X-Clave'] = clave;
+  const r = await fetch(ruta, {method: metodo, headers, body: cuerpo ? JSON.stringify({...cuerpo, usuario: leerPref('tablero-usuario', '') || null}) : undefined});
+  if(r.status === 403){ const c = prompt('Clave de edición del tablero:'); if(c){ try { sessionStorage.setItem('tablero-clave', c); } catch(e){} return llamarRetenidas(metodo, ruta, cuerpo); } }
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || ('error ' + r.status));
+  return j;
+}
+let tBuscarRet;
+document.addEventListener('input', ev => {
+  if(ev.target.id !== 'ret-orden') return;
+  const orden = ev.target.value.trim(), prev = $('#ret-prev'), btn = $('#ret-guardar');
+  btn.disabled = orden.length < 3; clearTimeout(tBuscarRet);
+  if(orden.length < 3){ prev.textContent = ''; return; }
+  tBuscarRet = setTimeout(async () => {
+    try {
+      const j = await llamarRetenidas('GET', '/api/retenidas/buscar/' + encodeURIComponent(orden));
+      if($('#ret-orden').value.trim() !== orden) return;
+      const x = j.datos;
+      prev.innerHTML = x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
+                         : '<span style="color:var(--bad)">Esa orden no está en el consolidado (igual se puede registrar)</span>';
+    } catch(e){ prev.textContent = 'No se pudo buscar: ' + e.message; }
+  }, 350);
+});
+document.addEventListener('keydown', ev => { if(ev.target.id === 'ret-orden' && ev.key === 'Enter'){ const b = $('#ret-guardar'); if(!b.disabled) b.click(); } });
+document.addEventListener('click', async ev => {
+  const g = ev.target.closest('#ret-guardar'), b = ev.target.closest('[data-ret-borrar]');
+  if(!g && !b) return;
+  try {
+    if(g){ g.disabled = true; usuarioEdicion();
+      await llamarRetenidas('POST', '/api/retenidas', {orden: $('#ret-orden').value.trim(), estatus: $('#ret-estatus').value || null}); }
+    else { if(!confirm('¿Borrar este registro de pieza retenida?')) return; await llamarRetenidas('DELETE', '/api/retenidas/' + b.dataset.retBorrar); }
+    await cargar(true);
+  } catch(e){ alert('No se guardó: ' + e.message); if(g) g.disabled = false; }
+});
+document.addEventListener('change', async ev => {
+  const id = ev.target.dataset && ev.target.dataset.retEstatus; if(!id) return;
+  try { await llamarRetenidas('PUT', '/api/retenidas/' + id, {estatus: ev.target.value || null}); await cargar(true); }
+  catch(e){ alert('No se guardó el estatus: ' + e.message); }
+});
 
 // ---- Cumplimiento de compromisos (por fecha de entrega a producción): 10 barras por vista.
 //      Diario = últimos días + próximos días con aceros asignados ("prog."); Semanal/Mensual = 10 periodos,
@@ -1354,10 +1480,14 @@ function semanaIso(iso){
   const e = new Date(f.getFullYear(), 0, 4);
   return 1 + Math.round(((f - e) / 864e5 - 3 + ((e.getDay() + 6) % 7)) / 7);
 }
+const TARDE = 'Entregado tarde';
+const conTarde = c => c.tarde ? {...c.segs, [TARDE]: c.tarde} : c.segs;   // el tramo "tarde" va encima de los materiales
+const opComp = () => ({orden: [...D.orden_materiales, TARDE], colores: {...COLOR_MAT, [TARDE]: COLOR_TARDE}});
 function sumarComp(dias){
   const segs = {};
   dias.forEach(d => Object.entries(d.segs).forEach(([m, v]) => segs[m] = (segs[m] || 0) + v));
-  return {segs, comprometidos: dias.reduce((s, d) => s + d.comprometidos, 0), hechos: dias.reduce((s, d) => s + d.hechos, 0)};
+  return {segs, comprometidos: dias.reduce((s, d) => s + d.comprometidos, 0), hechos: dias.reduce((s, d) => s + d.hechos, 0),
+          tarde: dias.reduce((s, d) => s + (d.tarde || 0), 0)};
 }
 function periodosComp(vista){
   const dias = D.aceros.cumplimiento, grupos = {};
@@ -1378,12 +1508,13 @@ function periodosComp(vista){
 function filasComp(c, futuro){
   return `<div class="r" style="margin-top:6px"><span>Comprometidos</span><span>${fmt(c.comprometidos)}</span></div>` +
     `<div class="r"><span>${futuro ? 'Ya fabricados (adelantados)' : 'Fabricados'}</span><span>${fmt(c.hechos)}</span></div>` +
-    `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - c.hechos)}</span></div>`;
+    (c.tarde ? `<div class="r"><span style="color:${COLOR_TARDE}">Entregados tarde</span><span>${fmt(c.tarde)}</span></div>` : '') +
+    `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - c.hechos - (c.tarde || 0))}</span></div>`;
 }
 function barraCompDia(c){
   const e = estado(c.hechos, c.comprometidos), i = infoDia(c.fecha);
   const sub = c.futuro ? (c.comprometidos ? 'prog.' : '') : c.comprometidos ? `${fmt(e.pct*100)} %` : (i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : '');
-  return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:c.segs, total:c.hechos, fondo:c.comprometidos,
+  return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:conTarde(c), total:c.hechos + (c.tarde || 0), fondo:c.comprometidos,
     etiquetaValor: c.comprometidos ? `${fmt(c.hechos)}/${fmt(c.comprometidos)}` : '',
     sub, subColor: c.futuro || !c.comprometidos ? 'var(--muted)' : COLOR_EST[e.cls],
     tip: tipSegs(fLarga(c.fecha) + (c.futuro ? ' · programado' : ''), c.segs, filasComp(c, c.futuro))};
@@ -1392,7 +1523,7 @@ function dibujarCumplimiento(){
   const A = D.aceros, enZoom = zoomComp !== null && vistaComp !== 'diaria';
   $('#comp-volver').hidden = !enZoom;
   document.querySelectorAll('#comp-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaComp));
-  let items, titulo = 'Cumplimiento de entregas comprometidas', sub, onClick = null;
+  let items, titulo = 'Cumplimiento de fechas de compromiso', sub, onClick = null;
   if(vistaComp === 'diaria'){
     const fut = A.cumplimiento.filter(c => c.futuro).slice(0, 4);
     const pas = A.cumplimiento.filter(c => !c.futuro).slice(-(BARRAS_COMP - fut.length));
@@ -1416,7 +1547,7 @@ function dibujarCumplimiento(){
       const extra = p.estado === 'curso'
         ? `<div class="r" style="margin-top:4px"><span>Hasta ayer</span><span>${fmt(p.hastaAyer.hechos)} de ${fmt(p.hastaAyer.comprometidos)} (${fmt(eA.pct*100)} %)</span></div>` : '';
       return {etiqueta: mensual ? mes.slice(0,3) + (p.clave.slice(0,4) !== anio ? ' ' + p.clave.slice(2,4) : '') : 'S' + semanaIso(p.desde),
-        segs:p.segs, total:p.hechos, fondo:p.comprometidos, etiquetaValor:`${fmt(p.hechos)}/${fmt(p.comprometidos)}`,
+        segs:conTarde(p), total:p.hechos + (p.tarde || 0), fondo:p.comprometidos, etiquetaValor:`${fmt(p.hechos)}/${fmt(p.comprometidos)}`,
         sub: p.estado === 'prog' ? 'prog.' : p.estado === 'curso' ? (p.hastaAyer.comprometidos ? `${fmt(eA.pct*100)} %` : 'en curso') : `${fmt(e.pct*100)} %`,
         subColor: p.estado === 'prog' || !p.hastaAyer.comprometidos ? 'var(--muted)' : COLOR_EST[(p.estado === 'curso' ? eA : e).cls],
         tip: tipSegs(nombre + (p.estado === 'curso' ? ' · en curso' : p.estado === 'prog' ? ' · programado' : ''), p.segs,
@@ -1427,8 +1558,10 @@ function dibujarCumplimiento(){
   }
   $('#comp-titulo').textContent = titulo;
   $('#comp-sub').textContent = sub;
-  $('#comp-leyenda').innerHTML = leyendaMat(matsPresentes(items), '<span><i style="background:var(--pend)"></i>Pendiente</span>');
-  barrasApiladas($('#ch-comp'), items, {sub:true, aria:'Cumplimiento de compromisos', onClick});
+  $('#comp-leyenda').innerHTML = leyendaMat(matsPresentes(items), (items.some(i => i.segs[TARDE]) ? `<span><i style="background:${COLOR_TARDE}"></i>Entregado tarde</span>` : '') +
+    '<span><i style="background:var(--pend)"></i>Pendiente</span>');
+  barrasApiladas($('#ch-comp'), items, {...opComp(), sub:true, aria:'Cumplimiento de compromisos', onClick});
+  dibujarRetenidasPiso();
 }
 
 // ---- Rechazos: 12 semanas; clic en una semana = zoom a sus 7 días con la lista de órdenes

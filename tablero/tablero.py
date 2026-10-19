@@ -5,7 +5,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, calculo_serigrafia, db, reglas
+from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, calculo_serigrafia, db, reglas, retenidas_piso
 from .ingesta import estado_fuentes
 
 log = logging.getLogger("tablero")
@@ -43,6 +43,7 @@ def construir(hoy=None):
     bloques = {
         "aceros": ("Aceros (consolidado)", lambda: calculo_aceros.calcular(hoy, R)),
         "historial": ("Historial de aceros", historial),
+        "retenidas_piso": ("Piezas retenidas en piso", lambda: retenidas_piso.listar(hoy)),
         "cortes": ("Control de pedidos", lambda: calculo_aceros.enviados_a_cortar(hoy)),
         "x5": ("Inventario X5", calculo_aceros.inventario_x5),
         "moldes": ("Fabricación de moldes", lambda: calculo_moldes.calcular(hoy, R)),
@@ -59,6 +60,7 @@ def construir(hoy=None):
         resultado = {k: f.result() for k, f in futuros.items()}
     if resultado["aceros"]:
         resultado["aceros"]["historial"] = resultado["historial"] or {}
+        resultado["aceros"]["retenidas_piso"] = resultado["retenidas_piso"]
     if resultado["moldes"]:
         resultado["moldes"]["historial"] = resultado["historial_moldes"] or {}
     if resultado["serigrafia"]:
