@@ -1694,7 +1694,28 @@ function analisisMat(M){
     tipos: Object.entries(tip).map(([tipo, x]) => ({tipo, ...x})).sort((a, b) => b.n - a.n),
     moldes: Object.entries(mol).filter(([, x]) => x.n > 1).map(([molde, x]) => ({molde, ...x})).sort((a, b) => b.n - a.n || (a.ultima < b.ultima ? 1 : -1)).slice(0, 10)};
 }
-function sparkMini(serie, color){ // mini barras alineadas a las columnas del periodo
+// Respaldo si el servidor todavía no envía "registros": diario sale de la matriz de 14 días que ya existía;
+// tipos y moldes, de los acumulados de 30 días. Semanal y mensual necesitan los registros.
+function analisisBasico(M){
+  if(vistaMat !== 'diaria' || zoomMat) return null;
+  const cols = periodosMat(), idx = Object.fromEntries(cols.map((c, i) => [c.desde, i]));
+  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({}))});
+  const equipo = nuevo();
+  const personas = M.personas.map(p => {
+    const x = nuevo();
+    p.celdas.forEach(c => { const i = idx[c.fecha]; if(i == null) return; const s = segsFiltrados(c.segs), n = totalSegs(s);
+      x.n[i] += n; x.total += n; x.segs[i] = s; equipo.n[i] += n; equipo.total += n;
+      for(const k in s) equipo.segs[i][k] = (equipo.segs[i][k] || 0) + s[k]; });
+    return {nombre: p.nombre, ...x, activos: x.n.filter(v => v).length};
+  }).filter(p => p.total).sort((a, b) => b.total - a.total);
+  const visibles = new Set(catsVisibles(M).filter(c => !catMant || c === catMant));
+  return {cols, desde: cols[0].desde, hasta: cols[cols.length - 1].hasta, equipo, personas, parcial: true,
+    tipos: catMant ? [] : M.tipos_30.map(x => ({tipo: x.tipo, n: x.n, serie: null})),
+    moldes: M.reincidentes_30.filter(r => visibles.has(r.categoria))
+      .map(r => ({molde: r.molde, n: r.n, cat: r.categoria, vehiculo: r.vehiculo, personas: null, ultima: null}))};
+}
+function sparkMini(serie, color){
+  if(!serie) return '<span></span>'; // mini barras alineadas a las columnas del periodo
   const W = 96, H = 22, n = serie.length, max = Math.max(1, ...serie), bw = W / n - 1.5;
   return `<svg class="lt-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${serie.map((v, i) => {
     const h = v ? Math.max(1.5, v / max * (H - 2)) : 1; return `<rect x="${i * W / n}" y="${H - h}" width="${bw}" height="${h}" rx="1" fill="${v ? color : 'var(--grid)'}"/>`; }).join('')}</svg>`;
@@ -1702,8 +1723,14 @@ function sparkMini(serie, color){ // mini barras alineadas a las columnas del pe
 function dibujarAnalisisMant(M){
   document.querySelectorAll('#mat-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMat));
   $('#mat-volver').hidden = !zoomMat;
-  if(!M.registros){ $('#mant-matriz').innerHTML = `<div class="vacio">${t('sin_datos')}</div>`; return; }
-  const A = analisisMat(M), cols = A.cols, op = {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT};
+  const A = M.registros ? analisisMat(M) : analisisBasico(M);
+  if(!A){ // semanal / mensual sin registros: el servidor del tablero aún no tiene la versión que los envía
+    const aviso = '<div class="vacio">Esta vista estará disponible cuando se reinicie el servidor del tablero con la versión actualizada.</div>';
+    $('#mat-rango').textContent = ''; $('#mat-sub').textContent = ''; $('#tipos-sub').textContent = ''; $('#reinc-sub').textContent = '';
+    $('#mant-matriz').innerHTML = aviso; $('#mant-tipos').innerHTML = aviso; $('#mant-reinc').innerHTML = aviso;
+    return;
+  }
+  const cols = A.cols, op = {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT};
   const unidad = cols[0].unidad, plural = {día:'días', semana:'semanas', mes:'meses'}[unidad];
   const rango = `${fDiaMes(A.desde)}${A.desde.slice(0,4) !== A.hasta.slice(0,4) ? ' ' + A.desde.slice(0,4) : ''} – ${fDiaMes(A.hasta)} ${A.hasta.slice(0,4)}`;
   $('#mat-rango').textContent = (zoomMat ? zoomMat.titulo : rango) + (catMant ? ` · solo ${nomCat(catMant)}` : '');
@@ -1740,21 +1767,21 @@ function dibujarAnalisisMant(M){
   }));
   // ---- distribución por tipo: participación del periodo + cómo se movió en cada columna
   const totT = A.tipos.reduce((a, x) => a + x.n, 0), maxT = Math.max(1, ...A.tipos.map(x => x.n));
-  $('#tipos-sub').textContent = (zoomMat ? zoomMat.titulo : rango) + ` · ${fmt(totT)} finalizados`;
+  $('#tipos-sub').textContent = A.parcial ? `Últimos 30 días · ${fmt(totT)} finalizados` : (zoomMat ? zoomMat.titulo : rango) + ` · ${fmt(totT)} finalizados`;
   $('#mant-tipos').innerHTML = A.tipos.length ? `<div class="lista-tipo">
-      <div class="lt-fila cab"><span>Tipo</span><span>Participación</span><span style="text-align:right">Cant.</span><span style="text-align:right">%</span><span>Por ${unidad}</span></div>
+      <div class="lt-fila cab"><span>Tipo</span><span>Participación</span><span style="text-align:right">Cant.</span><span style="text-align:right">%</span><span>${A.parcial ? '' : 'Por ' + unidad}</span></div>
       ${A.tipos.map(x => `<div class="lt-fila"><span class="lt-nom" title="${esc(x.tipo)}">${esc(x.tipo)}</span>
         <span class="lt-bar"><i style="width:${x.n / maxT * 100}%;background:${base}"></i></span>
         <span class="lt-n">${fmt(x.n)}</span><span class="lt-pct">${fmt(x.n / totT * 100)} %</span>${sparkMini(x.serie, base)}</div>`).join('')}</div>`
     : `<div class="vacio">${t('sin_datos')}</div>`;
   // ---- moldes que más vuelven a mantenimiento en el periodo
   const maxM = Math.max(1, ...A.moldes.map(x => x.n));
-  $('#reinc-sub').textContent = (zoomMat ? zoomMat.titulo : rango) + ' · moldes con 2 o más mantenimientos';
+  $('#reinc-sub').textContent = (A.parcial ? 'Últimos 30 días' : zoomMat ? zoomMat.titulo : rango) + ' · moldes con 2 o más mantenimientos';
   $('#mant-reinc').innerHTML = `<table><thead><tr><th>Molde</th><th>Vehículo</th><th class="n">Veces</th><th class="n">Matriceros</th><th>Último</th></tr></thead><tbody>${
     A.moldes.map(x => `<tr><td class="num" style="white-space:nowrap"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${colorCat(x.cat)}" title="${esc(nomCat(x.cat))}"></i>${esc(x.molde)}</td>
       <td>${esc(x.vehiculo || '—')}</td>
       <td class="n"><div class="pct" style="min-width:90px;justify-content:flex-end"><span class="pct-bar" style="max-width:60px"><i style="width:${x.n / maxM * 100}%;background:${colorCat(x.cat)}"></i></span><b style="color:var(--text)">${fmt(x.n)}</b></div></td>
-      <td class="n">${fmt(x.personas.size)}</td><td style="white-space:nowrap">${fCorta(x.ultima)}</td></tr>`).join('') || `<tr><td colspan="5">Ningún molde se repitió en el periodo</td></tr>`}</tbody></table>`;
+      <td class="n">${x.personas ? fmt(x.personas.size) : '—'}</td><td style="white-space:nowrap">${x.ultima ? fCorta(x.ultima) : '—'}</td></tr>`).join('') || `<tr><td colspan="5">Ningún molde se repitió en el periodo</td></tr>`}</tbody></table>`;
 }
 
 function segsFiltrados(segs){ // quita los vehículos ocultos y, si hay uno elegido, deja solo ese
