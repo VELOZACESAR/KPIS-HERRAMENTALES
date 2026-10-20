@@ -241,6 +241,17 @@
   .ra-tabla th,.ra-tabla td{padding:6px 6px}
   .ra-tabla td{white-space:nowrap}
   .ra-tabla td.veh{max-width:170px;overflow:hidden;text-overflow:ellipsis}
+  .mc{display:flex;flex-direction:column}
+  .mc-veh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:10px 2px 4px;font-weight:700;font-size:12px;letter-spacing:.03em;color:var(--text);border-bottom:1px solid var(--border)}
+  .mc-veh:first-child{padding-top:2px}
+  .mc-n{font-size:11.5px;font-weight:600;color:var(--text-soft);white-space:nowrap}
+  .mc-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 2px 6px 14px;font-size:12.5px;color:var(--text);border-bottom:1px solid var(--grid)}
+  .mc-f{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--grid);color:var(--text-soft);white-space:nowrap}
+  .mc-f.hoy{background:var(--brand);color:var(--on-brand)}
+  .mc-f.venc{background:var(--bad-bg);color:var(--bad)}
+  .mc-sec{margin-top:14px;padding:6px 2px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft);border-bottom:1px solid var(--border)}
+  .mc-fila.sin{padding-left:2px;color:var(--text-soft)}
+  .mc-set{font-size:11.5px;font-weight:600;padding:2px 10px;border-radius:999px;border:1px dashed var(--border);white-space:nowrap}
   .ra-tabla tr.sep-fila td{background:var(--brand);color:var(--on-brand);font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center;font-size:11px}
   .ra-col{display:grid;gap:14px;align-content:start}
   .ra-col .kpi,.ra-chart{background:var(--bg);border-color:var(--grid)}
@@ -2429,19 +2440,24 @@ function tarjetaResumenMoldes(MO){
   const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
   const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
   (MO.sin_fecha || []).forEach(x => { if(x.moldes) sinFecha[x.vehiculo] = Math.max(sinFecha[x.vehiculo] || 0, x.moldes); });
-  const fDMY = iso => { const f = fecha(iso); return `${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}/${f.getFullYear()}`; };
-  const filas = conFecha.map(d => `<tr><td>MOLDE</td><td class="veh" title="${esc(d.vehiculo)}">${esc(d.vehiculo)}</td><td class="num">${esc(piezaMolde(d))}</td>
-      <td style="${d.vencido ? 'color:var(--bad);font-weight:700' : ''}">${fDMY(d.entrega)}${d.vencido ? ' ▼' : ''}</td></tr>`).join('');
-  const sinF = Object.entries(sinFecha).map(([v, n]) => `<tr><td>MOLDE</td><td class="veh" title="${esc(v)}">${esc(v)}</td><td title="${fmt(n)} moldes">SET</td><td style="color:var(--text-soft)">SIN FECHA ESTABLECIDA</td></tr>`).join('');
+  const titulo = s => String(s || '').trim();   // el vehículo tal como viene en el Excel
+  const chipFecha = iso => { const f = fecha(iso), txt = `${DIAS[f.getDay()]} ${f.getDate()} ${MESES[f.getMonth()].slice(0,3).toLowerCase()}`;
+    return iso < D.hoy ? `<span class="mc-f venc">▼ ${txt}</span>` : iso === D.hoy ? `<span class="mc-f hoy">Hoy</span>` : `<span class="mc-f">${txt}</span>`; };
+  // agrupados por vehículo, en orden de la entrega más próxima
+  const grupos = {}; conFecha.forEach(d => (grupos[d.vehiculo] = grupos[d.vehiculo] || []).push(d));
+  const orden = Object.entries(grupos).sort((a, b) => a[1][0].entrega < b[1][0].entrega ? -1 : 1);
+  const cuerpo = orden.map(([v, ds]) => `
+      <div class="mc-veh"><span>${esc(titulo(v))}</span><span class="mc-n">${fmt(ds.length)} ${ds.length === 1 ? 'molde' : 'moldes'}</span></div>
+      ${ds.map(d => `<div class="mc-fila"><span class="num">${esc(piezaMolde(d))}</span>${chipFecha(d.entrega)}</div>`).join('')}`).join('');
+  const sinF = Object.entries(sinFecha).map(([v, n]) => `<div class="mc-fila sin"><span>${esc(titulo(v))}</span><span class="mc-set">Set · ${fmt(n)} ${n === 1 ? 'molde' : 'moldes'}</span></div>`).join('');
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
       <div class="kpi ra-chart ra-tabla">
-        <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(conFecha.length)}</span></div>
-        <div class="tabla"><table><thead><tr><th>Herramental</th><th>Vehículo</th><th>Pieza</th><th>Fecha de entrega</th></tr></thead><tbody>
-          ${filas || `<tr><td colspan="4" style="color:var(--muted)">Sin moldes con fecha de entrega</td></tr>`}
-          ${sinF ? `<tr class="sep-fila"><td colspan="4">Desarrollos pendientes por diseño</td></tr>${sinF}` : ''}</tbody></table></div>
+        <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(conFecha.length)} con fecha${Object.keys(sinFecha).length ? ` · ${fmt(Object.keys(sinFecha).length)} sin fecha` : ''}</span></div>
+        <div class="mc">${cuerpo || '<div class="vacio">Sin moldes con fecha de entrega</div>'}
+          ${sinF ? `<div class="mc-sec">Desarrollos pendientes por diseño · sin fecha establecida</div>${sinF}` : ''}</div>
       </div>
     </div></article>`;
 }
