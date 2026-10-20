@@ -163,12 +163,14 @@ def retenidas(hoy):
     if not vit and not mal:
         return None
     uv, um = _ultimo(vit, hoy), _ultimo(mal, hoy)
-    desde = hoy - dt.timedelta(days=45)
+    desde = hoy - dt.timedelta(days=400)   # ~13 meses: alcanza para los filtros semanal y mensual
     serie = defaultdict(dict)
     for r in vit:
         if desde <= r["fecha"] <= hoy:
-            serie[r["fecha"]].update(vitro_quietas=r["piezas_quietas"] or 0, vitros_nuevos=r["vitros_nuevos"] or 0,
-                                     capacidad=r["capacidad"])
+            previo = serie[r["fecha"]]   # si la fecha se repite, una fila vacía no borra lo que ya había
+            serie[r["fecha"]].update(vitro_quietas=r["piezas_quietas"] if r["piezas_quietas"] is not None else previo.get("vitro_quietas", 0),
+                                     vitros_nuevos=r["vitros_nuevos"] if r["vitros_nuevos"] is not None else previo.get("vitros_nuevos", 0),
+                                     capacidad=r["capacidad"] if r["capacidad"] is not None else previo.get("capacidad"))
     for r in mal:
         if desde <= r["fecha"] <= hoy:
             serie[r["fecha"]].update(malla_quietas=r["piezas_quietas"] or 0, mallas=r["mallas"] or 0, logos=r["logos"] or 0,

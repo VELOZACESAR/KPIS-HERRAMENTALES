@@ -452,6 +452,7 @@
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
   .legend i.linea{height:2px;width:14px;border-radius:1px;background:var(--text)}
+  .legend i.linea.puntos{width:18px;height:3px;background:repeating-linear-gradient(90deg,currentColor 0 3px,transparent 3px 6px)}
   .legend i.linea.punteada{width:18px;height:2.5px;background:repeating-linear-gradient(90deg,currentColor 0 5px,transparent 5px 8px)}
   .chart{width:100%;position:relative;overflow-x:auto}
   .chart svg{display:block}
@@ -714,12 +715,13 @@ function barrasApiladas(cont, items, o={}){
   lineas.forEach(l => {
     const pts = l.vals.map((v, i) => v == null ? null : [mL + banda*i + banda/2, y(v)]);
     let tramo = [];
-    const cerrar = () => { if(tramo.length > 1) svgEl('polyline', {points:tramo.map(p=>p.join(',')).join(' '), fill:'none', stroke:l.color, 'stroke-width':2.5, 'stroke-linejoin':'round', 'stroke-dasharray':l.punteada?'6 4':'', 'pointer-events':'none'}, svg); tramo = []; };
+    const cerrar = () => { if(tramo.length > 1) svgEl('polyline', {points:tramo.map(p=>p.join(',')).join(' '), fill:'none', stroke:l.color, 'stroke-width':2.5, 'stroke-linejoin':'round', 'stroke-linecap': l.punteada === 'puntos' ? 'round' : 'butt',
+      'stroke-dasharray': l.punteada === 'puntos' ? '0.1 6' : l.punteada ? '6 4' : '', 'pointer-events':'none'}, svg); tramo = []; };
     pts.forEach(p => { if(p) tramo.push(p); else cerrar(); }); cerrar();
     const ultimo = pts.map((p,i)=>p?i:-1).filter(i=>i>=0).pop();
     pts.forEach((p, i) => {
       if(!p) return;
-      svgEl('circle', {cx:p[0], cy:p[1], r:4.5, fill:l.color, stroke:'var(--surface)', 'stroke-width':2, 'pointer-events':'none'}, svg);
+      if(!l.sinPuntos) svgEl('circle', {cx:p[0], cy:p[1], r:4.5, fill:l.color, stroke:'var(--surface)', 'stroke-width':2, 'pointer-events':'none'}, svg);
       if(l.etiquetas === 'todas' || i === ultimo)
         svgEl('text', {x:p[0], y:p[1] + (l.abajo ? 16 : -9), 'text-anchor':'middle', class:'linea-num', style:`fill:${l.color}`, 'pointer-events':'none'}, svg).textContent = fmt(l.vals[i]);
     });
@@ -2340,10 +2342,52 @@ function dibujarSerigrafia(){
 // Semanal (12 semanas, clic = sus días productivos) / Mensual (12 meses). Barras = lo hecho por persona; capacidad en
 // rojo (vitros: la de Indicadores diarios; logos y pasta de plata: la diaria escrita × días productivos); línea = carga.
 const estadoSeri = {};
+// Vitros estándar como en el Excel "Procesamiento de Vitros" (Indicadores diarios, hoja VITROJET):
+// barras = Vitros nuevos, línea punteada roja = Piezas quietas, línea negra = Capacidad. Semanal/mensual = sumas.
+function dibujarVitrosIndicadores(S, b, e, cont){
+  const zoom = e.vista === 'semanal' && e.zoom;
+  document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+  $('#vol-seri-' + b.id).hidden = !zoom;
+  const dia = {}; S.retenidas.serie.forEach(d => dia[d.fecha] = d);
+  const sumar = (desde, hasta) => { const r = {nuevos: 0, quietas: 0, cap: 0, hayCap: false, hay: false};
+    diasRango(desde, hasta).forEach(x => { const d = dia[x.iso]; if(!d) return; r.hay = true; r.nuevos += d.vitros_nuevos || 0; r.quietas += d.vitro_quietas || 0;
+      if(d.capacidad != null){ r.cap += d.capacidad; r.hayCap = true; } }); return r; };
+  let per = [];
+  if(zoom || e.vista === 'diaria'){
+    const desde = zoom ? e.zoom.desde : sumarDias(D.hoy, -29), hasta = zoom ? e.zoom.hasta : D.hoy;
+    per = diasRango(desde, hasta).filter(x => dia[x.iso] && diaVisible(x.iso, dia[x.iso].vitros_nuevos))
+      .map(x => ({...sumar(x.iso, x.iso), etiqueta: x.iso === D.hoy ? t('hoy') : fCorta(x.iso), nombre: fLarga(x.iso), enCurso: x.iso === D.hoy}));
+  } else if(e.vista === 'semanal'){
+    const l = lunesDe(D.hoy);
+    for(let k = 11; k >= 0; k--){ const ini = sumarDias(l, -7 * k), fin = sumarDias(ini, 6);
+      per.push({...sumar(ini, fin), desde: ini, hasta: fin, etiqueta: 'S' + semanaIso(ini), nombre: `Semana ${semanaIso(ini)} (${fCorta(ini)} – ${fCorta(fin)})`, enCurso: fin >= D.hoy}); }
+  } else {
+    const f = fecha(D.hoy);
+    for(let k = 11; k >= 0; k--){ const a = new Date(f.getFullYear(), f.getMonth() - k, 1), ini = isoDe(a), fin = isoDe(new Date(a.getFullYear(), a.getMonth() + 1, 0));
+      per.push({...sumar(ini, fin), etiqueta: MESES[a.getMonth()].slice(0, 3), nombre: `${MESES[a.getMonth()]} ${a.getFullYear()}`, enCurso: fin >= D.hoy}); }
+  }
+  const op = {orden: ['Vitros nuevos'], colores: {'Vitros nuevos': PALETA[0]}};
+  const items = per.map(p => ({etiqueta: p.etiqueta, segs: {'Vitros nuevos': p.nuevos}, total: p.nuevos,
+    sub: p.enCurso ? 'en curso' : (p.hayCap && p.cap ? `${fmt(p.nuevos / p.cap * 100)} %` : ''),
+    subColor: p.enCurso || !p.hayCap ? 'var(--muted)' : COLOR_EST[estado(p.nuevos, p.cap).cls],
+    tip: `<b>${esc(p.nombre)}${p.enCurso ? ' · en curso' : ''}</b>` +
+      `<div class="r" style="margin-top:6px"><span>Vitros nuevos</span><span>${fmt(p.nuevos)}</span></div>` +
+      `<div class="r"><span>Piezas quietas</span><span>${fmt(p.quietas)}</span></div>` +
+      `<div class="r"><span>Capacidad</span><span>${p.hayCap ? fmt(p.cap) : 'sin dato'}</span></div>` +
+      (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : '')}));
+  $('#tit-seri-' + b.id).textContent = zoom ? `Procesamiento de vitros · ${e.zoom.titulo}` : 'Procesamiento de vitros';
+  $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>Vitros nuevos</span>` +
+    `<span><i class="linea puntos" style="color:var(--bad)"></i>Piezas quietas</span><span><i class="linea" style="background:var(--text)"></i>Capacidad</span></div>`;
+  barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: 'Procesamiento de vitros',
+    onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosIndicadores(S, b, e, cont); } : null,
+    lineas: [{vals: per.map(p => p.hay ? p.quietas : null), color: 'var(--bad)', etiquetas: 'todas', punteada: 'puntos', sinPuntos: true},
+             {vals: per.map(p => p.hayCap ? p.cap : null), color: 'var(--text)', etiquetas: 'ultima', sinPuntos: true}]});
+}
 const esProductivo = esDiaProductivo;
 function dibujarBloqueSeri(S, b){
   const X = S[b.id], cont = $('#ch-seri-' + b.id); if(!X || !cont) return;
   const e = estadoSeri[b.id] = estadoSeri[b.id] || {vista: 'diaria', zoom: null};
+  if(b.id === 'vitros' && S.retenidas && S.retenidas.serie) return dibujarVitrosIndicadores(S, b, e, cont);
   const zoom = e.vista === 'semanal' && e.zoom;
   document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
   $('#vol-seri-' + b.id).hidden = !zoom;
