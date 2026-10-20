@@ -2268,12 +2268,14 @@ function bloqueSeri(b, X){
     b.id === 'logos' ? 'Falta agregar la carpeta <b>Herramienta_Logos</b> (sitio GRP-HERRAMENTALES229) como acceso directo en OneDrive.' : 'Revisa el estado de las fuentes al final de la página.'}</span></div>`;
   const cap = b.capManual ? valorManual(b.capManual, null) : null;
   const hechos7 = X.diaria.slice(-7).reduce((s, d) => s + d.total, 0);
-  const extra = b.id === 'logos'
+  const extra = b.id === 'pasta_plata' ? '' : b.id === 'logos'
     ? kpi('Con prioridad', fmt(X.prioridad), b.unidad, `Tienen plan de corte · ${fmt(X.sin_prioridad)} sin prioridad`, X.prioridad ? '<span class="chip bad">▼ Urgente</span>' : '')
     : kpi('Vitros distintos', fmt(X.carga_vitros), b.unidad, b.id === 'vitros' ? `${fmt(X.inventario_vitros)} vitros ya existen en inventario` : 'Una pantalla sirve para varias órdenes');
   return `<h2 class="sec">${esc(b.titulo)}</h2>
   <div class="grid-kpi">
-    ${kpi('Carga', fmt(X.carga), b.id === 'logos' ? b.unidad : 'órdenes', 'Lo que falta por hacer hoy', '', 'hero')}
+    ${b.id === 'pasta_plata'
+      ? kpi('Carga', fmt(X.carga), 'componentes', `${fmt(X.carga_ordenes != null ? X.carga_ordenes : X.carga)} órdenes · sin repetidos`, '', 'hero')
+      : kpi('Carga', fmt(X.carga), b.id === 'logos' ? b.unidad : 'órdenes', 'Lo que falta por hacer hoy', '', 'hero')}
     ${extra}
     ${X.en_curso != null ? kpi('En curso', fmt(X.en_curso), '', 'Marcados como realizando') : ''}
     ${kpi('Hechos últimos 7 días', fmt(hechos7), b.unidad, `${fmt(hechos7 / 7, 1)} por día`)}
@@ -2334,7 +2336,7 @@ function dibujarSerigrafia(){
     const colores = {}; X.personas.forEach((p, i) => colores[p.nombre] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
     const op = {orden: X.personas.map(p => p.nombre), colores};
     // solo días productivos (lunes a viernes, sin festivos) y la carga diaria como línea de tendencia
-    const hist = S.historial || {}, indCarga = {logos:'seri_carga_logos', vitros:'seri_carga_vitros', pasta_plata:'seri_carga_pp'}[b.id];
+    const hist = S.historial || {}, indCarga = {logos:'seri_carga_logos', vitros:'seri_carga_vitros', pasta_plata:'seri_carga_pp_comp'}[b.id];   // pasta de plata: componentes únicos
     const dias = X.diaria.map((d, i) => ({d, i})).filter(({d}) => { const f = fecha(d.fecha); return infoDia(d.fecha).lab && f.getDay() !== 6; });
     const cargaDia = iso => iso === D.hoy ? X.carga : (hist[iso] && hist[iso][indCarga] != null ? hist[iso][indCarga] : null);
     const filas = dias.map(({d, i}) => {

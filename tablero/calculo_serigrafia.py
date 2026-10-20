@@ -107,7 +107,9 @@ def pasta_plata(hoy):
         por_vitro[r["denominacion"] or r["componente"]].append(r)
     ok = [(r["fecha"], _persona(r["responsable"])) for r in archivos if norm(r["estatus_vitro"]) == "OK"]
     return {
-        "carga": len(carga), "carga_vitros": len(por_vitro),
+        # el mismo número de componente se repite en varias órdenes: la carga cuenta componentes únicos
+        "carga": len({(r["componente"] or "").strip() or r["orden"] for r in carga}), "carga_ordenes": len(carga),
+        "carga_vitros": len(por_vitro),
         "en_curso": sum(1 for r in archivos if norm(r["estatus_vitro"]) == "REALIZANDO"),
         "por_puesto": [{"nombre": n, "n": c} for n, c in Counter(r["puesto_trabajo"] for r in carga).most_common()],
         "vitros": sorted(({"vitro": v, "tipo": rs[0]["descripcion"], "ordenes": len(rs),
