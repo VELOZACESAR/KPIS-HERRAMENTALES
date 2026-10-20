@@ -234,6 +234,13 @@
 
   /* resumen de aceros: fila + productividad apiladas a la izquierda, gráfica a la derecha */
   .ra-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,2.2fr);gap:14px}
+  .ra-grid.inv{grid-template-columns:minmax(0,1.55fr) minmax(320px,1.45fr)}   /* gráfica a la izquierda, tabla a la derecha */
+  .ra-tabla{display:flex;flex-direction:column;gap:8px}
+  .ra-tabla .tabla{max-height:330px;overflow:auto}
+  .ra-tabla table{font-size:12px}
+  .ra-tabla th,.ra-tabla td{padding:6px 6px}
+  .ra-tabla td{white-space:nowrap}
+  .ra-tabla td.veh{max-width:130px;overflow:hidden;text-overflow:ellipsis}
   .ra-col{display:grid;gap:14px;align-content:start}
   .ra-col .kpi,.ra-chart{background:var(--bg);border-color:var(--grid)}
   .cp-prio{display:flex;gap:14px;margin-bottom:3px}
@@ -1830,7 +1837,7 @@ function dibujarGraficaResumen(b){
     (med.valor != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana ${b.agrupada ? 'del total ' : ''}por ${med.unidad}</span>` : '') + '</div>';
   const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; if(!x.detalle) return;
       e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; dibujarGraficaResumen(b); } : null;
-  const referencias = med.valor != null ? [{valor: med.valor, color: 'var(--text)', etiqueta: `Mediana ${b.agrupada ? 'del total ' : ''}${fmt(med.valor)}`}] : [];
+  const referencias = med.valor != null ? [{valor: med.valor, color: 'var(--text)', etiqueta: `Mediana ${b.agrupada ? 'del total ' : ''}${fmt(med.valor, med.valor % 1 ? 1 : 0)}`}] : [];
   if(b.agrupada){ // una barra por serie (vehículo) con su número; debajo, el total del periodo
     barrasAgrupadas(cont, barras.map((x, i) => ({etiqueta: x.etiqueta, valores: x.segs, tip: items[i].tip,
       sub: x.futuro ? (x.nota || '') : `Total ${fmt(x.total)}${x.enCurso ? ' · en curso' : ''}`, subCorto: x.futuro ? '' : fmt(x.total), subColor: x.enCurso || x.futuro ? 'var(--muted)' : 'var(--text-soft)'})),
@@ -2339,18 +2346,57 @@ function dibujarSerigrafia(){
 // ================================================================ Fabricación de moldes (Fila de moldes.xlsx)
 let vistaMoldesSerie = 'semanal';
 
+// ---- Fabricación de moldes en el Resumen: histórico de herramentales fabricados (estatus OK por fecha de entrega)
+//      con Diario (semana actual) / Semanal (clic = sus días, con la serie diaria de 30 días) / Mensual y mediana.
+const BLOQUE_RESUMEN_MOLDES = {
+  id: 'rf', titulo: 'Histórico de herramentales fabricados', aria: 'Herramentales fabricados por periodo',
+  estado: {vista: 'semanal', zoom: null},
+  get op(){ return {orden: ['Molde', 'Galga'], colores: COLOR_HERR, nombres: {Molde: 'Moldes', Galga: 'Galgas'}}; },
+  dias(desde, hasta){
+    const MO = D.moldes, serie = MO.diaria || [], primero = serie.length ? serie[0].fecha : D.hoy;
+    return diasRango(desde, hasta).map(d => {
+      const x = serie.find(s => s.fecha === d.iso), futuro = d.iso > D.hoy, segs = (x && x.segs) || {};
+      return {etiqueta: d.iso === D.hoy ? t('hoy') : fCorta(d.iso), nombre: fLarga(d.iso), segs, total: x ? x.total : 0, futuro,
+              enCurso: d.iso === D.hoy, nota: futuro ? '' : d.iso < primero ? 'sin dato' : d.festivo ? 'Festivo' : d.domingo ? 'Domingo' : ''};
+    });
+  },
+  periodos(vista){
+    const MO = D.moldes;
+    if(vista === 'diaria'){ const l = lunesDe(D.hoy); return this.dias(l, sumarDias(l, 6)); }
+    const primero = (MO.diaria && MO.diaria.length) ? MO.diaria[0].fecha : '9999';
+    return MO[vista].map(p => {
+      const mensual = vista === 'mensual', mes = mensual ? MESES[+p.etiqueta.slice(5) - 1] : '';
+      return {etiqueta: mensual ? mes.slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
+              nombre: mensual ? `${mes} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
+              segs: p.segs, total: p.total, enCurso: p.en_curso, desde: p.desde, hasta: p.hasta,
+              detalle: !mensual && p.desde >= primero};   // el detalle por día existe para los últimos 30 días
+    });
+  },
+  mediana(vista){
+    const MO = D.moldes;
+    const xs = vista === 'diaria' ? (MO.diaria || []).filter(d => !d.hoy && d.lab).map(d => d.total)
+                                  : MO[vista].filter(p => !p.en_curso).map(p => p.total);
+    return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
+  },
+  dibujar(){ if(D.moldes) dibujarGraficaResumen(this); },
+};
+BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
+
 function tarjetaResumenMoldes(MO){
-  if(!MO) return `<article class="serv-largo pend" data-ir="moldes"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
-  const k = MO.kpis;
-  return `<article class="serv-largo" data-ir="moldes" tabindex="0">
-    <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver">${t('ver_detalle')}</span></div>
-    <div class="sl-grid">
-      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_cola')}</span></div>
-        <div class="val">${k.dias_fila != null ? fmt(k.dias_fila) : fmt(k.cola_dias,1)} <small>${t('dias')}</small></div>
-        <div class="desc">${k.ultima_entrega ? `hasta el ${fLarga(k.ultima_entrega)}` : `${fmt(k.horas)} h = ${fmt(k.turnos,1)} turnos ÷ ${fmt(k.matriceros)} matriceros`}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_pend')}</span></div><div class="val">${fmt(k.pendientes)}</div><div class="desc">en ${fmt(MO.vehiculos.length)} vehículos</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_venc')}</span>${k.vencidos?'<span class="chip bad">▼ Atrasados</span>':'<span class="chip ok">▲ Al día</span>'}</div><div class="val" style="color:${k.vencidos?'var(--bad)':'inherit'}">${fmt(k.vencidos)}</div><div class="desc">pendientes con fecha de entrega vencida</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>Fabricados esta semana</span></div><div class="val">${fmt(k.semana_total != null ? k.semana_total : k.entregados_30)}</div><div class="desc">${k.semana ? `${fmt(k.semana.Molde || 0)} moldes · ${fmt(k.semana.Galga || 0)} galgas` : 'moldes y galgas con estatus OK'}</div></div>
+  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
+  const cola = MO.detalle || [];
+  return `<article class="serv-largo">
+    <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
+    <div class="ra-grid inv">
+      ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
+      <div class="kpi ra-chart ra-tabla">
+        <div class="lbl"><span>Herramentales en cola de fabricación</span><span class="chip neutral">${fmt(cola.length)}</span></div>
+        <div class="tabla"><table><thead><tr><th>Vehículo</th><th>Pieza</th><th>Entrega</th><th>Fabricante</th></tr></thead><tbody>${
+          cola.map(d => `<tr><td class="veh" title="${esc(d.vehiculo)}">${esc(d.vehiculo)}</td>
+            <td title="${esc(d.herramental)}${d.tamano ? ' · ' + esc(d.tamano) : ''}"><span class="num">${esc([d.codigo, d.rep].filter(Boolean).join(' ') || d.herramental)}</span></td>
+            <td style="${d.vencido ? 'color:var(--bad);font-weight:700' : ''}">${d.entrega ? fCorta(d.entrega) : '—'}${d.vencido ? ' ▼' : ''}</td>
+            <td>${esc(d.fabricante || '—')}</td></tr>`).join('') || `<tr><td colspan="4" style="color:var(--muted)">Sin herramentales en cola</td></tr>`}</tbody></table></div>
+      </div>
     </div></article>`;
 }
 
