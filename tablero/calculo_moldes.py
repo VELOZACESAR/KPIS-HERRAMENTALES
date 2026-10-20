@@ -19,7 +19,9 @@ def calcular(hoy, R):
         r["est"] = norm(r["estatus"])
         r["herramental"] = (r["herramental"] or "Otro").strip().capitalize()
         r["vehiculo"] = (r["vehiculo"] or "Sin vehículo").strip()
-    pend = [r for r in filas if r["est"] == "PENDIENTE"]
+    # El 26 de diciembre es una "fecha limbo" del Excel (desarrollos sin fecha real): no cuentan en la cola.
+    limbo = lambda d: d is not None and (d.month, d.day) == (12, 26)
+    pend = [r for r in filas if r["est"] == "PENDIENTE" and not limbo(r["fecha_entrega"])]
     hechos = [r for r in filas if r["est"] == "OK"]
     sin_estatus = sum(1 for r in filas if not r["est"])
 

@@ -2384,12 +2384,13 @@ const BLOQUE_RESUMEN_MOLDES = {
 BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 
 // Moldes en cola para el Resumen: con fecha (por fecha de entrega) y, aparte, los que no tienen fecha establecida
-// agrupados por vehículo. El 26 de diciembre es la fecha de relleno del Excel para "sin fecha".
-const sinFechaMolde = d => !d.entrega || d.entrega.slice(5) === '12-26';
+// agrupados por vehículo. El 26 de diciembre es una "fecha limbo" del Excel: esos no se muestran.
+const limboMolde = d => !!d.entrega && d.entrega.slice(5) === '12-26';
+const sinFechaMolde = d => !d.entrega;
 const piezaMolde = d => (d.rep || d.codigo || '').replace(/\s*#\d+\s*$/, '').trim() || '—';
 function tarjetaResumenMoldes(MO){
   if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
-  const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde');
+  const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde' && !limboMolde(d));
   const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
   const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
   const fDMY = iso => { const f = fecha(iso); return `${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}/${f.getFullYear()}`; };
@@ -2428,7 +2429,6 @@ function vistaMoldes(MO){
   <div class="grid-kpi">
     ${kpi(t('moldes_cola'), diasFila, t('dias'), descFila, '', 'hero')}
     ${kpi(t('moldes_pend'), fmt(k.pendientes), 'herramentales', descPend)}
-    ${kpi(t('moldes_horas'), fmt(k.horas), 'h', `${fmt(k.turnos,1)} turnos de ${fmt(k.horas_turno)} h`)}
     ${kpi(t('moldes_venc'), fmt(k.vencidos), '', '', k.vencidos?'<span class="chip bad">▼</span>':'<span class="chip ok">▲</span>')}
     ${fabSem}
   </div>${tablaVenc}
