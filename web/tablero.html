@@ -724,7 +724,7 @@ function barrasAgrupadas(cont, items, o={}){
   const mL = Math.max(34, fmt(max).length * 7 + 12), mR = 8, mT = 22, mB = 44, H = o.alto || 280;
   const W = Math.max(cont.clientWidth || 600, items.length * Math.max(1, series.length) * 16 + mL + mR);
   const y = v => mT + (H - mT - mB) * (1 - v / max);
-  const banda = (W - mL - mR) / items.length, grupo = Math.min(banda * .92, series.length * 34), bw = Math.max(4, grupo / Math.max(1, series.length) - 3);
+  const banda = (W - mL - mR) / items.length, grupo = Math.min(banda * .74, series.length * 30), bw = Math.max(4, grupo / Math.max(1, series.length) - 3);
   const svg = svgEl('svg', {width:W, height:H, viewBox:`0 0 ${W} ${H}`, role:'img', 'aria-label': o.aria || 'Gráfica de barras agrupadas'}, cont);
   for(let v = 0; v <= max + 1e-9; v += eje.paso){
     svgEl('line', {x1:mL, x2:W-mR, y1:y(v), y2:y(v), stroke: v ? 'var(--grid)' : 'var(--border)'}, svg);
@@ -733,6 +733,7 @@ function barrasAgrupadas(cont, items, o={}){
   const numeros = bw >= 8, fuenteNum = bw < 14 ? 9 : 10.5; // el número va encima de cada barra (más pequeño si es angosta)
   items.forEach((it, i) => {
     const cx = mL + banda * i + banda / 2, x0 = cx - (series.length * (bw + 3) - 3) / 2, g = svgEl('g', {}, svg);
+    if(i % 2 === 0) svgEl('rect', {x:mL + banda * i, y:mT - 6, width:banda, height:y(0) - mT + 6, fill:'var(--grid)', opacity:.45, rx:4}, g);
     series.forEach((s, j) => {
       const v = it.valores[s] || 0, x = x0 + j * (bw + 3), h = Math.max(v ? 1.5 : 0, y(0) - y(v));
       if(v) svgEl('rect', {x, y:y(0) - h, width:bw, height:h, rx: Math.min(4, bw / 3), fill:o.colores[s]}, g);
@@ -1076,17 +1077,15 @@ function vistaResumen(A){
               <div><b class="num meta-txt">${inputManual('meta-dias-fila', metaDefecto)}</b><span>meta (días)</span></div>
               <div><b class="num" style="color:${k.vencidos ? 'var(--bad)' : 'var(--text)'}">${fmt(k.vencidos)}</b><span>vencidos</span></div>
             </div>
-            ${sobra > 0 ? `<div class="desc"><b style="color:var(--bad)">${fmt(sobra)} días</b> por encima de la meta</div>` : ''}
             <div class="fila-dias">
               <div class="sem-tit"><span>Cumplimiento ${esc(semAct.etiqueta)}</span><b style="color:${COLOR_EST[eSem.cls]}">${eSem.pct != null ? fmt(eSem.pct * 100) + ' %' : '—'}</b></div>
               <div class="bullet grande" aria-hidden="true"><i style="width:${semCompleta/maxSem*100}%;background:${COLOR_EST[eSem.cls]}"></i><b style="left:${capRef/maxSem*100}%" title="Capacidad hasta el ${fLarga(A.ayer.fecha)}: ${fmt(capRef)}"></b></div>
-              <div class="desc"><b>${fmt(semCompleta)}</b> de <b>${fmt(capRef)}</b> aceros de capacidad hasta el ${fCorta(A.ayer.fecha)} · <b>hoy van ${fmt(hoyN)}</b> (en curso)</div>
             </div>
           </div>
           <div class="kpi">
             <div class="lbl"><span>Productividad promedio</span>${chip(eProd)}</div>
             <div class="val">${fmt(k.productividad,1)} <small>aceros/día</small></div>
-            <div class="desc">Promedio de los últimos ${k.dias_prom} días con producción · capacidad promedio ${esc(semAct.etiqueta)}: <b style="color:${COLOR_META}">${fmt(capProm)}</b>/día</div>
+            <div class="desc">Últimos ${k.dias_prom} días · capacidad <b style="color:${COLOR_META}">${fmt(capProm)}</b>/día</div>
           </div>
         </div>
         <div class="kpi ra-chart">
@@ -1931,7 +1930,7 @@ function tarjetaResumenMant(M){
         <div class="kpi">
           <div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span>${chip(eAyer)}</div>
           ${vsMediaHTML(filasAyer, 'Total del día')}
-          <div class="desc">Media de los ${labAyer ? 'días laborales' : 'domingos y festivos'} de los últimos 30 días</div>
+          <div class="desc">Media de ${labAyer ? 'días laborales' : 'domingos/festivos'} · 30 días</div>
         </div>
         <div class="kpi">
           <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
