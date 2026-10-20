@@ -130,8 +130,9 @@ VITROS_PP = ["Vitros PP", "Vitro PP", "Carga vitros PP", "Vitros pasta de plata"
 
 def leer_indicadores_diarios(ruta: Path):
     vitro, mallas = _leer(ruta, "VITROJET", "MALLAS")
-    h, c = _tabla(vitro, ["Fecha", "Vitros nuevos"], {
-        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos"], "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad"],
+    # En oct-2026 "Vitros nuevos" se partió en Vitros Estandar / Vitros Logo / Vitros PP: los normales son los estándar.
+    h, c = _tabla(vitro, ["Fecha", "Piezas quietas"], {
+        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos", "Vitros Estandar", "Vitros estándar"], "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad"],
         "vitros_pp": VITROS_PP,
     }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"])
     salida_v = []
