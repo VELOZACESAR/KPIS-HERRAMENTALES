@@ -2286,7 +2286,7 @@ function bloqueSeri(b, X){
     b.id === 'logos' ? 'Falta agregar la carpeta <b>Herramienta_Logos</b> (sitio GRP-HERRAMENTALES229) como acceso directo en OneDrive.' : 'Revisa el estado de las fuentes al final de la página.'}</span></div>`;
   return `<h2 class="sec">${esc(b.titulo)}</h2>
   <div class="panel">
-    <div class="panel-head"><div><h3 id="tit-seri-${b.id}">Producción diaria vs. capacidad</h3></div>
+    <div class="panel-head"><div><h3 id="tit-seri-${b.id}">${SERI_FORMATO[b.id] ? SERI_FORMATO[b.id].titulo : 'Producción diaria vs. capacidad'}</h3></div>
       <div class="prod-ctrl">
         ${b.capManual ? `<span class="cap-seri" title="Capacidad diaria (se escribe a mano)">Cap./día ✎ ${inputManual(b.capManual, null, '—')}</span>` : ''}
         <button class="btn-volver" id="vol-seri-${b.id}" hidden>← Semanas</button>
@@ -2343,55 +2343,81 @@ function dibujarSerigrafia(){
 // rojo (vitros: la de Indicadores diarios; logos y pasta de plata: la diaria escrita × días productivos); línea = carga.
 const estadoSeri = {};
 const COLOR_CAP_SERI = '#2F80D1';   // capacidad en las gráficas de serigrafía (línea azul arriba)
-// Vitros estándar como en el Excel "Procesamiento de Vitros" (Indicadores diarios, hoja VITROJET):
-// barras = Vitros nuevos, línea punteada roja = Piezas quietas, línea negra = Capacidad. Semanal/mensual = sumas.
-function dibujarVitrosIndicadores(S, b, e, cont){
-  const zoom = e.vista === 'semanal' && e.zoom;
-  document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
-  $('#vol-seri-' + b.id).hidden = !zoom;
-  const dia = {}; S.retenidas.serie.forEach(d => dia[d.fecha] = d);
-  const capManual = valorManual(b.capManual, null);
-  const capDia = iso => { const d = dia[iso]; return d && d.capacidad != null ? d.capacidad : (capManual && esDiaProductivo(iso) && iso <= D.hoy ? capManual : null); };
-  const sumar = (desde, hasta) => { const r = {nuevos: 0, quietas: 0, cap: 0, hayCap: false, hay: false};
+// Formato común de las gráficas de Serigrafía (como el Excel "Procesamiento de Vitros"): barras = lo hecho, línea azul
+// arriba = capacidad, línea punteada roja = piezas quietas (solo donde hay dato). Diario / Semanal (clic = días) / Mensual.
+//   Vitros estándar: Indicadores diarios, hoja VITROJET (vitros nuevos, piezas quietas, capacidad; si no hay
+//                    capacidad, la "Cap./día ✎").
+//   Vitros logos y pasta de plata: lo hecho de cada Excel; capacidad = "Cap./día ✎" × días productivos.
+const SERI_FORMATO = {
+  logos:       {titulo: 'Producción diaria vs. capacidad', barra: 'Vitros logo hechos'},
+  vitros:      {titulo: 'Procesamiento de vitros',        barra: 'Vitros nuevos'},
+  pasta_plata: {titulo: 'Producción diaria vs. capacidad', barra: 'Vitros PP hechos'},
+};
+function datosSeri(S, b){
+  const X = S[b.id], capManual = b.capManual ? valorManual(b.capManual, null) : null;
+  const dia = {};
+  if(b.id === 'vitros' && S.retenidas && S.retenidas.serie)
+    S.retenidas.serie.forEach(d => dia[d.fecha] = {nuevos: d.vitros_nuevos || 0, quietas: d.vitro_quietas || 0, cap: d.capacidad});
+  else ((X.serie && X.serie.diaria) || []).forEach(d => dia[d.fecha] = {nuevos: d.total || 0, quietas: null, cap: null});
+  const capDia = iso => { const d = dia[iso]; return d && d.cap != null ? d.cap : (capManual && esDiaProductivo(iso) && iso <= D.hoy ? capManual : null); };
+  const conQuietas = b.id === 'vitros';
+  // agregados: vitros suma los días (hay ~13 meses); logos y pasta de plata usan las series semanal/mensual del servidor
+  const rango = (desde, hasta, totalServidor) => { const r = {nuevos: 0, quietas: 0, cap: 0, hayCap: false, hay: false};
     diasRango(desde, hasta).forEach(x => { const d = dia[x.iso], c = capDia(x.iso);
       if(c != null){ r.cap += c; r.hayCap = true; }
-      if(!d) return; r.hay = true; r.nuevos += d.vitros_nuevos || 0; r.quietas += d.vitro_quietas || 0; }); return r; };
+      if(d){ r.hay = true; r.nuevos += d.nuevos; r.quietas += d.quietas || 0; } });
+    if(totalServidor != null){ r.nuevos = totalServidor; r.hay = true; }
+    if(!conQuietas) r.quietas = null;
+    return r; };
+  return {X, dia, rango, conQuietas, capManual};
+}
+function dibujarSeriFormato(S, b, e, cont){
+  const zoom = e.vista === 'semanal' && e.zoom, F = SERI_FORMATO[b.id], Q = datosSeri(S, b);
+  document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+  $('#vol-seri-' + b.id).hidden = !zoom;
+  const serv = (Q.X && Q.X.serie) || {};
   let per = [];
   if(zoom || e.vista === 'diaria'){
     const desde = zoom ? e.zoom.desde : sumarDias(D.hoy, -29), hasta = zoom ? e.zoom.hasta : D.hoy;
-    per = diasRango(desde, hasta).filter(x => dia[x.iso] && diaVisible(x.iso, dia[x.iso].vitros_nuevos))
-      .map(x => ({...sumar(x.iso, x.iso), etiqueta: x.iso === D.hoy ? t('hoy') : fCorta(x.iso), nombre: fLarga(x.iso), enCurso: x.iso === D.hoy}));
+    per = diasRango(desde, hasta).filter(x => Q.dia[x.iso] && diaVisible(x.iso, Q.dia[x.iso].nuevos))
+      .map(x => ({...Q.rango(x.iso, x.iso), etiqueta: x.iso === D.hoy ? t('hoy') : fCorta(x.iso), nombre: fLarga(x.iso), enCurso: x.iso === D.hoy}));
   } else if(e.vista === 'semanal'){
     const l = lunesDe(D.hoy);
     for(let k = 11; k >= 0; k--){ const ini = sumarDias(l, -7 * k), fin = sumarDias(ini, 6);
-      per.push({...sumar(ini, fin), desde: ini, hasta: fin, etiqueta: 'S' + semanaIso(ini), nombre: `Semana ${semanaIso(ini)} (${fCorta(ini)} – ${fCorta(fin)})`, enCurso: fin >= D.hoy}); }
+      const s = b.id === 'vitros' ? null : (serv.semanal || []).find(x => x.desde === ini);
+      per.push({...Q.rango(ini, fin, s ? s.total : (b.id === 'vitros' ? null : 0)), desde: ini, hasta: fin, etiqueta: 'S' + semanaIso(ini),
+                nombre: `Semana ${semanaIso(ini)} (${fCorta(ini)} – ${fCorta(fin)})`, enCurso: fin >= D.hoy}); }
   } else {
     const f = fecha(D.hoy);
     for(let k = 11; k >= 0; k--){ const a = new Date(f.getFullYear(), f.getMonth() - k, 1), ini = isoDe(a), fin = isoDe(new Date(a.getFullYear(), a.getMonth() + 1, 0));
-      per.push({...sumar(ini, fin), etiqueta: MESES[a.getMonth()].slice(0, 3), nombre: `${MESES[a.getMonth()]} ${a.getFullYear()}`, enCurso: fin >= D.hoy}); }
+      const s = b.id === 'vitros' ? null : (serv.mensual || []).find(x => x.desde === ini);
+      per.push({...Q.rango(ini, fin, s ? s.total : (b.id === 'vitros' ? null : 0)), etiqueta: MESES[a.getMonth()].slice(0, 3),
+                nombre: `${MESES[a.getMonth()]} ${a.getFullYear()}`, enCurso: fin >= D.hoy}); }
   }
-  const op = {orden: ['Vitros nuevos'], colores: {'Vitros nuevos': PALETA[0]}};
-  const items = per.map(p => ({etiqueta: p.etiqueta, segs: {'Vitros nuevos': p.nuevos}, total: p.nuevos,
+  const op = {orden: [F.barra], colores: {[F.barra]: PALETA[0]}};
+  const items = per.map(p => ({etiqueta: p.etiqueta, segs: {[F.barra]: p.nuevos}, total: p.nuevos,
     sub: p.enCurso ? 'en curso' : (p.hayCap && p.cap ? `${fmt(p.nuevos / p.cap * 100)} %` : ''),
     subColor: p.enCurso || !p.hayCap ? 'var(--muted)' : COLOR_EST[estado(p.nuevos, p.cap).cls],
     tip: `<b>${esc(p.nombre)}${p.enCurso ? ' · en curso' : ''}</b>` +
-      `<div class="r" style="margin-top:6px"><span>Vitros nuevos</span><span>${fmt(p.nuevos)}</span></div>` +
-      `<div class="r"><span>Piezas quietas</span><span>${fmt(p.quietas)}</span></div>` +
+      `<div class="r" style="margin-top:6px"><span>${F.barra}</span><span>${fmt(p.nuevos)}</span></div>` +
+      (Q.conQuietas ? `<div class="r"><span>Piezas quietas</span><span>${fmt(p.quietas)}</span></div>` : '') +
       `<div class="r"><span>Capacidad</span><span>${p.hayCap ? fmt(p.cap) : 'sin dato'}</span></div>` +
       (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : '')}));
-  $('#tit-seri-' + b.id).textContent = zoom ? `Procesamiento de vitros · ${e.zoom.titulo}` : 'Procesamiento de vitros';
-  $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>Vitros nuevos</span>` +
-    `<span><i class="linea puntos" style="color:var(--bad)"></i>Piezas quietas</span><span><i class="linea" style="background:${COLOR_CAP_SERI}"></i>Capacidad</span></div>`;
-  barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: 'Procesamiento de vitros',
-    onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosIndicadores(S, b, e, cont); } : null,
-    lineas: [{vals: per.map(p => p.hay ? p.quietas : null), color: 'var(--bad)', etiquetas: 'todas', punteada: 'puntos', sinPuntos: true},
-             {vals: per.map(p => p.hayCap ? p.cap : null), color: COLOR_CAP_SERI, etiquetas: 'todas'}]});
+  const tituloBase = zoom || e.vista === 'diaria' ? F.titulo : F.titulo.replace('diaria', e.vista === 'semanal' ? 'semanal' : 'mensual');
+  $('#tit-seri-' + b.id).textContent = zoom ? `${F.titulo} · ${e.zoom.titulo}` : tituloBase;
+  $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>${F.barra}</span>` +
+    (Q.conQuietas ? `<span><i class="linea puntos" style="color:var(--bad)"></i>Piezas quietas</span>` : '') +
+    `<span><i class="linea" style="background:${COLOR_CAP_SERI}"></i>Capacidad</span></div>`;
+  const lineas = [{vals: per.map(p => p.hayCap ? p.cap : null), color: COLOR_CAP_SERI, etiquetas: 'todas'}];
+  if(Q.conQuietas) lineas.unshift({vals: per.map(p => p.hay ? p.quietas : null), color: 'var(--bad)', etiquetas: 'todas', punteada: 'puntos', sinPuntos: true});
+  barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: F.titulo,
+    onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarSeriFormato(S, b, e, cont); } : null,
+    lineas});
 }
-const esProductivo = esDiaProductivo;
 function dibujarBloqueSeri(S, b){
   const X = S[b.id], cont = $('#ch-seri-' + b.id); if(!X || !cont) return;
   const e = estadoSeri[b.id] = estadoSeri[b.id] || {vista: 'diaria', zoom: null};
-  if(b.id === 'vitros' && S.retenidas && S.retenidas.serie) return dibujarVitrosIndicadores(S, b, e, cont);
+  return dibujarSeriFormato(S, b, e, cont);   // mismo formato en las 3 gráficas (ver abajo)
   const zoom = e.vista === 'semanal' && e.zoom;
   document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
   $('#vol-seri-' + b.id).hidden = !zoom;
