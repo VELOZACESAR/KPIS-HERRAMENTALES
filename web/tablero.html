@@ -1054,7 +1054,7 @@ function render(){
     </div>
     <p style="margin-top:14px">Las casillas con ✎ se escriben a mano y quedan guardadas en la base de datos para todos. El tablero se actualiza solo cada minuto.</p>`;
   activarManuales();
-  irA(REPORTE === 'serigrafia' ? 'serigrafia' : REPORTE ? 'resumen' : (location.hash.slice(1) || 'resumen'), true); // al redibujar no salta al inicio
+  irA(REPORTE ? 'resumen' : (location.hash.slice(1) || 'resumen'), true); // al redibujar no salta al inicio
   if(REPORTE) prepararReporte();
 }
 
@@ -2588,13 +2588,13 @@ document.getElementById('btn-tema').addEventListener('click', () => {
   guardarPref('tablero-tema', tema); aplicarTema(tema); if(D) render();
 });
 
-const TITULOS_REPORTE = {aceros:'Aceros retrofit', mantenimiento:'Mantenimiento', oem:'Aceros OEM', moldes:'Fabricación de moldes'};
+const TITULOS_REPORTE = {aceros:'Aceros retrofit', mantenimiento:'Mantenimiento', oem:'Aceros OEM', moldes:'Fabricación de moldes', serigrafia:'Serigrafía'};
 function prepararReporte(){
   document.querySelectorAll('header, footer, .aviso, nav.tabs').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.seg, .panel > details').forEach(el => (el.closest('.panel > details') ? el.parentElement : el).style.display = 'none');
   const main = $('#main');
   main.style.padding = '18px 24px 24px';
-  if(REPORTE !== 'serigrafia'){
+  {
     const v = $('#v-resumen');
     v.querySelectorAll('h2.sec').forEach(el => el.style.display = 'none');
     const frase = v.querySelector('.frase'); if(frase && REPORTE !== 'aceros') frase.style.display = 'none';
@@ -2610,7 +2610,7 @@ function prepararReporte(){
   const titulo = document.createElement('div');
   titulo.id = 'titulo-reporte';
   titulo.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;margin:0 0 12px;color:var(--text)';
-  titulo.innerHTML = `<b style="font-size:18px">Indicadores Herramentales · ${esc(REPORTE === 'serigrafia' ? 'Serigrafía' : TITULOS_REPORTE[REPORTE] || '')}</b><span style="font-size:12px;color:var(--text-soft)">${fHora(D.generado)}</span>`;
+  titulo.innerHTML = `<b style="font-size:18px">Indicadores Herramentales · ${esc(TITULOS_REPORTE[REPORTE] || '')}</b><span style="font-size:12px;color:var(--text-soft)">${fHora(D.generado)}</span>`;
   main.prepend(titulo);
   document.body.dataset.listo = '1';
 }

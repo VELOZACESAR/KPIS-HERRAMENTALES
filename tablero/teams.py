@@ -28,7 +28,6 @@ log = logging.getLogger("tablero.teams")
 
 SECCIONES = [("aceros", "Aceros retrofit"), ("mantenimiento", "Mantenimiento de moldes"), ("oem", "Aceros OEM · BMW X5"),
              ("moldes", "Fabricación de moldes"), ("serigrafia", "Serigrafía")]
-ALTO_VENTANA = {"serigrafia": 4200}
 EDGE = [r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"]
 ESPERAS = (0, 20, 60)
 
@@ -68,7 +67,7 @@ def capturar(seccion):
     try:
         subprocess.run([edge, "--headless=new", "--disable-gpu", "--no-first-run", "--hide-scrollbars",
                         f"--user-data-dir={perfil}", "--virtual-time-budget=25000",
-                        f"--window-size=1400,{ALTO_VENTANA.get(seccion, 1500)}", "--force-device-scale-factor=1.5",
+                        f"--window-size=1400,{1500}", "--force-device-scale-factor=1.5",
                         f"--screenshot={destino}", url],
                        timeout=120, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
