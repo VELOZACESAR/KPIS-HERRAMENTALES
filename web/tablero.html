@@ -243,6 +243,14 @@
   .fila-hero span:last-child{font-size:13px;line-height:1.25;color:var(--text-soft);font-weight:600}
   .fila-dias{display:grid;gap:8px;font-size:13px;color:var(--text-soft)}
   .fila-dias b.num{font:700 20px var(--font);color:var(--text)}
+  .fila-tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid var(--grid);padding-top:10px}
+  .fila-tres > div{display:flex;flex-direction:column;gap:2px}
+  .fila-tres b.num{font:700 30px/1 var(--font);font-variant-numeric:tabular-nums}
+  .fila-tres .mini-in{font-size:30px;font-weight:700;line-height:1.1;height:auto;padding:0;vertical-align:bottom;color:var(--meta);border-bottom-color:var(--meta-borde);width:2.2ch;text-align:left}
+  .fila-tres b.num.meta-txt{display:block;line-height:1}
+  .fila-tres span{font-size:12px;color:var(--text-soft);font-weight:600}
+  .sem-tit{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--text-soft)}
+  .sem-tit b{font-size:16px;letter-spacing:0}
   .fila-dias .meta-txt{color:var(--meta);font-weight:600}
   .fila-dias .mini-in{font-size:16px;color:var(--meta);border-bottom-color:var(--meta-borde)}
   .bullet.grande{height:14px;border-radius:7px}
@@ -1002,7 +1010,12 @@ function vistaResumen(A){
     frase = `<b>Resultados del ${fLarga(a.fecha)}</b>: Aceros ${verbo}: <b>${fmt(a.comprometidos_hechos)}</b> de <b>${fmt(a.comprometidos)}</b> aceros comprometidos cumplidos${e.pct!=null?` (${fmt(e.pct*100)} %)`:''}${a.comprometidos > a.comprometidos_hechos ? `, ${fmt(a.comprometidos - a.comprometidos_hechos)} no cumplidos` : ''}. ` +
             (D.mantenimiento ? ` Mantenimiento: <b>${fmt(D.mantenimiento.kpis.ayer)}</b> moldes/galgas finalizados el ${fLarga(D.mantenimiento.kpis.fecha_ayer)}.` : '') +
             (D.moldes ? ` Fila de moldes: <b>${D.moldes.kpis.dias_fila != null ? fmt(D.moldes.kpis.dias_fila) : fmt(D.moldes.kpis.cola_dias,1)}</b> días.` : '');
-    const k = A.kpis, md = metaDiaria(), eProd = estado(k.productividad, md);
+    const k = A.kpis;
+    // semana en curso (la del día de referencia): capacidad diaria promedio y cumplimiento hasta ese día
+    const semAct = A.semanal.find(s => s.en_curso) || A.semanal[A.semanal.length - 1];
+    const capProm = capPromSemana(semAct), eProd = estado(k.productividad, capProm);
+    const capRef = capRango(semAct.desde, semAct.hasta < A.ayer.fecha ? semAct.hasta : A.ayer.fecha);
+    const eSem = estado(semAct.total, capRef), maxSem = Math.max(semAct.total, capRef) || 1;
     // fila vs. meta de días de fila (menos es mejor): en meta / cerca (hasta 1,5×) / sobre la meta
     const metaDefecto = (D.parametros && D.parametros.meta_dias_fila) || 2;
     const metaFila = valorManual('meta-dias-fila', metaDefecto), sobra = k.dias_fila - metaFila;
@@ -1015,16 +1028,22 @@ function vistaResumen(A){
           <div class="kpi fila-res">
             <div class="lbl"><span>Fila de fabricación</span><span class="chip ${eFila.cls}">${eFila.ico} ${eFila.txt}</span></div>
             <div class="fila-hero"><span class="num-hero">${fmt(k.fila)}</span><span>aceros en<br>fabricación</span></div>
-            <div class="fila-dias">
-              <div><b class="num">${fmt(k.dias_fila)}</b> días de fila <span class="meta-txt">· meta ${inputManual('meta-dias-fila', metaDefecto)} días</span></div>
-              <div class="bullet grande" aria-hidden="true"><i style="width:${k.dias_fila/maxF*100}%;background:${COLOR_EST[eFila.cls]}"></i><b style="left:${metaFila/maxF*100}%" title="Meta: ${fmt(metaFila)} días"></b></div>
+            <div class="fila-tres">
+              <div><b class="num" style="color:${COLOR_EST[eFila.cls]}">${fmt(k.dias_fila)}</b><span>días de fila</span></div>
+              <div><b class="num meta-txt">${inputManual('meta-dias-fila', metaDefecto)}</b><span>meta (días)</span></div>
+              <div><b class="num" style="color:${k.vencidos ? 'var(--bad)' : 'var(--text)'}">${fmt(k.vencidos)}</b><span>vencidos</span></div>
             </div>
-            <div class="desc">${sobra > 0 ? `<b style="color:var(--bad)">${fmt(sobra)} días</b> por encima de la meta · ` : ''}<b style="color:${k.vencidos?'var(--bad)':'inherit'}">${fmt(k.vencidos)}</b> vencidos</div>
+            ${sobra > 0 ? `<div class="desc"><b style="color:var(--bad)">${fmt(sobra)} días</b> por encima de la meta</div>` : ''}
+            <div class="fila-dias">
+              <div class="sem-tit"><span>Cumplimiento ${esc(semAct.etiqueta)}</span><b style="color:${COLOR_EST[eSem.cls]}">${eSem.pct != null ? fmt(eSem.pct * 100) + ' %' : '—'}</b></div>
+              <div class="bullet grande" aria-hidden="true"><i style="width:${semAct.total/maxSem*100}%;background:${COLOR_EST[eSem.cls]}"></i><b style="left:${capRef/maxSem*100}%" title="Capacidad hasta el ${fLarga(A.ayer.fecha)}: ${fmt(capRef)}"></b></div>
+              <div class="desc"><b>${fmt(semAct.total)}</b> de <b>${fmt(capRef)}</b> aceros de capacidad hasta el ${fCorta(A.ayer.fecha)}</div>
+            </div>
           </div>
           <div class="kpi">
             <div class="lbl"><span>Productividad promedio</span>${chip(eProd)}</div>
             <div class="val">${fmt(k.productividad,1)} <small>aceros/día</small></div>
-            <div class="desc">Promedio de los últimos ${k.dias_prom} días con producción · meta diaria <b style="color:${COLOR_META}">${fmt(md)}</b></div>
+            <div class="desc">Promedio de los últimos ${k.dias_prom} días con producción · capacidad promedio ${esc(semAct.etiqueta)}: <b style="color:${COLOR_META}">${fmt(capProm)}</b>/día</div>
           </div>
         </div>
         <div class="kpi ra-chart">
