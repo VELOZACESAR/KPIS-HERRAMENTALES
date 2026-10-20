@@ -360,6 +360,8 @@
   .pu-bar{height:8px;border-radius:4px;background:var(--grid);overflow:hidden}
   .pu-bar i{display:block;height:100%;border-radius:4px}
   .pu-n{text-align:right;font-weight:700;color:var(--text)}
+  .cap-seri{font-size:12px;font-weight:600;color:var(--meta);white-space:nowrap}
+  .cap-seri .mini-in{font-size:15px;color:var(--meta);border-bottom-color:var(--meta-borde)}
   #comp-detalle{margin-top:10px}
   .ents{display:flex;flex-wrap:wrap;gap:4px}
   .ent{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;background:var(--ok-bg);color:var(--text);white-space:nowrap}
@@ -2215,11 +2217,11 @@ function dibujarMantenimiento(){
 
 // ================================================================ Serigrafía
 const BLOQUES_SERI = [
-  {id:'logos', titulo:'Logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
+  {id:'logos', titulo:'Vitros logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
    reglaCarga:'Logo DISPONIBLE y sin NOMBRE_ARCHIVO. Prioridad = tiene Plan de corte (día/turno).'},
-  {id:'vitros', titulo:'Vitros normales (Vitrojet)', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
+  {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
    reglaCarga:'Calendario sin Ingeniería y STATUS VITROJET = NO EXISTE. La capacidad sale de Indicadores diarios.'},
-  {id:'pasta_plata', titulo:'Pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros', capManual:'cap-pasta-plata',
+  {id:'pasta_plata', titulo:'Vitros pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros', capManual:'cap-pasta-plata',
    reglaCarga:'Puesto en Planeación, Corte, CNC, Serigrafía o Vitrificado e INVENTARIO_3 = CREAR_VITRO.'},
 ];
 
@@ -2246,13 +2248,14 @@ function vistaSerigrafia(S){
   if(!S) return `<section class="vista" id="v-serigrafia" hidden><div class="aviso warn">⚠ <span>Todavía no hay datos de Serigrafía. Revisa el estado de las fuentes al final de la página.</span></div></section>`;
   const r = S.retenidas;
   const ret = r ? `
-  <h2 class="sec">Piezas retenidas y screens <small>${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
+  <h2 class="sec">Estado de serigrafía <small>${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
   <div class="grid-kpi">
-    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Vitrojet (falta de archivo) <b>${fmt(r.falta_archivo)}</b> · Malla (falta de malla) <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
-    ${kpi('Screens a pedir', fmt(r.screens_total), '', 'Mallas + logos + trazabilidades en fabricación', '', 'hero')}
-    ${kpi('Mallas', fmt(r.screens.mallas), '', 'en fabricación')}
-    ${kpi('Logos', fmt(r.screens.logos), '', 'en fabricación')}
-    ${kpi('Trazabilidades', fmt(r.screens.trazabilidades), '', 'en fabricación')}
+    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Falta de archivo <b>${fmt(r.falta_archivo)}</b> · Falta de malla <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
+    ${kpi('Screens en fabricación', fmt(r.screens_total), '', `Trazabilidades <b>${fmt(r.screens.trazabilidades)}</b> · Mallas <b>${fmt(r.screens.mallas)}</b> · Logos <b>${fmt(r.screens.logos)}</b>`)}
+    ${(() => { const vl = S.logos ? S.logos.carga : 0, ve = S.vitros ? S.vitros.carga_vitros : 0, vp = S.pasta_plata ? S.pasta_plata.carga : 0;
+      return kpi('Archivos Vitrojet en fabricación', fmt(vl + ve + vp), '', `Vitros logo <b>${fmt(vl)}</b> · Estándar <b>${fmt(ve)}</b> · PP <b>${fmt(vp)}</b>`); })()}
+    ${kpi('Vitros nuevos hoy', fmt(r.vitros_nuevos), r.capacidad_vitros ? `de ${fmt(r.capacidad_vitros)}` : '', 'Capacidad diaria de Indicadores diarios',
+         r.capacidad_vitros ? chip(estado(r.vitros_nuevos, r.capacidad_vitros)) : '')}
   </div>
   <div class="grid-2">
     <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas por día · por causa</h3></div></div>
@@ -2268,25 +2271,10 @@ function vistaSerigrafia(S){
 function bloqueSeri(b, X){
   if(!X) return `<h2 class="sec">${esc(b.titulo)}</h2><div class="aviso warn">⚠ <span>No hay datos de <b>${esc(b.fuente)}</b>. ${
     b.id === 'logos' ? 'Falta agregar la carpeta <b>Herramienta_Logos</b> (sitio GRP-HERRAMENTALES229) como acceso directo en OneDrive.' : 'Revisa el estado de las fuentes al final de la página.'}</span></div>`;
-  const cap = b.capManual ? valorManual(b.capManual, null) : null;
-  const hechos7 = X.diaria.slice(-7).reduce((s, d) => s + d.total, 0);
-  const extra = b.id === 'pasta_plata' ? '' : b.id === 'logos'
-    ? kpi('Con prioridad', fmt(X.prioridad), b.unidad, `Tienen plan de corte · ${fmt(X.sin_prioridad)} sin prioridad`, X.prioridad ? '<span class="chip bad">▼ Urgente</span>' : '')
-    : kpi('Vitros distintos', fmt(X.carga_vitros), b.unidad, b.id === 'vitros' ? `${fmt(X.inventario_vitros)} vitros ya existen en inventario` : 'Una pantalla sirve para varias órdenes');
   return `<h2 class="sec">${esc(b.titulo)}</h2>
-  <div class="grid-kpi">
-    ${b.id === 'pasta_plata'
-      ? kpi('Carga', fmt(X.carga), 'componentes', `${fmt(X.carga_ordenes != null ? X.carga_ordenes : X.carga)} órdenes · sin repetidos`, '', 'hero')
-      : kpi('Carga', fmt(X.carga), b.id === 'logos' ? b.unidad : 'órdenes', 'Lo que falta por hacer hoy', '', 'hero')}
-    ${extra}
-    ${X.en_curso != null ? kpi('En curso', fmt(X.en_curso), '', 'Marcados como realizando') : ''}
-    ${kpi('Hechos últimos 7 días', fmt(hechos7), b.unidad, `${fmt(hechos7 / 7, 1)} por día`)}
-    ${b.capManual ? `<div class="kpi"><div class="lbl"><span>Capacidad diaria</span><span class="lapiz">✎</span></div>
-      <div class="val meta-in" style="border:0;background:none;padding:0">${inputManual(b.capManual, null, '—')} <small style="color:var(--text-soft)">${b.unidad}/día</small></div>
-      <div class="desc">Se escribe a mano · ${cap ? `la carga actual son <b>${fmt(X.carga / cap, 1)}</b> días` : 'escríbela para ver los días de carga'}</div></div>` : ''}
-  </div>
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Producción diaria vs. capacidad</h3></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Producción diaria vs. capacidad</h3></div>
+      ${b.capManual ? `<span class="cap-seri" title="Capacidad diaria (se escribe a mano)">Cap./día ✎ ${inputManual(b.capManual, null, '—')}</span>` : ''}</div>
       <div id="ley-seri-${b.id}"></div><div class="chart" id="ch-seri-${b.id}"></div></div>
     <div class="panel"><div class="panel-head"><div><h3>Productividad diaria por persona</h3></div></div>
       <div class="tabla" style="max-height:none" id="mx-seri-${b.id}"></div></div>
