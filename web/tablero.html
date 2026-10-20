@@ -577,13 +577,13 @@ const fCorta = iso => { const f = fecha(iso); return `${DIAS[f.getDay()]} ${f.ge
 const fLarga = iso => { const f = fecha(iso); return `${DIAS_L[f.getDay()]} ${f.getDate()} de ${MESES[f.getMonth()].toLowerCase()}`; };
 const fHora = iso => { const f = new Date(iso); return f.toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); };
 
-// Semáforo (mismos umbrales del mockup): >=100 % cumple, >=90 % cerca, <90 % bajo meta. "menos" invierte la lógica.
+// Semáforo: desde 98 % (lo que se ve redondeado como 98 %, ≥ 97,5 %) cumple en verde; >=90 % cerca; <90 % bajo meta. "menos" invierte la lógica.
 function estado(real, meta, menosEsMejor=false){
   if(!meta) return {cls:'neutral', txt:'Sin meta', ico:'○', pct:null};
   const pct = real/meta;
   const r = menosEsMejor ? (real<=meta ? 1 : meta/real) : pct;
   const p = menosEsMejor ? null : pct; // en "menos es mejor" un % confunde: solo se muestra el estado
-  if(r>=1) return {cls:'ok', txt: menosEsMejor?'Dentro del promedio':'Cumple', ico:'▲', pct:p};
+  if(r>=.975) return {cls:'ok', txt: menosEsMejor?'Dentro del promedio':'Cumple', ico:'▲', pct:p};
   if(r>=.9) return {cls:'near', txt:'Cerca', ico:'●', pct:p};
   return {cls:'bad', txt: menosEsMejor?'Sobre el promedio':'Bajo meta', ico:'▼', pct:p};
 }
@@ -873,8 +873,8 @@ function dibujarResumen(){
         return `<span class="${propia?'propia':''}" title="${fLarga(d.fecha)}: vacía = ${resp}">${inputManual(claveCapDia(d.fecha), null, resp)}</span>`; }).join('')}</div>`;
     const filas = dias.map(d => {
       const c = capDeDia(s, d.info), cap = c ? c : null, ret = retPisoDia(d.fecha), e = estado(d.total, cap || 0);
-      return {cap, ret, item:{etiqueta:fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
-        sub: cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro ? COLOR_EST[e.cls] : 'var(--muted)',
+      return {cap, ret, item:{etiqueta: d.hoy ? 'Hoy' : fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
+        sub: d.hoy ? 'en curso' : cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro && !d.hoy ? COLOR_EST[e.cls] : 'var(--muted)',
         tip: tipSegs(fLarga(d.fecha), d.segs,
           `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(d.total)}</span></div>` +
           `<div class="r"><span style="color:#F2A69C">Capacidad</span><span>${cap?fmt(cap):'—'}</span></div>` +
@@ -894,7 +894,7 @@ function dibujarResumen(){
     const cap = capSemana(s);
     const ret = retPisoRango(s.desde, s.hasta);   // piezas retenidas/refundidas en piso registradas en la semana
     const capHastaAyer = diasDeSemana(s).filter(d => d.iso < D.hoy).reduce((t, d) => t + capDeDia(s, d), 0);
-    const e = estado(s.total, s.en_curso ? capHastaAyer : cap);
+    const e = estado(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
     const ajustados = diasDeSemana(s).filter(d => valorManual(claveCapDia(d.iso), null) != null).length;
     return {s, cap, ret, item:{etiqueta:s.etiqueta.replace('Sem ','S'), segs:s.segs, total:s.total,
       sub: s.en_curso ? 'en curso' : `${fmt(e.pct*100)} %`, subColor: s.en_curso ? 'var(--muted)' : COLOR_EST[e.cls],
@@ -1012,10 +1012,11 @@ function vistaResumen(A){
             (D.moldes ? ` Fila de moldes: <b>${D.moldes.kpis.dias_fila != null ? fmt(D.moldes.kpis.dias_fila) : fmt(D.moldes.kpis.cola_dias,1)}</b> días.` : '');
     const k = A.kpis;
     // semana en curso (la del día de referencia): capacidad diaria promedio y cumplimiento hasta ese día
-    const semAct = A.semanal.find(s => s.en_curso) || A.semanal[A.semanal.length - 1];
+    const semAct = A.semanal.find(s => s.desde <= A.ayer.fecha && A.ayer.fecha <= s.hasta) || A.semanal[A.semanal.length - 1];
+    const hoyD = A.diaria.find(d => d.hoy), hoyN = hoyD ? hoyD.total : 0, semCompleta = semAct.total - (semAct.hoy_total || 0);
     const capProm = capPromSemana(semAct), eProd = estado(k.productividad, capProm);
     const capRef = capRango(semAct.desde, semAct.hasta < A.ayer.fecha ? semAct.hasta : A.ayer.fecha);
-    const eSem = estado(semAct.total, capRef), maxSem = Math.max(semAct.total, capRef) || 1;
+    const eSem = estado(semCompleta, capRef), maxSem = Math.max(semCompleta, capRef) || 1;
     // fila vs. meta de días de fila (menos es mejor): en meta / cerca (hasta 1,5×) / sobre la meta
     const metaDefecto = (D.parametros && D.parametros.meta_dias_fila) || 2;
     const metaFila = valorManual('meta-dias-fila', metaDefecto), sobra = k.dias_fila - metaFila;
@@ -1036,8 +1037,8 @@ function vistaResumen(A){
             ${sobra > 0 ? `<div class="desc"><b style="color:var(--bad)">${fmt(sobra)} días</b> por encima de la meta</div>` : ''}
             <div class="fila-dias">
               <div class="sem-tit"><span>Cumplimiento ${esc(semAct.etiqueta)}</span><b style="color:${COLOR_EST[eSem.cls]}">${eSem.pct != null ? fmt(eSem.pct * 100) + ' %' : '—'}</b></div>
-              <div class="bullet grande" aria-hidden="true"><i style="width:${semAct.total/maxSem*100}%;background:${COLOR_EST[eSem.cls]}"></i><b style="left:${capRef/maxSem*100}%" title="Capacidad hasta el ${fLarga(A.ayer.fecha)}: ${fmt(capRef)}"></b></div>
-              <div class="desc"><b>${fmt(semAct.total)}</b> de <b>${fmt(capRef)}</b> aceros de capacidad hasta el ${fCorta(A.ayer.fecha)}</div>
+              <div class="bullet grande" aria-hidden="true"><i style="width:${semCompleta/maxSem*100}%;background:${COLOR_EST[eSem.cls]}"></i><b style="left:${capRef/maxSem*100}%" title="Capacidad hasta el ${fLarga(A.ayer.fecha)}: ${fmt(capRef)}"></b></div>
+              <div class="desc"><b>${fmt(semCompleta)}</b> de <b>${fmt(capRef)}</b> aceros de capacidad hasta el ${fCorta(A.ayer.fecha)} · <b>hoy van ${fmt(hoyN)}</b> (en curso)</div>
             </div>
           </div>
           <div class="kpi">
@@ -1396,8 +1397,8 @@ function dibujarProduccion(){
   $('#prod-volver').hidden = !enZoom;
   const barraDia = d => {
     const cap = capDeDiaIso(d.fecha) || null, ret = retDia(d.fecha), e = estado(d.total, cap || 0);
-    return {cap, ret, item:{etiqueta:fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
-      sub: cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro ? COLOR_EST[e.cls] : 'var(--muted)',
+    return {cap, ret, item:{etiqueta: d.hoy ? 'Hoy' : fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
+      sub: d.hoy ? 'en curso' : cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro && !d.hoy ? COLOR_EST[e.cls] : 'var(--muted)',
       tip: tipSegs(fLarga(d.fecha), d.segs, filasTip(d.total, cap, d.eq, ret))}};
   };
   const celdaDia = d => { const i = infoDia(d.fecha);
@@ -1418,7 +1419,7 @@ function dibujarProduccion(){
     filas = A[vistaProd].map(s => {
       const cap = capRango(s.desde, s.hasta), ret = retPisoRango(s.desde, s.hasta);
       const capHastaAyer = capRango(s.desde, s.hasta < D.hoy ? s.hasta : isoDe(new Date(fecha(D.hoy).getTime() - 864e5)));
-      const e = estado(s.total, s.en_curso ? capHastaAyer : cap);
+      const e = estado(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
       const mensual = vistaProd === 'mensual';
       const nombre = mensual ? MESES[+s.etiqueta-1] : `${s.etiqueta} (${fCorta(s.desde)} – ${fCorta(s.hasta)})`;
       return {cap, ret, item:{etiqueta: mensual ? MESES[+s.etiqueta-1].slice(0,3) : s.etiqueta.replace('Sem ','S'), segs:s.segs, total:s.total,
