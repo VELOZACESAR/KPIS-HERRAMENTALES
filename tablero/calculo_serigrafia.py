@@ -31,6 +31,41 @@ def _matriz(hechos, hoy):
             "diaria": [{"fecha": d.isoformat(), "total": totales[d]} for d in dias]}
 
 
+def _series(hechos, hoy, capacidad=None):
+    """Lo hecho por persona en 30 días, 12 semanas y 12 meses (para los filtros Diario / Semanal / Mensual).
+    capacidad: {fecha: valor} opcional (vitros: capacidad diaria de Indicadores diarios)."""
+    por_dia = defaultdict(Counter)
+    for f, p in hechos:
+        if p and f and f <= hoy:
+            por_dia[f][p] += 1
+    capacidad = capacidad or {}
+
+    def periodo(ini, fin):
+        c = Counter()
+        d = ini
+        while d <= min(fin, hoy):
+            c.update(por_dia.get(d, {}))
+            d += dt.timedelta(days=1)
+        caps = [capacidad[ini + dt.timedelta(days=k)] for k in range((fin - ini).days + 1) if ini + dt.timedelta(days=k) in capacidad]
+        return {"desde": ini.isoformat(), "hasta": fin.isoformat(), "segs": dict(c), "total": sum(c.values()),
+                "capacidad": sum(caps) if caps else None, "en_curso": fin >= hoy}
+
+    diaria = [{**periodo(d, d), "fecha": d.isoformat(), "hoy": d == hoy}
+              for d in (hoy - dt.timedelta(days=k) for k in range(29, -1, -1))]
+    lunes = hoy - dt.timedelta(days=hoy.weekday())
+    semanal = [{**periodo(ini, ini + dt.timedelta(days=6)), "etiqueta": f"Sem {ini.isocalendar()[1]}"}
+               for ini in (lunes - dt.timedelta(weeks=k) for k in range(11, -1, -1))]
+    mensual = []
+    for k in range(11, -1, -1):
+        a, m = hoy.year, hoy.month - k
+        while m < 1:
+            a, m = a - 1, m + 12
+        ini = dt.date(a, m, 1)
+        fin = dt.date(a + (m == 12), m % 12 + 1, 1) - dt.timedelta(days=1)
+        mensual.append({**periodo(ini, fin), "etiqueta": f"{a}-{m:02d}"})
+    return {"diaria": diaria, "semanal": semanal, "mensual": mensual}
+
+
 def _ultimo(filas, hoy):
     previas = [r for r in filas if r["fecha"] and r["fecha"] <= hoy]
     return max(previas, key=lambda r: (r["fecha"], r["fila"])) if previas else None
@@ -65,7 +100,7 @@ def logos(hoy):
                             "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None} for r in carga),
                           key=lambda x: (not x["prioridad"], x["toc"] or "9")),
         "hechos_por_persona": dict(hechos),
-        **_matriz(diarios, hoy),
+        **_matriz(diarios, hoy), "serie": _series(diarios, hoy),
     }
 
 
@@ -80,6 +115,7 @@ def vitros(hoy):
     ok = [(r["fecha"], _persona(r["responsable"])) for r in hechos if norm(r["estatus"]) == "OK"]
     capacidad = {r["fecha"]: r["capacidad"] for r in ind if r["fecha"] and r["capacidad"] is not None}
     m = _matriz(ok, hoy)
+    m["serie"] = _series(ok, hoy, capacidad)
     for d in m["diaria"]:
         d["capacidad"] = capacidad.get(dt.date.fromisoformat(d["fecha"]))
     return {
@@ -116,7 +152,7 @@ def pasta_plata(hoy):
                            "vehiculos": sorted({r["vehiculo"] or "—" for r in rs}),
                            "puestos": sorted({r["puesto_trabajo"] for r in rs})} for v, rs in por_vitro.items()),
                          key=lambda x: -x["ordenes"]),
-        **_matriz(ok, hoy),
+        **_matriz(ok, hoy), "serie": _series(ok, hoy),
     }
 
 
