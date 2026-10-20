@@ -121,8 +121,9 @@ def pasta_plata(hoy):
 
 
 def retenidas(hoy):
-    vit = db.consultar("SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad FROM cesar.seri_ind_vitrojet WHERE fecha IS NOT NULL")
-    mal = db.consultar("SELECT fila, fecha, mallas, logos, trazabilidades, piezas_quietas FROM cesar.seri_ind_mallas WHERE fecha IS NOT NULL")
+    pp = "vitros_pp" if db.consultar("SELECT COL_LENGTH('cesar.seri_ind_vitrojet', 'vitros_pp') AS n")[0]["n"] else "NULL AS vitros_pp"
+    vit = db.consultar(f"SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad, {pp} FROM cesar.seri_ind_vitrojet WHERE fecha IS NOT NULL")
+    mal = db.consultar(f"SELECT fila, fecha, mallas, logos, trazabilidades, piezas_quietas, {pp} FROM cesar.seri_ind_mallas WHERE fecha IS NOT NULL")
     if not vit and not mal:
         return None
     uv, um = _ultimo(vit, hoy), _ultimo(mal, hoy)
@@ -145,6 +146,8 @@ def retenidas(hoy):
         "screens_total": v(um, "mallas") + v(um, "logos") + v(um, "trazabilidades"),
         "vitros_nuevos": v(uv, "vitros_nuevos"), "capacidad_vitros": (uv or {}).get("capacidad"),
         "serie": [{"fecha": f.isoformat(), **d} for f, d in sorted(serie.items())],
+        # carga del día de pasta de plata escrita en el Excel (columna "Vitros PP"), por fecha
+        "carga_pp": {r["fecha"].isoformat(): r["vitros_pp"] for r in vit + mal if r["vitros_pp"] is not None},
     }
 
 

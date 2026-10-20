@@ -2338,7 +2338,11 @@ function dibujarSerigrafia(){
     // solo días productivos (lunes a viernes, sin festivos) y la carga diaria como línea de tendencia
     const hist = S.historial || {}, indCarga = {logos:'seri_carga_logos', vitros:'seri_carga_vitros', pasta_plata:'seri_carga_pp_comp'}[b.id];   // pasta de plata: componentes únicos
     const dias = X.diaria.map((d, i) => ({d, i})).filter(({d}) => { const f = fecha(d.fecha); return infoDia(d.fecha).lab && f.getDay() !== 6; });
-    const cargaDia = iso => iso === D.hoy ? X.carga : (hist[iso] && hist[iso][indCarga] != null ? hist[iso][indCarga] : null);
+    // Pasta de plata: la carga del día la escribe el equipo en Indicadores diarios (columna "Vitros PP").
+    // Los demás: la de hoy en vivo y la de días anteriores de la foto diaria.
+    const cargaPP = (S.retenidas && S.retenidas.carga_pp) || {};
+    const cargaDia = iso => b.id === 'pasta_plata' ? (cargaPP[iso] != null ? cargaPP[iso] : null)
+      : iso === D.hoy ? X.carga : (hist[iso] && hist[iso][indCarga] != null ? hist[iso][indCarga] : null);
     const filas = dias.map(({d, i}) => {
       const segs = {}; X.personas.forEach(p => { if(p.celdas[i]) segs[p.nombre] = p.celdas[i]; });
       const cap = b.id === 'vitros' ? d.capacidad : capManual, carga = cargaDia(d.fecha);
@@ -2347,7 +2351,7 @@ function dibujarSerigrafia(){
           (cap ? `<div class="r"><span>Capacidad</span><span>${fmt(cap)}</span></div>` : '') +
           `<div class="r"><span>Carga del día</span><span>${carga == null ? 'sin dato' : fmt(carga)}</span></div>`, op)}};
     });
-    $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i class="linea" style="background:var(--text)"></i>Carga diaria</span>${cont && capManual || b.id === 'vitros' ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : ''}</div>`;
+    $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i class="linea" style="background:var(--text)"></i>Carga diaria${b.id === 'pasta_plata' ? ' (Indicadores diarios · Vitros PP)' : ''}</span>${cont && capManual || b.id === 'vitros' ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : ''}</div>`;
     barrasApiladas(cont, filas.map(x => x.item), {...op, alto:250, metaRoja:true, aria:'Producción diaria vs. capacidad',
       lineas:[{vals: filas.map(x => x.carga), color:'var(--text)', etiquetas:'todas'}]});
     matrizSeri($('#mx-seri-' + b.id), X);
