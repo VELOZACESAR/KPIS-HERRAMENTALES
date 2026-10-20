@@ -8,7 +8,7 @@ from .excel import norm
 
 # En las columnas de responsable también se escriben estados; esos no son personas.
 NO_PERSONAS = {"", "REALIZADO", "REALIZANDO", "POR HACER", "EN ESPERA", "PENDIENTE", "ASIGNADO"}
-PUESTOS_PASTA_PLATA = {"01CORTE", "02CNC", "03SERIG", "PLANEACION"}
+PUESTOS_PASTA_PLATA = {"PLANEACION", "01CORTE", "02CNC", "03SERIG", "04SER_VT"}   # Planeación, Corte, CNC, Serigrafía, Vitrificado
 DIAS_MATRIZ = 14
 
 

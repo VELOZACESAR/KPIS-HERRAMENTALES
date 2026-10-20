@@ -2218,7 +2218,7 @@ const BLOQUES_SERI = [
   {id:'vitros', titulo:'Vitros normales (Vitrojet)', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
    reglaCarga:'Calendario sin Ingeniería y STATUS VITROJET = NO EXISTE. La capacidad sale de Indicadores diarios.'},
   {id:'pasta_plata', titulo:'Pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros', capManual:'cap-pasta-plata',
-   reglaCarga:'Puesto en Corte, CNC, Serigrafía o Planeación e INVENTARIO_3 = CREAR_VITRO.'},
+   reglaCarga:'Puesto en Planeación, Corte, CNC, Serigrafía o Vitrificado e INVENTARIO_3 = CREAR_VITRO.'},
 ];
 
 function tarjetaResumenSeri(S){
@@ -2282,8 +2282,8 @@ function bloqueSeri(b, X){
       <div class="desc">Se escribe a mano · ${cap ? `la carga actual son <b>${fmt(X.carga / cap, 1)}</b> días` : 'escríbela para ver los días de carga'}</div></div>` : ''}
   </div>
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Producción diaria vs. capacidad · últimos 14 días</h3></div></div>
-      <div class="chart" id="ch-seri-${b.id}"></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Producción diaria vs. capacidad</h3></div></div>
+      <div id="ley-seri-${b.id}"></div><div class="chart" id="ch-seri-${b.id}"></div></div>
     <div class="panel"><div class="panel-head"><div><h3>Productividad diaria por persona</h3></div></div>
       <div class="tabla" style="max-height:none" id="mx-seri-${b.id}"></div></div>
   </div>
@@ -2333,13 +2333,21 @@ function dibujarSerigrafia(){
     const capManual = b.capManual ? valorManual(b.capManual, null) : null;
     const colores = {}; X.personas.forEach((p, i) => colores[p.nombre] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
     const op = {orden: X.personas.map(p => p.nombre), colores};
-    barrasApiladas(cont, X.diaria.map((d, i) => {
+    // solo días productivos (lunes a viernes, sin festivos) y la carga diaria como línea de tendencia
+    const hist = S.historial || {}, indCarga = {logos:'seri_carga_logos', vitros:'seri_carga_vitros', pasta_plata:'seri_carga_pp'}[b.id];
+    const dias = X.diaria.map((d, i) => ({d, i})).filter(({d}) => { const f = fecha(d.fecha); return infoDia(d.fecha).lab && f.getDay() !== 6; });
+    const cargaDia = iso => iso === D.hoy ? X.carga : (hist[iso] && hist[iso][indCarga] != null ? hist[iso][indCarga] : null);
+    const filas = dias.map(({d, i}) => {
       const segs = {}; X.personas.forEach(p => { if(p.celdas[i]) segs[p.nombre] = p.celdas[i]; });
-      const cap = b.id === 'vitros' ? d.capacidad : (infoDia(d.fecha).lab ? capManual : null);
-      return {etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), segs, total: d.total, meta: cap || undefined,
+      const cap = b.id === 'vitros' ? d.capacidad : capManual, carga = cargaDia(d.fecha);
+      return {carga, item:{etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), segs, total: d.total, meta: cap || undefined,
         tip: tipSegs(fLarga(d.fecha), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(d.total)}</span></div>` +
-          (cap ? `<div class="r"><span>Capacidad</span><span>${fmt(cap)}</span></div>` : ''), op)};
-    }), {...op, alto:230, metaRoja:true, aria:'Hechos por día'});
+          (cap ? `<div class="r"><span>Capacidad</span><span>${fmt(cap)}</span></div>` : '') +
+          `<div class="r"><span>Carga del día</span><span>${carga == null ? 'sin dato' : fmt(carga)}</span></div>`, op)}};
+    });
+    $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i class="linea" style="background:var(--text)"></i>Carga diaria</span>${cont && capManual || b.id === 'vitros' ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : ''}</div>`;
+    barrasApiladas(cont, filas.map(x => x.item), {...op, alto:250, metaRoja:true, aria:'Producción diaria vs. capacidad',
+      lineas:[{vals: filas.map(x => x.carga), color:'var(--text)', etiquetas:'todas'}]});
     matrizSeri($('#mx-seri-' + b.id), X);
   });
 }
