@@ -236,11 +236,12 @@
   .ra-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,2.2fr);gap:14px}
   .ra-grid.inv{grid-template-columns:minmax(0,1.55fr) minmax(320px,1.45fr)}   /* gráfica a la izquierda, tabla a la derecha */
   .ra-tabla{display:flex;flex-direction:column;gap:8px}
-  .ra-tabla .tabla{max-height:330px;overflow:auto}
+  .ra-tabla .tabla{max-height:none;overflow:auto}
   .ra-tabla table{font-size:12px}
   .ra-tabla th,.ra-tabla td{padding:6px 6px}
   .ra-tabla td{white-space:nowrap}
-  .ra-tabla td.veh{max-width:130px;overflow:hidden;text-overflow:ellipsis}
+  .ra-tabla td.veh{max-width:170px;overflow:hidden;text-overflow:ellipsis}
+  .ra-tabla tr.sep-fila td{background:var(--navy);color:var(--head-text);font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center;font-size:11px}
   .ra-col{display:grid;gap:14px;align-content:start}
   .ra-col .kpi,.ra-chart{background:var(--bg);border-color:var(--grid)}
   .cp-prio{display:flex;gap:14px;margin-bottom:3px}
@@ -2382,20 +2383,28 @@ const BLOQUE_RESUMEN_MOLDES = {
 };
 BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 
+// Moldes en cola para el Resumen: con fecha (por fecha de entrega) y, aparte, los que no tienen fecha establecida
+// agrupados por vehículo. El 26 de diciembre es la fecha de relleno del Excel para "sin fecha".
+const sinFechaMolde = d => !d.entrega || d.entrega.slice(5) === '12-26';
+const piezaMolde = d => (d.rep || d.codigo || '').replace(/\s*#\d+\s*$/, '').trim() || '—';
 function tarjetaResumenMoldes(MO){
   if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
-  const cola = MO.detalle || [];
+  const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde');
+  const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
+  const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
+  const fDMY = iso => { const f = fecha(iso); return `${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}/${f.getFullYear()}`; };
+  const filas = conFecha.map(d => `<tr><td>MOLDE</td><td class="veh" title="${esc(d.vehiculo)}">${esc(d.vehiculo)}</td><td class="num">${esc(piezaMolde(d))}</td>
+      <td style="${d.vencido ? 'color:var(--bad);font-weight:700' : ''}">${fDMY(d.entrega)}${d.vencido ? ' ▼' : ''}</td></tr>`).join('');
+  const sinF = Object.entries(sinFecha).map(([v, n]) => `<tr><td>MOLDE</td><td class="veh" title="${esc(v)}">${esc(v)}</td><td title="${fmt(n)} moldes">SET <span style="color:var(--text-soft)">(${fmt(n)})</span></td><td style="color:var(--text-soft)">SIN FECHA ESTABLECIDA</td></tr>`).join('');
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
       <div class="kpi ra-chart ra-tabla">
-        <div class="lbl"><span>Herramentales en cola de fabricación</span><span class="chip neutral">${fmt(cola.length)}</span></div>
-        <div class="tabla"><table><thead><tr><th>Vehículo</th><th>Pieza</th><th>Entrega</th><th>Fabricante</th></tr></thead><tbody>${
-          cola.map(d => `<tr><td class="veh" title="${esc(d.vehiculo)}">${esc(d.vehiculo)}</td>
-            <td title="${esc(d.herramental)}${d.tamano ? ' · ' + esc(d.tamano) : ''}"><span class="num">${esc([d.codigo, d.rep].filter(Boolean).join(' ') || d.herramental)}</span></td>
-            <td style="${d.vencido ? 'color:var(--bad);font-weight:700' : ''}">${d.entrega ? fCorta(d.entrega) : '—'}${d.vencido ? ' ▼' : ''}</td>
-            <td>${esc(d.fabricante || '—')}</td></tr>`).join('') || `<tr><td colspan="4" style="color:var(--muted)">Sin herramentales en cola</td></tr>`}</tbody></table></div>
+        <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(moldes.length)}</span></div>
+        <div class="tabla"><table><thead><tr><th>Herramental</th><th>Vehículo</th><th>Pieza</th><th>Fecha de entrega</th></tr></thead><tbody>
+          ${filas || `<tr><td colspan="4" style="color:var(--muted)">Sin moldes con fecha de entrega</td></tr>`}
+          ${sinF ? `<tr class="sep-fila"><td colspan="4">Desarrollos pendientes por diseño</td></tr>${sinF}` : ''}</tbody></table></div>
       </div>
     </div></article>`;
 }
