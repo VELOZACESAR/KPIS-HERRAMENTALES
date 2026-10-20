@@ -15,9 +15,17 @@ def _leer(ruta, *hojas):
         wb.close()
 
 
-def _tabla(filas, requeridos, mapa, obligatorias):
+def _tabla(filas, requeridos, mapa, obligatorias, contiene=None):
+    """contiene: {campo: texto} para columnas cuyo nombre puede variar (ej. cualquier encabezado con "CAPACIDAD")."""
     h, enc = buscar_encabezado(filas, requeridos)
-    return h, ubicar_columnas(enc, mapa, obligatorias=obligatorias)
+    c = ubicar_columnas(enc, mapa, obligatorias=obligatorias)
+    for campo, texto_ in (contiene or {}).items():
+        if campo not in c:
+            for i, nombre in enumerate(enc):
+                if texto_ in norm(nombre) and i not in c.values():
+                    c[campo] = i
+                    break
+    return h, c
 
 
 COLUMNAS_LOGOS = ["fila", "pedido_genesis", "orden", "trazabilidad", "logo", "tipo_logo", "inv_status", "zfer", "vehiculo",
@@ -133,7 +141,7 @@ def leer_indicadores_diarios(ruta: Path):
     h, c = _tabla(vitro, ["Fecha", "Vitros nuevos"], {
         "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos"], "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad"],
         "vitros_pp": VITROS_PP,
-    }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"])
+    }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"], contiene={"capacidad": "CAPACIDAD"})
     salida_v = []
     for i, r in enumerate(vitro[h + 1:], start=h + 2):
         f = fecha(_celda(r, c["fecha"]))

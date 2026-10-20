@@ -2232,7 +2232,7 @@ function dibujarMantenimiento(){
 const BLOQUES_SERI = [
   {id:'logos', titulo:'Vitros logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
    reglaCarga:'Logo DISPONIBLE y sin NOMBRE_ARCHIVO. Prioridad = tiene Plan de corte (día/turno).'},
-  {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
+  {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros', capManual:'cap-vitros',
    reglaCarga:'Calendario sin Ingeniería y STATUS VITROJET = NO EXISTE. La capacidad sale de Indicadores diarios.'},
   {id:'pasta_plata', titulo:'Vitros pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros', capManual:'cap-pasta-plata',
    reglaCarga:'Puesto en Planeación, Corte, CNC, Serigrafía o Vitrificado e INVENTARIO_3 = CREAR_VITRO.'},
@@ -2342,6 +2342,7 @@ function dibujarSerigrafia(){
 // Semanal (12 semanas, clic = sus días productivos) / Mensual (12 meses). Barras = lo hecho por persona; capacidad en
 // rojo (vitros: la de Indicadores diarios; logos y pasta de plata: la diaria escrita × días productivos); línea = carga.
 const estadoSeri = {};
+const COLOR_CAP_SERI = '#2F80D1';   // capacidad en las gráficas de serigrafía (línea azul arriba)
 // Vitros estándar como en el Excel "Procesamiento de Vitros" (Indicadores diarios, hoja VITROJET):
 // barras = Vitros nuevos, línea punteada roja = Piezas quietas, línea negra = Capacidad. Semanal/mensual = sumas.
 function dibujarVitrosIndicadores(S, b, e, cont){
@@ -2349,9 +2350,12 @@ function dibujarVitrosIndicadores(S, b, e, cont){
   document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
   $('#vol-seri-' + b.id).hidden = !zoom;
   const dia = {}; S.retenidas.serie.forEach(d => dia[d.fecha] = d);
+  const capManual = valorManual(b.capManual, null);
+  const capDia = iso => { const d = dia[iso]; return d && d.capacidad != null ? d.capacidad : (capManual && esDiaProductivo(iso) && iso <= D.hoy ? capManual : null); };
   const sumar = (desde, hasta) => { const r = {nuevos: 0, quietas: 0, cap: 0, hayCap: false, hay: false};
-    diasRango(desde, hasta).forEach(x => { const d = dia[x.iso]; if(!d) return; r.hay = true; r.nuevos += d.vitros_nuevos || 0; r.quietas += d.vitro_quietas || 0;
-      if(d.capacidad != null){ r.cap += d.capacidad; r.hayCap = true; } }); return r; };
+    diasRango(desde, hasta).forEach(x => { const d = dia[x.iso], c = capDia(x.iso);
+      if(c != null){ r.cap += c; r.hayCap = true; }
+      if(!d) return; r.hay = true; r.nuevos += d.vitros_nuevos || 0; r.quietas += d.vitro_quietas || 0; }); return r; };
   let per = [];
   if(zoom || e.vista === 'diaria'){
     const desde = zoom ? e.zoom.desde : sumarDias(D.hoy, -29), hasta = zoom ? e.zoom.hasta : D.hoy;
@@ -2377,11 +2381,11 @@ function dibujarVitrosIndicadores(S, b, e, cont){
       (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : '')}));
   $('#tit-seri-' + b.id).textContent = zoom ? `Procesamiento de vitros · ${e.zoom.titulo}` : 'Procesamiento de vitros';
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>Vitros nuevos</span>` +
-    `<span><i class="linea puntos" style="color:var(--bad)"></i>Piezas quietas</span><span><i class="linea" style="background:var(--text)"></i>Capacidad</span></div>`;
+    `<span><i class="linea puntos" style="color:var(--bad)"></i>Piezas quietas</span><span><i class="linea" style="background:${COLOR_CAP_SERI}"></i>Capacidad</span></div>`;
   barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: 'Procesamiento de vitros',
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosIndicadores(S, b, e, cont); } : null,
     lineas: [{vals: per.map(p => p.hay ? p.quietas : null), color: 'var(--bad)', etiquetas: 'todas', punteada: 'puntos', sinPuntos: true},
-             {vals: per.map(p => p.hayCap ? p.cap : null), color: 'var(--text)', etiquetas: 'ultima', sinPuntos: true}]});
+             {vals: per.map(p => p.hayCap ? p.cap : null), color: COLOR_CAP_SERI, etiquetas: 'todas'}]});
 }
 const esProductivo = esDiaProductivo;
 function dibujarBloqueSeri(S, b){
