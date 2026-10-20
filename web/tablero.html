@@ -672,6 +672,8 @@ function barrasApiladas(cont, items, o={}){
       const color = o.color || (o.colores || COLOR_MAT)[m];
       svgEl('rect', {x, y:y1, width:bw, height:Math.max(1, y0-y1-(acc?2:0)), rx: top?4:0, fill:color}, g);
       if(top && y0-y1 > 6) svgEl('rect', {x, y:y1+4, width:bw, height:Math.max(0,y0-y1-4-(acc?2:0)), fill:color}, g);
+      if(o.numSegmentos && y0 - y1 >= 13 && bw >= 14) // número de cada tramo, centrado y con tinta legible sobre su color
+        svgEl('text', {x:x + bw/2, y:(y0 + y1)/2 + 4, 'text-anchor':'middle', style:`fill:${tintaSobre(color)};font-size:10.5px;font-weight:700`, 'pointer-events':'none'}, g).textContent = fmt(v);
       acc += v;
     });
     const tope = Math.max(it.total||0, it.fondo||0);
@@ -1843,7 +1845,7 @@ function dibujarGraficaResumen(b){
     barrasAgrupadas(cont, barras.map((x, i) => ({etiqueta: x.etiqueta, valores: x.segs, tip: items[i].tip,
       sub: x.futuro ? (x.nota || '') : `Total ${fmt(x.total)}${x.enCurso ? ' · en curso' : ''}`, subCorto: x.futuro ? '' : fmt(x.total), subColor: x.enCurso || x.futuro ? 'var(--muted)' : 'var(--text-soft)'})),
       {...b.op, alto: 280, aria: b.aria, onClick, referencias});
-  } else barrasApiladas(cont, items, {...b.op, sub: true, alto: 280, aria: b.aria, onClick, referencias});
+  } else barrasApiladas(cont, items, {...b.op, sub: true, alto: 280, aria: b.aria, onClick, referencias, numSegmentos: !!b.numSegmentos});
 }
 document.addEventListener('click', ev => {
   for(const b of BLOQUES_RESUMEN){
@@ -1870,7 +1872,7 @@ function diasMant(M){ // fecha → segs por vehículo (sin ocultos)
 }
 const medianaDe = xs => { if(!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const BLOQUE_RESUMEN_MANT = {
-  id: 'rm', titulo: 'Histórico de mantenimientos finalizados', aria: 'Mantenimientos finalizados por periodo y vehículo', agrupada: true,
+  id: 'rm', titulo: 'Histórico de mantenimientos finalizados', aria: 'Mantenimientos finalizados por periodo y vehículo', numSegmentos: true,
   estado: {vista: 'diaria', zoom: null},
   get op(){ const M = D.mantenimiento; return {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT}; },
   dias(desde, hasta){
