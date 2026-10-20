@@ -19,9 +19,16 @@ def calcular(hoy, R):
         r["est"] = norm(r["estatus"])
         r["herramental"] = (r["herramental"] or "Otro").strip().capitalize()
         r["vehiculo"] = (r["vehiculo"] or "Sin vehículo").strip()
-    # El 26 de diciembre es una "fecha limbo" del Excel (desarrollos sin fecha real): no cuentan en la cola.
-    limbo = lambda d: d is not None and (d.month, d.day) == (12, 26)
+    # Fecha "limbo": las de diciembre que están a más de 30 días son desarrollos sin fecha real (el Excel les pone
+    # el 26 de diciembre). No cuentan en la cola; se muestran como "sin fecha establecida". Cuando diciembre esté
+    # cerca, sus fechas vuelven a contar como reales.
+    limbo = lambda d: d is not None and d.month == 12 and (d - hoy).days > 30
     pend = [r for r in filas if r["est"] == "PENDIENTE" and not limbo(r["fecha_entrega"])]
+    # Los de diciembre (fecha limbo) o sin fecha: "sin fecha establecida", agrupados por vehículo (solo para mostrar)
+    sin_fecha = defaultdict(lambda: {"moldes": 0, "galgas": 0})
+    for r in filas:
+        if r["est"] == "PENDIENTE" and (r["fecha_entrega"] is None or limbo(r["fecha_entrega"])):
+            sin_fecha[r["vehiculo"]]["moldes" if r["herramental"] == "Molde" else "galgas"] += 1
     hechos = [r for r in filas if r["est"] == "OK"]
     sin_estatus = sum(1 for r in filas if not r["est"])
 
@@ -102,6 +109,7 @@ def calcular(hoy, R):
                  "pend_galgas": sum(1 for r in pend if r["herramental"] == "Galga"),
                  "semana": _segs(esta_semana), "semana_total": len(esta_semana), "semana_pasada": len(semana_pasada)},
         "diaria": diaria,
+        "sin_fecha": [{"vehiculo": v, **n} for v, n in sorted(sin_fecha.items())],
         "vehiculos": vehiculos, "detalle": detalle, "semanal": semanal, "mensual": mensual,
         "fabricantes_90": sorted(({"nombre": k, "n": v} for k, v in fabricantes.items()), key=lambda x: -x["n"]),
     }
