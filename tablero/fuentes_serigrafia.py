@@ -124,10 +124,15 @@ def leer_pasta_plata(ruta: Path):
             "cesar.seri_pp_archivos": (COLUMNAS_PP_ARCHIVOS, salida_a)}, {}
 
 
+# Carga del día de pasta de plata, escrita por el equipo en Indicadores diarios (columna opcional, en VITROJET o MALLAS)
+VITROS_PP = ["Vitros PP", "Vitro PP", "Carga vitros PP", "Vitros pasta de plata"]
+
+
 def leer_indicadores_diarios(ruta: Path):
     vitro, mallas = _leer(ruta, "VITROJET", "MALLAS")
     h, c = _tabla(vitro, ["Fecha", "Vitros nuevos"], {
         "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos"], "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad"],
+        "vitros_pp": VITROS_PP,
     }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"])
     salida_v = []
     for i, r in enumerate(vitro[h + 1:], start=h + 2):
@@ -135,10 +140,11 @@ def leer_indicadores_diarios(ruta: Path):
         if f is None:
             continue
         salida_v.append((i, f, numero(_celda(r, c["vitros_nuevos"])), numero(_celda(r, c["piezas_quietas"])),
-                         numero(_celda(r, c.get("capacidad")))))
+                         numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("vitros_pp")))))
     h, c = _tabla(mallas, ["Fecha", "Piezas quietas"], {
         "fecha": ["Fecha"], "mallas": ["Mallas en fabricacion"], "logos": ["Logos en fabricacion"],
         "trazabilidades": ["Trazabilidades en fabricacion"], "piezas_quietas": ["Piezas quietas"],
+        "vitros_pp": VITROS_PP,
     }, obligatorias=["fecha", "mallas", "logos", "trazabilidades", "piezas_quietas"])
     salida_m = []
     for i, r in enumerate(mallas[h + 1:], start=h + 2):
@@ -146,9 +152,11 @@ def leer_indicadores_diarios(ruta: Path):
         if f is None:
             continue
         salida_m.append((i, f, numero(_celda(r, c["mallas"])), numero(_celda(r, c["logos"])),
-                         numero(_celda(r, c["trazabilidades"])), numero(_celda(r, c["piezas_quietas"]))))
-    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad"], salida_v),
-            "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas"], salida_m)}, {}
+                         numero(_celda(r, c["trazabilidades"])), numero(_celda(r, c["piezas_quietas"])),
+                         numero(_celda(r, c.get("vitros_pp")))))
+    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp"], salida_v),
+            "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas", "vitros_pp"],
+                                      salida_m)}, {}
 
 
 LECTORES_SERIGRAFIA = {

@@ -8,7 +8,7 @@ from .excel import norm
 
 # En las columnas de responsable también se escriben estados; esos no son personas.
 NO_PERSONAS = {"", "REALIZADO", "REALIZANDO", "POR HACER", "EN ESPERA", "PENDIENTE", "ASIGNADO"}
-PUESTOS_PASTA_PLATA = {"01CORTE", "02CNC", "03SERIG", "PLANEACION"}
+PUESTOS_PASTA_PLATA = {"PLANEACION", "01CORTE", "02CNC", "03SERIG", "04SER_VT"}   # Planeación, Corte, CNC, Serigrafía, Vitrificado
 DIAS_MATRIZ = 14
 
 
@@ -29,6 +29,41 @@ def _matriz(hechos, hoy):
     totales = Counter(f for f, p in hechos if p)
     return {"dias": [d.isoformat() for d in dias], "personas": personas,
             "diaria": [{"fecha": d.isoformat(), "total": totales[d]} for d in dias]}
+
+
+def _series(hechos, hoy, capacidad=None):
+    """Lo hecho por persona en 30 días, 12 semanas y 12 meses (para los filtros Diario / Semanal / Mensual).
+    capacidad: {fecha: valor} opcional (vitros: capacidad diaria de Indicadores diarios)."""
+    por_dia = defaultdict(Counter)
+    for f, p in hechos:
+        if p and f and f <= hoy:
+            por_dia[f][p] += 1
+    capacidad = capacidad or {}
+
+    def periodo(ini, fin):
+        c = Counter()
+        d = ini
+        while d <= min(fin, hoy):
+            c.update(por_dia.get(d, {}))
+            d += dt.timedelta(days=1)
+        caps = [capacidad[ini + dt.timedelta(days=k)] for k in range((fin - ini).days + 1) if ini + dt.timedelta(days=k) in capacidad]
+        return {"desde": ini.isoformat(), "hasta": fin.isoformat(), "segs": dict(c), "total": sum(c.values()),
+                "capacidad": sum(caps) if caps else None, "en_curso": fin >= hoy}
+
+    diaria = [{**periodo(d, d), "fecha": d.isoformat(), "hoy": d == hoy}
+              for d in (hoy - dt.timedelta(days=k) for k in range(29, -1, -1))]
+    lunes = hoy - dt.timedelta(days=hoy.weekday())
+    semanal = [{**periodo(ini, ini + dt.timedelta(days=6)), "etiqueta": f"Sem {ini.isocalendar()[1]}"}
+               for ini in (lunes - dt.timedelta(weeks=k) for k in range(11, -1, -1))]
+    mensual = []
+    for k in range(11, -1, -1):
+        a, m = hoy.year, hoy.month - k
+        while m < 1:
+            a, m = a - 1, m + 12
+        ini = dt.date(a, m, 1)
+        fin = dt.date(a + (m == 12), m % 12 + 1, 1) - dt.timedelta(days=1)
+        mensual.append({**periodo(ini, fin), "etiqueta": f"{a}-{m:02d}"})
+    return {"diaria": diaria, "semanal": semanal, "mensual": mensual}
 
 
 def _ultimo(filas, hoy):
@@ -65,7 +100,7 @@ def logos(hoy):
                             "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None} for r in carga),
                           key=lambda x: (not x["prioridad"], x["toc"] or "9")),
         "hechos_por_persona": dict(hechos),
-        **_matriz(diarios, hoy),
+        **_matriz(diarios, hoy), "serie": _series(diarios, hoy),
     }
 
 
@@ -80,6 +115,7 @@ def vitros(hoy):
     ok = [(r["fecha"], _persona(r["responsable"])) for r in hechos if norm(r["estatus"]) == "OK"]
     capacidad = {r["fecha"]: r["capacidad"] for r in ind if r["fecha"] and r["capacidad"] is not None}
     m = _matriz(ok, hoy)
+    m["serie"] = _series(ok, hoy, capacidad)
     for d in m["diaria"]:
         d["capacidad"] = capacidad.get(dt.date.fromisoformat(d["fecha"]))
     return {
@@ -107,20 +143,23 @@ def pasta_plata(hoy):
         por_vitro[r["denominacion"] or r["componente"]].append(r)
     ok = [(r["fecha"], _persona(r["responsable"])) for r in archivos if norm(r["estatus_vitro"]) == "OK"]
     return {
-        "carga": len(carga), "carga_vitros": len(por_vitro),
+        # el mismo número de componente se repite en varias órdenes: la carga cuenta componentes únicos
+        "carga": len({(r["componente"] or "").strip() or r["orden"] for r in carga}), "carga_ordenes": len(carga),
+        "carga_vitros": len(por_vitro),
         "en_curso": sum(1 for r in archivos if norm(r["estatus_vitro"]) == "REALIZANDO"),
         "por_puesto": [{"nombre": n, "n": c} for n, c in Counter(r["puesto_trabajo"] for r in carga).most_common()],
         "vitros": sorted(({"vitro": v, "tipo": rs[0]["descripcion"], "ordenes": len(rs),
                            "vehiculos": sorted({r["vehiculo"] or "—" for r in rs}),
                            "puestos": sorted({r["puesto_trabajo"] for r in rs})} for v, rs in por_vitro.items()),
                          key=lambda x: -x["ordenes"]),
-        **_matriz(ok, hoy),
+        **_matriz(ok, hoy), "serie": _series(ok, hoy),
     }
 
 
 def retenidas(hoy):
-    vit = db.consultar("SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad FROM cesar.seri_ind_vitrojet WHERE fecha IS NOT NULL")
-    mal = db.consultar("SELECT fila, fecha, mallas, logos, trazabilidades, piezas_quietas FROM cesar.seri_ind_mallas WHERE fecha IS NOT NULL")
+    pp = "vitros_pp" if db.consultar("SELECT COL_LENGTH('cesar.seri_ind_vitrojet', 'vitros_pp') AS n")[0]["n"] else "NULL AS vitros_pp"
+    vit = db.consultar(f"SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad, {pp} FROM cesar.seri_ind_vitrojet WHERE fecha IS NOT NULL")
+    mal = db.consultar(f"SELECT fila, fecha, mallas, logos, trazabilidades, piezas_quietas, {pp} FROM cesar.seri_ind_mallas WHERE fecha IS NOT NULL")
     if not vit and not mal:
         return None
     uv, um = _ultimo(vit, hoy), _ultimo(mal, hoy)
@@ -143,6 +182,8 @@ def retenidas(hoy):
         "screens_total": v(um, "mallas") + v(um, "logos") + v(um, "trazabilidades"),
         "vitros_nuevos": v(uv, "vitros_nuevos"), "capacidad_vitros": (uv or {}).get("capacidad"),
         "serie": [{"fecha": f.isoformat(), **d} for f, d in sorted(serie.items())],
+        # carga del día de pasta de plata escrita en el Excel (columna "Vitros PP"), por fecha
+        "carga_pp": {r["fecha"].isoformat(): r["vitros_pp"] for r in vit + mal if r["vitros_pp"] is not None},
     }
 
 

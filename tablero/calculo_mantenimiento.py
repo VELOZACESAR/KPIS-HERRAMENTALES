@@ -105,6 +105,23 @@ def calcular(hoy, R):
     tipos = Counter((r["tipo_mant"] or "Sin tipo") for r in ult30).most_common()
     reincidentes = Counter((r["molde"], r["categoria"], r["vehiculo"]) for r in ult30).most_common(10)
 
+    # Registros compactos de lo finalizado (~13 meses) para que el tablero arme cualquier periodo (día, semana,
+    # mes) por matricero, tipo de mantenimiento y molde. Cada texto va una sola vez en su lista y las filas
+    # guardan índices: [fecha, persona, categoría, tipo de mantenimiento, molde, vehículo].
+    registros = {"personas": [], "categorias": [], "tipos": [], "moldes": [], "vehiculos": [], "filas": []}
+    indices = {k: {} for k in registros if k != "filas"}
+
+    def indice(lista, valor):
+        if valor not in indices[lista]:
+            indices[lista][valor] = len(registros[lista])
+            registros[lista].append(valor)
+        return indices[lista][valor]
+
+    for r in sorted(fin, key=_dia):
+        registros["filas"].append([_dia(r).isoformat(), indice("personas", r["persona"]),
+                                   indice("categorias", r["categoria"]), indice("tipos", r["tipo_mant"] or "Sin tipo"),
+                                   indice("moldes", r["molde"]), indice("vehiculos", r["vehiculo"] or "")])
+
     return {
         "categorias": categorias,
         "kpis": {
@@ -121,6 +138,7 @@ def calcular(hoy, R):
         "por_categoria": por_categoria,
         "tipos_30": [{"tipo": t, "n": n} for t, n in tipos],
         "reincidentes_30": [{"molde": m, "categoria": c, "vehiculo": v, "n": n} for (m, c, v), n in reincidentes if n > 1],
+        "registros": registros,
         "abiertos": sorted(({"id": r["id"], "molde": r["molde"], "vehiculo": r["vehiculo"], "categoria": r["categoria"],
                              "persona": r["persona"], "estatus": r["estatus"], "tipo_mant": r["tipo_mant"],
                              "inicio": r["inicio"].isoformat(timespec="minutes") if r["inicio"] else None}

@@ -19,7 +19,16 @@ def calcular(hoy, R):
         r["est"] = norm(r["estatus"])
         r["herramental"] = (r["herramental"] or "Otro").strip().capitalize()
         r["vehiculo"] = (r["vehiculo"] or "Sin vehículo").strip()
-    pend = [r for r in filas if r["est"] == "PENDIENTE"]
+    # Fecha "limbo": las de diciembre que están a más de 30 días son desarrollos sin fecha real (el Excel les pone
+    # el 26 de diciembre). No cuentan en la cola; se muestran como "sin fecha establecida". Cuando diciembre esté
+    # cerca, sus fechas vuelven a contar como reales.
+    limbo = lambda d: d is not None and d.month == 12 and (d - hoy).days > 30
+    pend = [r for r in filas if r["est"] == "PENDIENTE" and not limbo(r["fecha_entrega"])]
+    # Los de diciembre (fecha limbo) o sin fecha: "sin fecha establecida", agrupados por vehículo (solo para mostrar)
+    sin_fecha = defaultdict(lambda: {"moldes": 0, "galgas": 0})
+    for r in filas:
+        if r["est"] == "PENDIENTE" and (r["fecha_entrega"] is None or limbo(r["fecha_entrega"])):
+            sin_fecha[r["vehiculo"]]["moldes" if r["herramental"] == "Molde" else "galgas"] += 1
     hechos = [r for r in filas if r["est"] == "OK"]
     sin_estatus = sum(1 for r in filas if not r["est"])
 
@@ -69,6 +78,21 @@ def calcular(hoy, R):
         mensual.append({"etiqueta": f"{a}-{m:02d}", "segs": _segs(sel), "total": len(sel),
                         "horas": sum(r["tiempo_h"] or 0 for r in sel), "en_curso": (a, m) == (hoy.year, hoy.month)})
 
+    # Días de fila: días laborales desde hoy hasta la última "Fecha entrega" de lo pendiente (incluye hoy).
+    ultima = max((r["fecha_entrega"] for r in pend if r["fecha_entrega"]), default=None)
+    dias_fila = sum(1 for k in range(((ultima - hoy).days + 1) if ultima and ultima >= hoy else 0)
+                    if R.es_laboral(hoy + dt.timedelta(days=k)))
+    # Serie diaria (30 días) de lo fabricado (estatus OK por fecha de entrega) y la semana en curso / la anterior
+    por_dia = defaultdict(list)
+    for r in hechos:
+        if r["fecha_entrega"]:
+            por_dia[r["fecha_entrega"]].append(r)
+    diaria = [{"fecha": (hoy - dt.timedelta(days=k)).isoformat(), "segs": _segs(por_dia.get(hoy - dt.timedelta(days=k), [])),
+               "total": len(por_dia.get(hoy - dt.timedelta(days=k), [])), "hoy": k == 0,
+               "lab": R.es_laboral(hoy - dt.timedelta(days=k))} for k in range(29, -1, -1)]
+    esta_semana = [r for d in range(7) for r in por_dia.get(lunes + dt.timedelta(days=d), [])]   # misma cuenta que la serie semanal
+    semana_pasada = [r for d in range(7) for r in por_dia.get(lunes - dt.timedelta(days=7 - d), [])]
+
     hace90 = hoy - dt.timedelta(days=90)
     fabricantes = defaultdict(int)
     for r in hechos:
@@ -79,7 +103,13 @@ def calcular(hoy, R):
         "kpis": {"pendientes": len(pend), "horas": horas, "turnos": round(turnos, 1), "matriceros": matriceros,
                  "cola_dias": round(cola_dias, 1), "vencidos": len(vencidos), "horas_turno": horas_turno,
                  "entregados_30": sum(1 for r in hechos if r["fecha_entrega"] and hoy - dt.timedelta(days=30) <= r["fecha_entrega"] <= hoy),
-                 "sin_estatus": sin_estatus, "total_registros": len(filas)},
+                 "sin_estatus": sin_estatus, "total_registros": len(filas),
+                 "dias_fila": dias_fila, "ultima_entrega": ultima.isoformat() if ultima else None,
+                 "pend_moldes": sum(1 for r in pend if r["herramental"] == "Molde"),
+                 "pend_galgas": sum(1 for r in pend if r["herramental"] == "Galga"),
+                 "semana": _segs(esta_semana), "semana_total": len(esta_semana), "semana_pasada": len(semana_pasada)},
+        "diaria": diaria,
+        "sin_fecha": [{"vehiculo": v, **n} for v, n in sorted(sin_fecha.items())],
         "vehiculos": vehiculos, "detalle": detalle, "semanal": semanal, "mensual": mensual,
         "fabricantes_90": sorted(({"nombre": k, "n": v} for k, v in fabricantes.items()), key=lambda x: -x["n"]),
     }

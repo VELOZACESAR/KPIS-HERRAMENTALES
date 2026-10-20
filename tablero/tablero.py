@@ -5,7 +5,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, calculo_serigrafia, db, reglas
+from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, calculo_serigrafia, db, reglas, retenidas_piso
 from .ingesta import estado_fuentes
 
 log = logging.getLogger("tablero")
@@ -43,6 +43,7 @@ def construir(hoy=None):
     bloques = {
         "aceros": ("Aceros (consolidado)", lambda: calculo_aceros.calcular(hoy, R)),
         "historial": ("Historial de aceros", historial),
+        "retenidas_piso": ("Piezas retenidas en piso", lambda: retenidas_piso.listar(hoy)),
         "cortes": ("Control de pedidos", lambda: calculo_aceros.enviados_a_cortar(hoy)),
         "x5": ("Inventario X5", calculo_aceros.inventario_x5),
         "moldes": ("Fabricación de moldes", lambda: calculo_moldes.calcular(hoy, R)),
@@ -50,7 +51,7 @@ def construir(hoy=None):
         "mantenimiento": ("Mantenimiento de moldes", lambda: calculo_mantenimiento.calcular(hoy, R)),
         "serigrafia": ("Serigrafía", lambda: calculo_serigrafia.calcular(hoy)),
         "historial_seri": ("Historial de serigrafía", lambda: historial(["seri_retenidas", "seri_screens", "seri_carga_logos",
-                                                                           "seri_carga_vitros", "seri_carga_pp"])),
+                                                                           "seri_carga_vitros", "seri_carga_pp", "seri_carga_pp_comp"])),
         "fuentes": ("Estado de fuentes", estado_fuentes),
         "manuales": ("Valores manuales", manuales),
     }
@@ -59,6 +60,7 @@ def construir(hoy=None):
         resultado = {k: f.result() for k, f in futuros.items()}
     if resultado["aceros"]:
         resultado["aceros"]["historial"] = resultado["historial"] or {}
+        resultado["aceros"]["retenidas_piso"] = resultado["retenidas_piso"]
     if resultado["moldes"]:
         resultado["moldes"]["historial"] = resultado["historial_moldes"] or {}
     if resultado["serigrafia"]:
@@ -149,7 +151,9 @@ def guardar_foto(hoy=None):
         if s.get("vitros"):
             valores.update(seri_carga_vitros=s["vitros"]["carga"])
         if s.get("pasta_plata"):
-            valores.update(seri_carga_pp=s["pasta_plata"]["carga"])
+            # seri_carga_pp_comp = componentes únicos (desde 2026-10-20); seri_carga_pp guardaba órdenes y queda como estaba
+            valores.update(seri_carga_pp=s["pasta_plata"].get("carga_ordenes", s["pasta_plata"]["carga"]),
+                           seri_carga_pp_comp=s["pasta_plata"]["carga"])
         if s.get("logos"):
             valores.update(seri_carga_logos=s["logos"]["carga"])
             # El Excel de logos no dice cuándo se hizo cada logo: con la foto diaria de lo hecho por persona

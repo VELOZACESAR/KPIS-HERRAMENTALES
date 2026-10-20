@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Indicadores Herramentales</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 34 34%27%3E%3Cpath d=%27M17 2 30 7v9c0 8-5.6 13.6-13 16C9.6 29.6 4 24 4 16V7z%27 fill=%27%2307234f%27 stroke=%27%238FC5CF%27 stroke-width=%272.2%27/%3E%3Cpath d=%27M11 19.5 15.5 24 24 12%27 fill=%27none%27 stroke=%27%238FC5CF%27 stroke-width=%272.4%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='7' fill='%2307234f'/%3E%3Cpath d='M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z' transform='translate%280.5 0.5%29 scale%280.95%29' fill='none' stroke='%238FC5CF' stroke-width='2' stroke-linejoin='round'/%3E%3Ccircle cx='22.5' cy='22.5' r='6.2' fill='%2307234f' stroke='%238FC5CF' stroke-width='2'/%3E%3Ccircle cx='22.5' cy='22.5' r='2.2' fill='none' stroke='%238FC5CF' stroke-width='1.8'/%3E%3Cpath d='M28.23 24.87L30.63 25.87 M24.87 28.23L25.87 30.63 M20.13 28.23L19.13 30.63 M16.77 24.87L14.37 25.87 M16.77 20.13L14.37 19.13 M20.13 16.77L19.13 14.37 M24.87 16.77L25.87 14.37 M28.23 20.13L30.63 19.13' stroke='%238FC5CF' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   /* Tema oscuro por defecto (sistema de diseño AGP); el claro es un override. */
   :root{
@@ -21,7 +21,7 @@
     --radius:12px;
     --meta:#F08A7E; --meta-borde:#6b3a36; --meta-bg:#2a1719;
     --font:'Segoe UI',system-ui,sans-serif;
-    --mono:Consolas,"Courier New",monospace;
+    --mono:var(--font);  /* una sola tipografía: los números usan cifras de ancho fijo (tabular-nums) */
     color-scheme:dark;
   }
   :root[data-tema="claro"]{
@@ -39,7 +39,7 @@
     color-scheme:light;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--font);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
   :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
@@ -93,6 +93,46 @@
   .matriz td.c.cero{color:var(--muted);font-weight:400}
   .matriz td.t{font-family:var(--mono);font-weight:700;padding-left:8px;text-align:right}
   .matriz th.hoy,.matriz td.hoy{outline:2px solid var(--brand);outline-offset:-2px}
+  /* análisis por periodo */
+  .sec-fila{display:flex;justify-content:space-between;align-items:center;gap:10px 16px;flex-wrap:wrap;margin:26px 0 10px}
+  .sec-fila h2.sec{margin:0}
+  .matriz th.zoom{cursor:pointer}
+  .matriz th.zoom:hover{color:var(--text);text-decoration:underline}
+  .matriz th.nolab{color:var(--muted)}
+  .matriz td.c.nolab.cero{background-image:repeating-linear-gradient(135deg,var(--grid) 0 3px,transparent 3px 7px)}
+  .matriz td.c.vacio-c{background:transparent;color:var(--border)}
+  .matriz tr.pie td{border-top:1px solid var(--border);padding-top:4px;font-weight:700;color:var(--text)}
+  .matriz tr.pie td.p,.matriz tr.pie2 td.p{font-weight:600;color:var(--text-soft)}
+  .matriz tr.pie2 td{color:var(--text-soft);font-weight:500;text-align:center}
+  .matriz th.n,.matriz td.t{white-space:nowrap}
+  .pct{display:flex;align-items:center;gap:6px;min-width:120px;padding-left:10px;font-size:12px;color:var(--text-soft)}
+  .pct-bar{flex:1;height:6px;border-radius:3px;background:var(--grid);overflow:hidden;min-width:50px}
+  .pct-bar i{display:block;height:100%;border-radius:3px}
+  .rk{display:flex;flex-direction:column}
+  .rk-fila{display:grid;grid-template-columns:22px minmax(150px,1.2fr) minmax(120px,3fr) 52px 60px 92px 110px;align-items:center;gap:12px;padding:7px 4px;border-bottom:1px solid var(--grid);font-size:12.5px}
+  .rk-fila.cab{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft);padding-top:0}
+  .rk-fila.pie{border-bottom:0;border-top:1px solid var(--border);font-weight:700}
+  .rk-pos{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:700;background:var(--pend);color:var(--text-soft)}
+  .rk-fila.top .rk-pos{background:var(--brand);color:var(--on-brand)}
+  .rk-nom{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rk-bar{display:flex;gap:2px;height:14px}
+  .rk-bar i{display:block;height:100%}
+  .rk-bar i:first-child{border-radius:3px 0 0 3px}
+  .rk-bar i:last-child{border-radius:0 3px 3px 0}
+  .rk-bar i:only-child{border-radius:3px}
+  .rk-n{text-align:right;font-weight:700;color:var(--text);font-size:13.5px}
+  .rk-pct,.rk-prom{text-align:right;color:var(--text-soft)}
+  @media (max-width:900px){ .rk-fila{grid-template-columns:22px minmax(110px,1fr) minmax(80px,2fr) 44px 52px} .rk-fila > :nth-child(n+6){display:none} }
+  .lista-tipo{display:flex;flex-direction:column;gap:2px}
+  .lt-fila{display:grid;grid-template-columns:minmax(120px,1.3fr) minmax(60px,1.6fr) 44px 46px 96px;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--grid);font-size:12.5px}
+  .lt-fila:last-child{border-bottom:0}
+  .lt-fila.cab{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft);padding-top:0}
+  .lt-nom{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lt-bar{height:8px;border-radius:4px;background:var(--grid);overflow:hidden}
+  .lt-bar i{display:block;height:100%;border-radius:4px}
+  .lt-n{text-align:right;font-weight:700;color:var(--text)}
+  .lt-pct{text-align:right;color:var(--text-soft)}
+  .lt-spark{width:96px;height:22px;display:block}
   .cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
   .cat{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--c);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:box-shadow .15s}
   .cat:hover,.cat.sel{box-shadow:var(--sombra)}
@@ -100,6 +140,39 @@
   .cat h4{margin:0;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:6px}
   .cat .big{font:700 30px/1 var(--font);font-variant-numeric:tabular-nums}
   .cat .big small{font-size:12px;color:var(--text-soft);font-weight:500}
+  .top-m{display:flex;flex-direction:column;gap:5px;margin-top:4px;padding-top:10px;border-top:1px solid var(--border)}
+  .top-m-tit{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft)}
+  .top-m-fila{display:grid;grid-template-columns:16px 7ch minmax(28px,1fr) auto;align-items:center;gap:8px;font-size:12px}
+  .top-m-pos{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;background:var(--pend);color:var(--text-soft)}
+  .top-m-fila.primero .top-m-pos{background:var(--c);color:#fff}
+  .top-m-nom{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+  .top-m-bar{height:6px;border-radius:3px;background:var(--grid);overflow:hidden}
+  .top-m-bar i{display:block;height:100%;border-radius:3px;background:var(--c)}
+  .top-m-n{font-weight:700;color:var(--text);min-width:22px;text-align:right}
+  .top-m-n small{font-weight:500;color:var(--text-soft);margin-left:1px}
+  .vacio-m{font-size:12px;color:var(--muted)}
+  /* mantenimiento: tarjetas hoy / ayer / ritmo con contexto */
+  .grid-mant{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+  .mk{gap:10px}
+  .mk .val{font-size:34px}
+  .mk-ref{font-size:12.5px;color:var(--text-soft)}
+  .mk-ref b{color:var(--text)}
+  .rango{position:relative;height:10px;border-radius:5px;background:var(--grid);margin:6px 0 2px}
+  .rango-banda{position:absolute;top:0;bottom:0;border-radius:5px;background:var(--pend);outline:1px solid var(--border)}
+  .rango-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:#5BB0C0}
+  .rango-prom{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--text)}
+  .rango-val{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border)}
+  .rango-ley{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+  .mk-sep{border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+  .mk-tit{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft)}
+  .catbar{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;background:var(--grid)}
+  .catbar i{display:block;height:100%}
+  .catley{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text-soft)}
+  .catley span{display:inline-flex;align-items:center;gap:5px}
+  .catley i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .catley b{color:var(--text)}
+  .tecs{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text-soft)}
+  .tecs b{color:var(--text)}
   .cat .fila3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:11.5px;color:var(--text-soft)}
   .cat .fila3 b{display:block;font:700 15px var(--font);color:var(--text)}
   .sub-aceros{margin-bottom:6px}
@@ -161,6 +234,14 @@
 
   /* resumen de aceros: fila + productividad apiladas a la izquierda, gráfica a la derecha */
   .ra-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,2.2fr);gap:14px}
+  .ra-grid.inv{grid-template-columns:minmax(0,1.55fr) minmax(320px,1.45fr)}   /* gráfica a la izquierda, tabla a la derecha */
+  .ra-tabla{display:flex;flex-direction:column;gap:8px}
+  .ra-tabla .tabla{max-height:none;overflow:auto}
+  .ra-tabla table{font-size:12px}
+  .ra-tabla th,.ra-tabla td{padding:6px 6px}
+  .ra-tabla td{white-space:nowrap}
+  .ra-tabla td.veh{max-width:170px;overflow:hidden;text-overflow:ellipsis}
+  .ra-tabla tr.sep-fila td{background:var(--brand);color:var(--on-brand);font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center;font-size:11px}
   .ra-col{display:grid;gap:14px;align-content:start}
   .ra-col .kpi,.ra-chart{background:var(--bg);border-color:var(--grid)}
   .cp-prio{display:flex;gap:14px;margin-bottom:3px}
@@ -170,6 +251,14 @@
   .fila-hero span:last-child{font-size:13px;line-height:1.25;color:var(--text-soft);font-weight:600}
   .fila-dias{display:grid;gap:8px;font-size:13px;color:var(--text-soft)}
   .fila-dias b.num{font:700 20px var(--font);color:var(--text)}
+  .fila-tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid var(--grid);padding-top:10px}
+  .fila-tres > div{display:flex;flex-direction:column;gap:2px}
+  .fila-tres b.num{font:700 30px/1 var(--font);font-variant-numeric:tabular-nums}
+  .fila-tres .mini-in{font-size:30px;font-weight:700;line-height:1.1;height:auto;padding:0;vertical-align:bottom;color:var(--meta);border-bottom-color:var(--meta-borde);width:2.2ch;text-align:left}
+  .fila-tres b.num.meta-txt{display:block;line-height:1}
+  .fila-tres span{font-size:12px;color:var(--text-soft);font-weight:600}
+  .sem-tit{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--text-soft)}
+  .sem-tit b{font-size:16px;letter-spacing:0}
   .fila-dias .meta-txt{color:var(--meta);font-weight:600}
   .fila-dias .mini-in{font-size:16px;color:var(--meta);border-bottom-color:var(--meta-borde)}
   .bullet.grande{height:14px;border-radius:7px}
@@ -258,6 +347,40 @@
   table.tx5 td{padding:4px;color:var(--text)}
   table.tx5 tr.tot td{font-weight:700;border-top:1px solid var(--border);border-bottom:0}
   .grid-estado{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  /* estado actual de aceros en una sola fila */
+  .grid-estado1{display:grid;grid-template-columns:minmax(0,1.7fr) repeat(4,minmax(0,1fr));gap:14px}
+  .grid-estado1 .kpi{padding:14px 16px}
+  .grid-estado1 .kpi .val{font-size:26px}
+  @media (max-width:1200px){ .grid-estado1{grid-template-columns:repeat(3,minmax(0,1fr))} .grid-estado1 > :first-child{grid-column:span 3} }
+  @media (max-width:640px){ .grid-estado1{grid-template-columns:1fr} .grid-estado1 > :first-child{grid-column:auto} }
+  /* no cumplidos por puesto */
+  .puestos{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+  .pu-fila{display:grid;grid-template-columns:120px minmax(0,1fr) 30px;align-items:center;gap:8px;font-size:12.5px}
+  .pu-nom{color:var(--text);font-weight:600;white-space:nowrap}
+  .pu-bar{height:8px;border-radius:4px;background:var(--grid);overflow:hidden}
+  .pu-bar i{display:block;height:100%;border-radius:4px}
+  .pu-n{text-align:right;font-weight:700;color:var(--text)}
+  .cap-seri{font-size:12px;font-weight:600;color:var(--meta);white-space:nowrap}
+  .cap-seri .mini-in{font-size:15px;color:var(--meta);border-bottom-color:var(--meta-borde)}
+  #comp-detalle{margin-top:10px}
+  .ents{display:flex;flex-wrap:wrap;gap:4px}
+  .ent{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;background:var(--ok-bg);color:var(--text);white-space:nowrap}
+  .ent.tarde{background:var(--bad-bg)}
+  .ent b{margin-left:2px}
+  /* piezas retenidas / refundidas en piso */
+  .ret-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 8px}
+  .ret-form input,.ret-form select,.ret-tabla select{font:500 13px var(--font);color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 9px}
+  .ret-form input{width:150px}
+  .ret-form button{background:var(--brand);color:var(--on-brand);border:0;border-radius:7px;padding:7px 14px;font:700 12.5px var(--font);cursor:pointer}
+  .ret-form button:disabled{opacity:.5;cursor:default}
+  .ret-prev{font-size:12px;color:var(--text-soft);min-height:18px;margin-bottom:6px}
+  .ret-prev b{color:var(--text)}
+  .ret-kpis{display:flex;gap:18px;font-size:12.5px;color:var(--text-soft);margin-bottom:6px}
+  .ret-kpis b{font-size:18px;color:var(--text);margin-right:4px}
+  .ret-tabla td{white-space:nowrap}
+  .ret-tabla .marca{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:700;font-size:12px}
+  .ret-tabla .borrar{background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+  .ret-tabla .borrar:hover{color:var(--bad)}
   /* fila de tarjetas manuales: enviados | en fabricación | X5 por pieza (más ancha) */
   .grid-manual{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,3fr);gap:14px;margin-top:14px}
   .lado{display:grid;grid-template-columns:minmax(150px,200px) 1fr;gap:24px;align-items:start}
@@ -302,11 +425,13 @@
   .matr-meta b{color:var(--text);font-weight:600}
   .matr-e{font-size:11.5px;font-weight:600;white-space:nowrap;text-align:right}
   .matr-tot{border-top:1px solid var(--border);padding-top:8px;font-weight:600}
+  .ra-col .matr-fila{grid-template-columns:minmax(70px,1fr) minmax(80px,1.5fr) auto 54px;gap:8px;font-size:12.5px}
+  .matr-bar em.cero{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-style:normal;font-weight:600;font-size:12.5px;color:var(--muted)}
 
   /* ---------- paneles y gráficas ---------- */
   .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;min-width:0}
   .panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-  .panel-head h3{margin:0;font-size:15px;font-weight:700}
+  .panel-head h3{margin:0;font-size:13.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
   .panel-head p{margin:2px 0 0;font-size:12.5px;color:var(--text-soft)}
   .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px;margin-top:16px}
   .seg{display:inline-flex;background:var(--bg);border-radius:8px;padding:3px;gap:2px}
@@ -319,7 +444,7 @@
   .legend i.linea.punteada{width:18px;height:2.5px;background:repeating-linear-gradient(90deg,currentColor 0 5px,transparent 5px 8px)}
   .chart{width:100%;position:relative;overflow-x:auto}
   .chart svg{display:block}
-  .chart text{font-family:var(--font);fill:var(--text-soft);font-size:11px}
+  .chart text{font-family:var(--font);fill:var(--text-soft);font-size:11px;font-variant-numeric:tabular-nums}
   .chart text.v{fill:var(--text);font-weight:600;font-family:var(--mono)}
   .hit{fill:transparent;cursor:pointer}
   .hit:hover{fill:rgba(91,153,166,.08)}
@@ -350,13 +475,9 @@
 <header>
   <div class="head-in">
     <div class="marca">
-      <svg width="34" height="34" viewBox="0 0 34 34" role="img" aria-label="AGP Herramentales">
-        <path d="M17 2 30 7v9c0 8-5.6 13.6-13 16C9.6 29.6 4 24 4 16V7z" fill="none" stroke="#8FC5CF" stroke-width="2.2"/>
-        <path d="M11 19.5 15.5 24 24 12" fill="none" stroke="#8FC5CF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <svg width="36" height="36" viewBox="0 0 34 34" role="img" aria-label="AGP Herramentales"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" transform="translate(0.5 0.5) scale(0.95)" fill="none" stroke="#8FC5CF" stroke-width="2" stroke-linejoin="round"/><circle cx="22.5" cy="22.5" r="6.2" fill="#07234f" stroke="#8FC5CF" stroke-width="2"/><circle cx="22.5" cy="22.5" r="2.2" fill="none" stroke="#8FC5CF" stroke-width="1.8"/><path d="M28.23 24.87L30.63 25.87 M24.87 28.23L25.87 30.63 M20.13 28.23L19.13 30.63 M16.77 24.87L14.37 25.87 M16.77 20.13L14.37 19.13 M20.13 16.77L19.13 14.37 M24.87 16.77L25.87 14.37 M28.23 20.13L30.63 19.13" stroke="#8FC5CF" stroke-width="2.6" stroke-linecap="round"/></svg>
       <div class="titulo">
         <h1 data-t="titulo">Indicadores del Área · Herramentales</h1>
-        <p id="sub-ayer"></p>
       </div>
     </div>
     <div class="head-der">
@@ -385,24 +506,24 @@ const TXT = {
        resumen:'Resumen del área', aceros:'Aceros', mantenimiento:'Mantenimiento de moldes', moldes:'Fabricación de moldes', serigrafia:'Serigrafía',
        servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
-       mant_ayer:'Finalizados ayer', mant_hoy:'Finalizados hoy', mant_prom:'Promedio diario (30 días)', mant_mediana:'Duración típica',
-       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos por persona y por día', mant_cat:'Por vehículo',
-       mant_serie:'Mantenimientos finalizados', mant_tipos:'Tipo de mantenimiento (30 días)', mant_reinc:'Moldes con más mantenimientos (30 días)',
-       mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Cola de fabricación', moldes_pend:'Herramentales pendientes',
-       moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Pendientes por vehículo',
-       moldes_serie:'Herramentales entregados', moldes_fab:'Quién fabricó (90 días)', moldes_detalle:'Detalle de pendientes',
+       mant_ayer:'Finalizados el', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
+       mant_abiertos:'Abiertos ahora', mant_personas:'Mantenimientos finalizados por matricero', mant_cat:'Histórico de mantenimientos Retrofit/OEM · 30 días',
+       mant_serie:'Histórico de mantenimientos finalizados', mant_tipos:'Distribución por tipo de mantenimiento', mant_reinc:'Moldes con mayor recurrencia',
+       mant_lista_abiertos:'Mantenimientos abiertos', moldes_cola:'Días de fila', moldes_pend:'Herramentales pendientes',
+       moldes_horas:'Horas pendientes', moldes_venc:'Vencidos', moldes_entregados:'Entregados (30 días)', moldes_vehiculo:'Herramentales pendientes por vehículo',
+       moldes_serie:'Histórico de herramentales fabricados', moldes_fab:'Herramentales fabricados por persona · 90 días', moldes_detalle:'Detalle de herramentales pendientes',
        diario:'Diario', semanal:'Semanal', mensual:'Mensual', dias:'días', persona:'Persona', total:'Total', minutos:'min'},
   pt: {titulo:'Indicadores da Área · Ferramentaria', actualizar:'⟳ Atualizar agora', actualizando:'Atualizando…', cargando:'Carregando indicadores…',
        error_carga:'Não foi possível conectar ao servidor do painel.', reintentar:'Tentar novamente', en_vivo:'Ao vivo', sin_conexion:'Sem conexão',
        resumen:'Resumo da área', aceros:'Aços', mantenimiento:'Manutenção de moldes', moldes:'Fabricação de moldes', serigrafia:'Serigrafia',
        servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
-       mant_ayer:'Finalizadas ontem', mant_hoy:'Finalizadas hoje', mant_prom:'Média diária (30 dias)', mant_mediana:'Duração típica',
-       mant_abiertos:'Abertas agora', mant_personas:'Manutenções por pessoa e por dia', mant_cat:'Por veículo',
-       mant_serie:'Manutenções finalizadas', mant_tipos:'Tipo de manutenção (30 dias)', mant_reinc:'Moldes com mais manutenções (30 dias)',
-       mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Fila de fabricação', moldes_pend:'Ferramentais pendentes',
-       moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Pendentes por veículo',
-       moldes_serie:'Ferramentais entregues', moldes_fab:'Quem fabricou (90 dias)', moldes_detalle:'Detalhe dos pendentes',
+       mant_ayer:'Finalizadas em', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
+       mant_abiertos:'Abertas agora', mant_personas:'Manutenções finalizadas por ferramenteiro', mant_cat:'Histórico de manutenções Retrofit/OEM · 30 dias',
+       mant_serie:'Histórico das manutenções finalizadas', mant_tipos:'Distribuição por tipo de manutenção', mant_reinc:'Moldes com maior recorrência',
+       mant_lista_abiertos:'Manutenções abertas', moldes_cola:'Dias de fila', moldes_pend:'Ferramentais pendentes',
+       moldes_horas:'Horas pendentes', moldes_venc:'Vencidos', moldes_entregados:'Entregues (30 dias)', moldes_vehiculo:'Ferramentais pendentes por veículo',
+       moldes_serie:'Histórico de ferramentais fabricados', moldes_fab:'Ferramentais fabricados por pessoa · 90 dias', moldes_detalle:'Detalhe dos ferramentais pendentes',
        diario:'Diário', semanal:'Semanal', mensual:'Mensal', dias:'dias', persona:'Pessoa', total:'Total', minutos:'min'},
 };
 const leerPref = (k, d) => { try { return localStorage.getItem(k) || d; } catch(e){ return d; } };
@@ -425,8 +546,34 @@ aplicarTema(leerPref('tablero-tema', 'oscuro'));
 aplicarIdioma();
 
 // ---------------------------------------------------------------- utilidades
-let COLOR_MAT = {'Böhler':'#7FB0AE','Inox 2,5mm':'#8FA8C7','Galvanizado 0,3mm':'#D9BC6C','Inox 3mm':'#B98089',
-                 'Inox 1mm':'#9BB894','Gurkha':'#CA9682','Otro':'#8A9499'};
+// Paleta corporativa AGP: el aguamarina de la marca es el color principal. Lo acompañan tonos de matices distintos
+// (navy, salvia, rosa viejo, azul acero, oliva) pero con la MISMA saturación suave del aguamarina, para que no se
+// confundan entre sí y ninguno grite. Cada tema tiene sus tonos (el 2.º es siempre el de mayor contraste).
+// Validada con simulación de daltonismo (OKLab): los 6 colores se separan ≥ 9 entre TODOS los pares.
+const PALETAS = {
+  claro:  ['#5BB0C0', '#0F3D5E', '#B6C688', '#BE7A7A', '#5472A3', '#6F6424'],
+  oscuro: ['#5BB0C0', '#DCE3EA', '#7A884C', '#DD9C85', '#2F698F', '#7D432F'],
+};
+const OTROS = {claro:'#D5DADF', oscuro:'#707377'};
+let PALETA = PALETAS.oscuro, COLOR_OTRO = OTROS.oscuro;
+// texto blanco sobre colores oscuros, navy sobre los claros
+const tintaSobre = hex => { const h = String(hex).replace('#',''); if(h.length !== 6) return '#0B1626';
+  const [r,g,b] = [0,2,4].map(i => parseInt(h.slice(i,i+2),16)/255);
+  return 0.2126*r + 0.7152*g + 0.0722*b < 0.42 ? '#ffffff' : '#0B1626'; };
+let COLOR_MAT = {}, COLOR_CAT = {}, COLOR_X5 = {}, COLOR_RET = {}, COLOR_SCR = {}, PALETA_PERSONAS = [], COLOR_HERR = {};
+// asigna los colores de cada gráfica según el tema actual (se llama al dibujar y al cambiar de tema)
+function aplicarPaleta(){
+  const tema = document.documentElement.dataset.tema === 'claro' ? 'claro' : 'oscuro';
+  PALETA = PALETAS[tema]; COLOR_OTRO = OTROS[tema];
+  COLOR_MAT = {'Böhler':PALETA[0],'Inox 2,5mm':PALETA[1],'Galvanizado 0,3mm':PALETA[2],'Inox 3mm':PALETA[3],
+               'Inox 1mm':PALETA[4],'Gurkha':PALETA[5],'Otro':COLOR_OTRO};
+  COLOR_CAT = {'Retrofit':PALETA[0], 'BMW X5':PALETA[1], 'Express Van':PALETA[4], 'Land Rover Sentinel':PALETA[2], 'BMW Serie 7':PALETA[3]};
+  COLOR_X5 = {'Matricería':PALETA[0], 'Calidad (piso)':PALETA[1]};
+  COLOR_RET = {'Falta de archivo (Vitrojet)':PALETA[0], 'Falta de malla':PALETA[1]};
+  COLOR_SCR = {'Mallas':PALETA[0], 'Logos':PALETA[1], 'Trazabilidades':PALETA[3]};
+  PALETA_PERSONAS = [...PALETA, COLOR_OTRO];
+  COLOR_HERR = {'Molde':PALETA[0], 'Galga':PALETA[1], 'Otro':COLOR_OTRO};
+}
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS = ['dom','lun','mar','mié','jue','vie','sáb'];
 const DIAS_L = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -438,13 +585,13 @@ const fCorta = iso => { const f = fecha(iso); return `${DIAS[f.getDay()]} ${f.ge
 const fLarga = iso => { const f = fecha(iso); return `${DIAS_L[f.getDay()]} ${f.getDate()} de ${MESES[f.getMonth()].toLowerCase()}`; };
 const fHora = iso => { const f = new Date(iso); return f.toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); };
 
-// Semáforo (mismos umbrales del mockup): >=100 % cumple, >=90 % cerca, <90 % bajo meta. "menos" invierte la lógica.
+// Semáforo: desde 98 % (lo que se ve redondeado como 98 %, ≥ 97,5 %) cumple en verde; >=90 % cerca; <90 % bajo meta. "menos" invierte la lógica.
 function estado(real, meta, menosEsMejor=false){
   if(!meta) return {cls:'neutral', txt:'Sin meta', ico:'○', pct:null};
   const pct = real/meta;
   const r = menosEsMejor ? (real<=meta ? 1 : meta/real) : pct;
   const p = menosEsMejor ? null : pct; // en "menos es mejor" un % confunde: solo se muestra el estado
-  if(r>=1) return {cls:'ok', txt: menosEsMejor?'Dentro del promedio':'Cumple', ico:'▲', pct:p};
+  if(r>=.975) return {cls:'ok', txt: menosEsMejor?'Dentro del promedio':'Cumple', ico:'▲', pct:p};
   if(r>=.9) return {cls:'near', txt:'Cerca', ico:'●', pct:p};
   return {cls:'bad', txt: menosEsMejor?'Sobre el promedio':'Bajo meta', ico:'▼', pct:p};
 }
@@ -465,7 +612,7 @@ const ocultarTip = () => tip.style.opacity = 0;
 function tipSegs(titulo, segs, extra='', esc_={}){
   const orden = esc_.orden || D.orden_materiales, colores = esc_.colores || COLOR_MAT;
   const filas = orden.filter(m => segs && segs[m]).map(m =>
-    `<div class="r"><span><i style="background:${colores[m]}"></i>${m}</span><span>${fmt(segs[m])}</span></div>`).join('');
+    `<div class="r"><span><i style="background:${colores[m]}"></i>${(esc_.nombres || {})[m] || m}</span><span>${fmt(segs[m])}</span></div>`).join('');
   return `<b>${titulo}</b>${filas ? '<div style="margin-top:6px">'+filas+'</div>' : ''}${extra}`;
 }
 
@@ -490,7 +637,8 @@ function barrasApiladas(cont, items, o={}){
   cont.innerHTML = '';
   if(!items.length){ cont.innerHTML = '<div class="vacio">Sin datos</div>'; return; }
   const lineas = o.lineas || []; // [{vals:[n|null por barra], color, etiquetas:'todas'|'ultima'}] mismo eje que las barras
-  const maxLineas = Math.max(0, ...lineas.flatMap(l => l.vals.filter(v => v != null)));
+  const refs = (o.referencias || []).filter(r => r.valor != null); // líneas horizontales de referencia (ej. mediana)
+  const maxLineas = Math.max(0, ...lineas.flatMap(l => l.vals.filter(v => v != null)), ...refs.map(r => r.valor));
   const eje = escalaEje(Math.max(maxLineas, ...items.map(i => Math.max(i.total||0, i.meta||0, i.fondo||0))) * 1.08), max = eje.max;
   const mL = Math.max(34, fmt(max, eje.paso % 1 ? 1 : 0).length * 7 + 12); // margen según el número más largo del eje
   const H = o.alto || 260, mR = 8, mB = o.sub ? 44 : 28;
@@ -522,6 +670,8 @@ function barrasApiladas(cont, items, o={}){
       const color = o.color || (o.colores || COLOR_MAT)[m];
       svgEl('rect', {x, y:y1, width:bw, height:Math.max(1, y0-y1-(acc?2:0)), rx: top?4:0, fill:color}, g);
       if(top && y0-y1 > 6) svgEl('rect', {x, y:y1+4, width:bw, height:Math.max(0,y0-y1-4-(acc?2:0)), fill:color}, g);
+      if(o.numSegmentos && y0 - y1 >= 13 && bw >= 14) // número de cada tramo, centrado y con tinta legible sobre su color
+        svgEl('text', {x:x + bw/2, y:(y0 + y1)/2 + 4, 'text-anchor':'middle', style:`fill:${tintaSobre(color)};font-size:10.5px;font-weight:700`, 'pointer-events':'none'}, g).textContent = fmt(v);
       acc += v;
     });
     const tope = Math.max(it.total||0, it.fondo||0);
@@ -563,7 +713,53 @@ function barrasApiladas(cont, items, o={}){
         svgEl('text', {x:p[0], y:p[1] + (l.abajo ? 16 : -9), 'text-anchor':'middle', class:'linea-num', style:`fill:${l.color}`, 'pointer-events':'none'}, svg).textContent = fmt(l.vals[i]);
     });
   });
-  if(lineas.length) svg.querySelectorAll('text.v').forEach(t => { t.classList.add('halo'); svg.appendChild(t); }); // totales por encima de las líneas
+  refs.forEach(r => { // de lado a lado, punteada, con su etiqueta arriba a la derecha
+    const yy = y(r.valor);
+    svgEl('line', {x1:mL, x2:W-mR, y1:yy, y2:yy, stroke:r.color, 'stroke-width':1.8, 'stroke-dasharray':'6 4', 'pointer-events':'none'}, svg);
+    svgEl('text', {x:W-mR, y:yy-6, 'text-anchor':'end', class:'linea-num', style:`fill:${r.color}`, 'pointer-events':'none'}, svg).textContent = r.etiqueta;
+  });
+  if(lineas.length || refs.length) svg.querySelectorAll('text.v').forEach(t => { t.classList.add('halo'); svg.appendChild(t); }); // totales por encima de las líneas
+}
+
+/* Barras agrupadas: una barra por serie (ej. vehículo) dentro de cada periodo, con su número encima.
+   items: [{etiqueta, valores:{serie:n}, sub, subColor, tip}]  o: {orden, colores, nombres, alto, aria, onClick, referencias} */
+function barrasAgrupadas(cont, items, o={}){
+  cont.innerHTML = '';
+  if(!items.length){ cont.innerHTML = '<div class="vacio">Sin datos</div>'; return; }
+  const series = o.orden.filter(s => items.some(it => it.valores[s]));
+  const refs = (o.referencias || []).filter(r => r.valor != null);
+  const eje = escalaEje(Math.max(1, ...items.flatMap(it => series.map(s => it.valores[s] || 0)), ...refs.map(r => r.valor)) * 1.12), max = eje.max;
+  const mL = Math.max(34, fmt(max).length * 7 + 12), mR = 8, mT = 22, mB = 44, H = o.alto || 280;
+  const W = Math.max(cont.clientWidth || 600, items.length * Math.max(1, series.length) * 16 + mL + mR);
+  const y = v => mT + (H - mT - mB) * (1 - v / max);
+  const banda = (W - mL - mR) / items.length, grupo = Math.min(banda * .74, series.length * 30), bw = Math.max(4, grupo / Math.max(1, series.length) - 3);
+  const svg = svgEl('svg', {width:W, height:H, viewBox:`0 0 ${W} ${H}`, role:'img', 'aria-label': o.aria || 'Gráfica de barras agrupadas'}, cont);
+  for(let v = 0; v <= max + 1e-9; v += eje.paso){
+    svgEl('line', {x1:mL, x2:W-mR, y1:y(v), y2:y(v), stroke: v ? 'var(--grid)' : 'var(--border)'}, svg);
+    svgEl('text', {x:mL-6, y:y(v)+3.5, 'text-anchor':'end'}, svg).textContent = fmt(v);
+  }
+  const numeros = bw >= 8, fuenteNum = bw < 14 ? 9 : 10.5; // el número va encima de cada barra (más pequeño si es angosta)
+  items.forEach((it, i) => {
+    const cx = mL + banda * i + banda / 2, x0 = cx - (series.length * (bw + 3) - 3) / 2, g = svgEl('g', {}, svg);
+    if(i % 2 === 0) svgEl('rect', {x:mL + banda * i, y:mT - 6, width:banda, height:y(0) - mT + 6, fill:'var(--grid)', opacity:.45, rx:4}, g);
+    series.forEach((s, j) => {
+      const v = it.valores[s] || 0, x = x0 + j * (bw + 3), h = Math.max(v ? 1.5 : 0, y(0) - y(v));
+      if(v) svgEl('rect', {x, y:y(0) - h, width:bw, height:h, rx: Math.min(4, bw / 3), fill:o.colores[s]}, g);
+      if(v && numeros) svgEl('text', {x:x + bw / 2, y:y(v) - 4, 'text-anchor':'middle', class:'v', style:`font-size:${fuenteNum}px`}, g).textContent = fmt(v);
+    });
+    svgEl('text', {x:cx, y:H-mB+16, 'text-anchor':'middle'}, g).textContent = it.etiqueta;
+    const sub = it.sub && it.sub.length * 6.2 > banda - 4 && it.subCorto != null ? it.subCorto : it.sub;   // si no cabe, la versión corta
+    if(sub) svgEl('text', {x:cx, y:H-mB+32, 'text-anchor':'middle', 'font-weight':600, style:`fill:${it.subColor || 'var(--text-soft)'}`}, g).textContent = sub;
+    const hit = svgEl('rect', {x:mL + banda * i, y:mT - 10, width:banda, height:H - mT - mB + 10, class:'hit'}, svg);
+    hit.addEventListener('mousemove', ev => mostrarTip(ev, it.tip || it.etiqueta));
+    hit.addEventListener('mouseleave', ocultarTip);
+    if(o.onClick) hit.addEventListener('click', () => o.onClick(it, i));
+  });
+  refs.forEach(r => {
+    const yy = y(r.valor);
+    svgEl('line', {x1:mL, x2:W-mR, y1:yy, y2:yy, stroke:r.color, 'stroke-width':1.8, 'stroke-dasharray':'6 4', 'pointer-events':'none'}, svg);
+    svgEl('text', {x:W-mR, y:yy-6, 'text-anchor':'end', class:'linea-num', style:`fill:${r.color}`, 'pointer-events':'none'}, svg).textContent = r.etiqueta;
+  });
 }
 
 /* Barras horizontales: rows [{etiqueta, valor, segs?, meta?, color?, tip?}] */
@@ -662,7 +858,7 @@ document.addEventListener('focusout', ev => {
 });
 
 // ---- Resumen: producción semanal (barras) + capacidad semanal (línea roja, manual) + piezas retenidas (línea)
-const COLOR_RETENIDAS = '#6B4C9A';
+const COLOR_RETENIDAS = 'var(--text)';
 let zoomRes = null; // índice de la semana abierta en el Resumen (null = vista de semanas)
 // La capacidad que se escribe es DIARIA (la misma cada día laboral de esa semana), no se divide.
 // Orden: la propia de la semana (cap-AAAA-MM-DD) → la capacidad diaria base → la meta diaria.
@@ -688,6 +884,10 @@ function capDeDiaIso(iso){ // capacidad efectiva de un día: la propia del día 
 }
 function capDeDia(s, d){ return capDeDiaIso(d.iso); }
 function capRango(desde, hasta){ return diasRango(desde, hasta).reduce((t, d) => t + capDeDiaIso(d.iso), 0); }
+function capPromSemana(s){ // promedio de la capacidad efectiva de los días laborales (la propia del día o la de la semana)
+  const lab = diasDeSemana(s).filter(d => d.lab || valorManual(claveCapDia(d.iso), null) != null);
+  return lab.length ? lab.reduce((a, d) => a + capDeDiaIso(d.iso), 0) / lab.length : capDiaRespaldo();
+}
 function capSemana(s){ return capRango(s.desde, s.hasta); }
 function retenidasRango(desde, hasta){ // última foto de piezas retenidas dentro del rango
   const hist = (D.aceros && D.aceros.historial) || {}, f = Object.keys(hist).filter(x => x >= desde && x <= hasta).sort().pop();
@@ -699,11 +899,12 @@ function capFilaHTML(titulo, celdas){
     celdas.map(c => `<span class="${valorManual(c.clave, null)!=null?'propia':''}" title="${esc(c.titulo)}: vacía = ${c.resp}">${inputManual(c.clave, null, c.resp)}</span>`).join('')}</div>`;
 }
 function dibujarResumen(){
+  if(D && !$('#v-resumen').hidden) BLOQUES_RESUMEN.forEach(b => b.dibujar()); // secciones con gráfica por periodo (ej. Mantenimiento)
   const A = D && D.aceros, cont = $('#ch-res-prod'); if(!A || !cont || $('#v-resumen').hidden) return;
   const md = metaDiaria(), hist = A.historial || {};
   $('#res-volver').hidden = zoomRes === null;
   const leyendaLineas = `<span><i class="linea punteada" style="color:${COLOR_META}"></i>${zoomRes===null?'Capacidad semanal (suma de la capacidad de cada día)':'Capacidad del día'}</span>` +
-    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>Piezas retenidas</span>`;
+    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>${retPisoPorDia() ? 'Piezas retenidas/refundidas en piso' : 'Piezas retenidas'}</span>`;
 
   if(zoomRes !== null){ // ---- zoom: los 7 días de la semana elegida
     const s = A.semanal[zoomRes];
@@ -722,13 +923,13 @@ function dibujarResumen(){
         const propia = valorManual(claveCapDia(d.fecha), null) != null, resp = d.lab ? fmt(capDiaSemana(s)) : '0';
         return `<span class="${propia?'propia':''}" title="${fLarga(d.fecha)}: vacía = ${resp}">${inputManual(claveCapDia(d.fecha), null, resp)}</span>`; }).join('')}</div>`;
     const filas = dias.map(d => {
-      const c = capDeDia(s, d.info), cap = c ? c : null, ret = hist[d.fecha] ? hist[d.fecha].retenidas : null, e = estado(d.total, cap || 0);
-      return {cap, ret, item:{etiqueta:fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
-        sub: cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro ? COLOR_EST[e.cls] : 'var(--muted)',
+      const c = capDeDia(s, d.info), cap = c ? c : null, ret = retPisoDia(d.fecha), e = estado(d.total, cap || 0);
+      return {cap, ret, item:{etiqueta: d.hoy ? 'Hoy' : fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
+        sub: d.hoy ? 'en curso' : cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro && !d.hoy ? COLOR_EST[e.cls] : 'var(--muted)',
         tip: tipSegs(fLarga(d.fecha), d.segs,
           `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(d.total)}</span></div>` +
           `<div class="r"><span style="color:#F2A69C">Capacidad</span><span>${cap?fmt(cap):'—'}</span></div>` +
-          `<div class="r"><span style="color:#C9B5E6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
+          `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
     });
     $('#res-titulo').textContent = `Producción ${s.etiqueta} vs. capacidad`;
     $('#res-leyenda').innerHTML = leyendaMat(matsPresentes(filas.map(x=>x.item)), leyendaLineas);
@@ -737,15 +938,14 @@ function dibujarResumen(){
               {vals:filas.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
     return;
   }
-  $('#res-titulo').textContent = 'Producción semanal vs. capacidad';
-  $('#res-sub').textContent = 'Clic en una semana para ver sus días · la capacidad de cada semana se escribe debajo de su barra';
+  $('#res-titulo').textContent = 'Producción semanal de aceros vs. capacidad';
+  $('#res-sub').textContent = '';
   $('#res-cap').innerHTML = '';
   const sem = A.semanal.map(s => {
     const cap = capSemana(s);
-    const fechas = Object.keys(hist).filter(f => f >= s.desde && f <= s.hasta).sort();
-    const ret = fechas.length ? hist[fechas[fechas.length-1]].retenidas : null;   // última foto de la semana
+    const ret = retPisoRango(s.desde, s.hasta);   // piezas retenidas/refundidas en piso registradas en la semana
     const capHastaAyer = diasDeSemana(s).filter(d => d.iso < D.hoy).reduce((t, d) => t + capDeDia(s, d), 0);
-    const e = estado(s.total, s.en_curso ? capHastaAyer : cap);
+    const e = estado(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
     const ajustados = diasDeSemana(s).filter(d => valorManual(claveCapDia(d.iso), null) != null).length;
     return {s, cap, ret, item:{etiqueta:s.etiqueta.replace('Sem ','S'), segs:s.segs, total:s.total,
       sub: s.en_curso ? 'en curso' : `${fmt(e.pct*100)} %`, subColor: s.en_curso ? 'var(--muted)' : COLOR_EST[e.cls],
@@ -753,7 +953,7 @@ function dibujarResumen(){
         `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(s.total)}</span></div>` +
         `<div class="r"><span style="color:#F2A69C">Capacidad semana</span><span>${fmt(cap)}</span></div>` +
         `<div style="opacity:.75">${fmt(capDiaSemana(s))}/día × ${s.dias_lab_total} días laborales${ajustados?` · ${ajustados} día(s) con capacidad propia`:''}</div>` +
-        `<div class="r"><span style="color:#C9B5E6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
+        `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
   });
   $('#res-leyenda').innerHTML = leyendaMat(matsPresentes(sem.map(x=>x.item)), leyendaLineas);
   barrasApiladas(cont, sem.map(x => x.item), {sub:true, alto:280, aria:'Producción semanal vs. capacidad y piezas retenidas',
@@ -805,11 +1005,11 @@ function render(){
   const main = $('#main');
   if(!D) return;
   const A = D.aceros;
-  if(D.colores_materiales) COLOR_MAT = {...COLOR_MAT, ...D.colores_materiales};
+  aplicarPaleta();
+  if(D.colores_materiales) COLOR_MAT = {...D.colores_materiales, ...COLOR_MAT};
   armarServicios();
 
   // encabezado
-  $('#sub-ayer').textContent = A ? `${t('ayer')} = ${fLarga(A.ayer.fecha)} · comparado contra lo proyectado` : '';
   const F = D.fuentes || {};
   $('#frescura').innerHTML = `<span class="vivo"><i></i>${t('en_vivo')}</span> · ${t('actualizado')} <b>${fHora(D.generado)}</b>` +
     (F.consolidado && F.consolidado.modificado ? `<br>Consolidado guardado: ${fHora(F.consolidado.modificado)}` : '');
@@ -840,7 +1040,7 @@ function render(){
     if(el.dataset.subIr) cambiarSubAceros(el.dataset.subIr, false);
     irA(el.dataset.ir);
   });
-  $('#pie').innerHTML = `<h2 class="sec">${t('fuentes')} <small>los Excel se leen solos apenas OneDrive los sincroniza · mantenimiento sale en vivo de la app Control Inventarios</small></h2>
+  $('#pie').innerHTML = `<h2 class="sec">${t('fuentes')}</h2>
     <div class="fuentes">${Object.keys(NOMBRE_FUENTE).map(k => { const f = F[k] || {};
       return `<div class="fuente"><b>${esc(NOMBRE_FUENTE[k])} <span class="chip ${f.estado==='ok'?'ok':f.ultimo_ok?'near':'bad'}">${f.estado==='ok'?'✓ OK':f.ultimo_ok?'● Con aviso':'✖ Sin datos'}</span></b>
         ${f.modificado ? `Guardado en SharePoint: ${fHora(f.modificado)}<br>` : ''}${f.ultimo_ok ? `Cargado a la base: ${fHora(f.ultimo_ok)} · ${fmt(f.filas)} filas` : ''}
@@ -857,10 +1057,16 @@ function vistaResumen(A){
   if(A){
     const a = A.ayer, e = estado(a.comprometidos_hechos, a.comprometidos);
     const verbo = e.cls==='ok' ? 'cumplió sus compromisos' : e.cls==='near' ? 'quedó cerca de sus compromisos' : e.cls==='bad' ? 'quedó por debajo de sus compromisos' : 'no tenía aceros comprometidos';
-    frase = `<b>Ayer (${fLarga(a.fecha)})</b>: Aceros ${verbo}: <b>${fmt(a.comprometidos_hechos)}</b> de <b>${fmt(a.comprometidos)}</b> aceros comprometidos cumplidos${e.pct!=null?` (${fmt(e.pct*100)} %)`:''}${a.comprometidos > a.comprometidos_hechos ? `, ${fmt(a.comprometidos - a.comprometidos_hechos)} no cumplidos` : ''}. ` +
-            (D.mantenimiento ? ` Mantenimiento: <b>${fmt(D.mantenimiento.kpis.ayer)}</b> moldes/galgas finalizados ayer.` : '') +
-            (D.moldes ? ` Cola de fabricación de moldes: <b>${fmt(D.moldes.kpis.cola_dias,1)}</b> días.` : '');
-    const k = A.kpis, md = metaDiaria(), eProd = estado(k.productividad, md);
+    frase = `<b>Resultados del ${fLarga(a.fecha)}</b>: Aceros ${verbo}: <b>${fmt(a.comprometidos_hechos)}</b> de <b>${fmt(a.comprometidos)}</b> aceros comprometidos cumplidos${e.pct!=null?` (${fmt(e.pct*100)} %)`:''}${a.comprometidos > a.comprometidos_hechos ? `, ${fmt(a.comprometidos - a.comprometidos_hechos)} no cumplidos` : ''}. ` +
+            (D.mantenimiento ? ` Mantenimiento: <b>${fmt(D.mantenimiento.kpis.ayer)}</b> moldes/galgas finalizados el ${fLarga(D.mantenimiento.kpis.fecha_ayer)}.` : '') +
+            (D.moldes ? ` Fila de moldes: <b>${D.moldes.kpis.dias_fila != null ? fmt(D.moldes.kpis.dias_fila) : fmt(D.moldes.kpis.cola_dias,1)}</b> días.` : '');
+    const k = A.kpis;
+    // semana en curso (la del día de referencia): capacidad diaria promedio y cumplimiento hasta ese día
+    const semAct = A.semanal.find(s => s.desde <= A.ayer.fecha && A.ayer.fecha <= s.hasta) || A.semanal[A.semanal.length - 1];
+    const hoyD = A.diaria.find(d => d.hoy), hoyN = hoyD ? hoyD.total : 0, semCompleta = semAct.total - (semAct.hoy_total || 0);
+    const capProm = capPromSemana(semAct), eProd = estado(k.productividad, capProm);
+    const capRef = capRango(semAct.desde, semAct.hasta < A.ayer.fecha ? semAct.hasta : A.ayer.fecha);
+    const eSem = estado(semCompleta, capRef), maxSem = Math.max(semCompleta, capRef) || 1;
     // fila vs. meta de días de fila (menos es mejor): en meta / cerca (hasta 1,5×) / sobre la meta
     const metaDefecto = (D.parametros && D.parametros.meta_dias_fila) || 2;
     const metaFila = valorManual('meta-dias-fila', metaDefecto), sobra = k.dias_fila - metaFila;
@@ -873,20 +1079,24 @@ function vistaResumen(A){
           <div class="kpi fila-res">
             <div class="lbl"><span>Fila de fabricación</span><span class="chip ${eFila.cls}">${eFila.ico} ${eFila.txt}</span></div>
             <div class="fila-hero"><span class="num-hero">${fmt(k.fila)}</span><span>aceros en<br>fabricación</span></div>
-            <div class="fila-dias">
-              <div><b class="num">${fmt(k.dias_fila)}</b> días de fila <span class="meta-txt">· meta ${inputManual('meta-dias-fila', metaDefecto)} días</span></div>
-              <div class="bullet grande" aria-hidden="true"><i style="width:${k.dias_fila/maxF*100}%;background:${COLOR_EST[eFila.cls]}"></i><b style="left:${metaFila/maxF*100}%" title="Meta: ${fmt(metaFila)} días"></b></div>
+            <div class="fila-tres">
+              <div><b class="num" style="color:${COLOR_EST[eFila.cls]}">${fmt(k.dias_fila)}</b><span>días de fila</span></div>
+              <div><b class="num meta-txt">${inputManual('meta-dias-fila', metaDefecto)}</b><span>meta (días)</span></div>
+              <div><b class="num" style="color:${k.vencidos ? 'var(--bad)' : 'var(--text)'}">${fmt(k.vencidos)}</b><span>vencidos</span></div>
             </div>
-            <div class="desc">${sobra > 0 ? `<b style="color:var(--bad)">${fmt(sobra)} días</b> por encima de la meta · ` : ''}<b style="color:${k.vencidos?'var(--bad)':'inherit'}">${fmt(k.vencidos)}</b> vencidos</div>
+            <div class="fila-dias">
+              <div class="sem-tit"><span>Cumplimiento ${esc(semAct.etiqueta)}</span><b style="color:${COLOR_EST[eSem.cls]}">${eSem.pct != null ? fmt(eSem.pct * 100) + ' %' : '—'}</b></div>
+              <div class="bullet grande" aria-hidden="true"><i style="width:${semCompleta/maxSem*100}%;background:${COLOR_EST[eSem.cls]}"></i><b style="left:${capRef/maxSem*100}%" title="Capacidad hasta el ${fLarga(A.ayer.fecha)}: ${fmt(capRef)}"></b></div>
+            </div>
           </div>
           <div class="kpi">
             <div class="lbl"><span>Productividad promedio</span>${chip(eProd)}</div>
             <div class="val">${fmt(k.productividad,1)} <small>aceros/día</small></div>
-            <div class="desc">Promedio de los últimos ${k.dias_prom} días con producción · meta diaria <b style="color:${COLOR_META}">${fmt(md)}</b></div>
+            <div class="desc">Últimos ${k.dias_prom} días · capacidad <b style="color:${COLOR_META}">${fmt(capProm)}</b>/día</div>
           </div>
         </div>
         <div class="kpi ra-chart">
-          <div class="lbl"><span id="res-titulo">Producción semanal vs. capacidad</span>
+          <div class="lbl"><span id="res-titulo">Producción semanal de aceros vs. capacidad</span>
             <span class="prod-ctrl"><button class="btn-volver" id="res-volver" hidden>← Semanas</button>
             <span id="res-cap"></span></span></div>
           <div class="desc" id="res-sub"></div>
@@ -903,8 +1113,8 @@ function vistaResumen(A){
       <div class="desc">Para activarlo se necesita: ${p.necesita.map(esc).join(' · ')}</div></article>`).join('');
   return `<section class="vista" id="v-resumen" hidden>
     ${frase ? `<div class="frase">${frase}</div>` : ''}
-    <h2 class="sec">${t('servicios')} <small>${t('clic_servicio')}</small></h2>
-    <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
+    <h2 class="sec">${t('servicios')}</h2>
+    <div class="lista-serv">${tarjAceros}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenOem()}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
 }
 
 function kpi(lbl, val, unidad, desc, extra='', cls=''){
@@ -988,25 +1198,28 @@ function bullet(real, meta){
 }
 
 // Barra de lo fabricado (por material, con el número en cada tramo) contra la marca de lo proyectado
+const COLOR_TARDE = '#C9A04A'; // entregado después de la fecha comprometida (ocre suave)
 function barraProyeccion(segs, real, proy, txt={marca:'Proyectado', falta:'Faltó para lo proyectado', faltaCorto:'faltan'}){
+  const tarde = txt.tarde || 0;
   // la escala llega justo al mayor valor: si se sobre-ejecuta la barra llena todo el ancho;
   // si falta, el faltante (rayado) completa hasta lo proyectado. Nunca queda espacio vacío.
   const max = Math.max(real, proy, 1), mats = D.orden_materiales.filter(m => segs[m]);
   const tramos = mats.map(m => {
     const w = segs[m]/max*100;
-    return `<i style="width:${w}%;background:${COLOR_MAT[m]}" title="${m}: ${segs[m]}">${w>5?fmt(segs[m]):''}</i>`; }).join('');
-  const faltan = Math.max(0, proy - real);
+    return `<i style="width:${w}%;background:${COLOR_MAT[m]};color:${tintaSobre(COLOR_MAT[m])}" title="${m}: ${segs[m]}">${w>5?fmt(segs[m]):''}</i>`; }).join('');
+  const faltan = Math.max(0, proy - real - tarde);
   return `<div><div class="proy">
     ${proy ? `<div class="proy-marca" style="left:${proy/max*100}%"><span>${txt.marca} <b class="num">${fmt(proy)}</b></span></div>` : ''}
-    <div class="proy-bar">${tramos}${faltan ? `<i class="proy-falta" style="width:${faltan/max*100}%" title="${txt.falta}: ${faltan}">${faltan/max*100>5?txt.faltaCorto+' '+fmt(faltan):''}</i>` : ''}</div></div>
+    <div class="proy-bar">${tramos}${tarde ? `<i style="width:${tarde/max*100}%;background:${COLOR_TARDE};color:#fff" title="Entregados tarde: ${tarde}">${tarde/max*100>5?fmt(tarde):''}</i>` : ''}${faltan ? `<i class="proy-falta" style="width:${faltan/max*100}%" title="${txt.falta}: ${faltan}">${faltan/max*100>5?txt.faltaCorto+' '+fmt(faltan):''}</i>` : ''}</div></div>
     <div class="proy-ley">${mats.map(m=>`<span><i style="background:${COLOR_MAT[m]}"></i>${m} <b class="num">${fmt(segs[m])}</b></span>`).join('')}
+      ${tarde ? `<span><i style="background:${COLOR_TARDE}"></i>Entregados tarde <b class="num">${fmt(tarde)}</b></span>` : ''}
       ${faltan ? `<span><i class="proy-falta"></i>${txt.falta} <b class="num">${fmt(faltan)}</b></span>` : proy && real>proy ? `<span>Sobre lo proyectado <b class="num" style="color:var(--ok)">+${fmt(real-proy)}</b></span>` : ''}</div>
   </div>`;
 }
 
 // Matriceros: lo hecho va sobre la barra, la meta ("de 20") al lado, y el estado al final
 function tarjetaMatriceros(lista, meta){
-  if(!lista.length) return '<div class="desc" style="padding:12px 0">Nadie registró aceros entregados ayer.</div>';
+  if(!lista.length) return '<div class="desc" style="padding:12px 0">Nadie registró aceros entregados ese día.</div>';
   const conNombre = lista.filter(m => m.nombre !== 'Sin matricero registrado');
   const total = lista.reduce((s,m)=>s+m.n,0), metaTotal = meta * conNombre.length;
   const max = Math.max(meta, ...lista.map(m => m.n)), eT = estado(total, metaTotal);
@@ -1031,7 +1244,17 @@ function vistaAceros(A){
   const eProd = estado(a.comprometidos_hechos, a.comprometidos);
   const eRech = estado(a.rechazos, a.rechazos_prom, true);
   const noCump = a.no_cumplidos || [];
-  const tablaNoCump = noCump.length ? `<details class="no-cump"><summary>Ver los ${fmt(noCump.length)} no cumplidos</summary>
+  const pendientes = noCump.filter(x => !x.fab), porPuesto = {};
+  pendientes.forEach(x => { const k = (x.puesto || 'Sin puesto').trim(); porPuesto[k] = (porPuesto[k] || 0) + 1; });
+  const codPuesto = k => { const m = /^(\d{2})/.exec(k); return m ? +m[1] : -1; };   // 07 Recorte = más crítico
+  const nomPuesto = k => { const c = (A.cuellos || []).find(c => c.codigo === k); return c ? `${k.slice(0, 2)} ${c.puesto}` : k; };
+  const puestos = Object.entries(porPuesto).sort((a, b) => codPuesto(b[0]) - codPuesto(a[0]) || b[1] - a[1]);
+  const maxPu = Math.max(1, ...puestos.map(x => x[1]));
+  const resumenPuestos = puestos.length ? `<div class="puestos">${puestos.map(([k, n]) => {
+      const c = codPuesto(k), color = c > 0 ? CALOR[Math.min(CALOR.length - 1, c - 1)] : 'var(--muted)';
+      return `<div class="pu-fila"><span class="pu-nom">${esc(nomPuesto(k))}</span><span class="pu-bar"><i style="width:${n / maxPu * 100}%;background:${color}"></i></span><span class="pu-n">${fmt(n)}</span></div>`; }).join('')}</div>` : '';
+  const tablaNoCump = noCump.length ? `<details class="no-cump"><summary>Ver los ${fmt(pendientes.length)} sin fabricar por puesto${noCump.length > pendientes.length ? ` · ${fmt(noCump.length - pendientes.length)} entregados tarde` : ''}</summary>
+    ${resumenPuestos}
     <div class="tabla"><table><thead><tr><th>Orden</th><th>Acero</th><th>Puesto</th><th>Estado</th></tr></thead><tbody>${
       noCump.map(x => `<tr title="${esc(x.vehiculo)} · ${esc(x.mat)}"><td class="num">${esc(x.orden)}</td><td class="num">${esc(x.acero)}</td><td>${esc(x.puesto)}</td><td style="white-space:nowrap">${
         x.fab ? `Tarde (${fCorta(x.fab)})` : '<b style="color:var(--bad)">Sin fabricar</b>'}</td></tr>`).join('')}</tbody></table></div></details>` : '';
@@ -1042,24 +1265,23 @@ function vistaAceros(A){
     <button data-sub="oem" aria-pressed="${subAceros==='oem'}">Aceros OEM · BMW X5</button>
   </div>
   <div id="aceros-retrofit" ${subAceros==='retrofit'?'':'hidden'}>
-  <h2 class="sec">Ayer vs. proyección <small>${fLarga(a.fecha)}</small></h2>
+  <h2 class="sec">Resultados del ${fLarga(a.fecha)}</h2>
   <div class="grid-ayer">
     <div class="kpi hero span2">
-      <div class="lbl"><span>Aceros comprometidos para ayer</span>${chip(eProd)}</div>
-      <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos</small></div>
-      ${barraProyeccion(a.comprometidos_segs, a.comprometidos_hechos, a.comprometidos, {marca:'Comprometidos', falta:'No cumplidos', faltaCorto:'faltan'})}
-      <div class="desc" style="margin-top:8px">Cumplido = fabricado en la fecha comprometida o antes. Producción total del día: <b>${fmt(a.fabricados)}</b> aceros (incluye adelantos y atrasos).</div>
+      <div class="lbl"><span>Cumplimiento de compromisos · ${fCorta(a.fecha)}</span>${chip(eProd)}</div>
+      <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos${a.comprometidos_tarde ? ` · ${fmt(a.comprometidos_tarde)} entregados tarde` : ''}</small></div>
+      ${barraProyeccion(conTarde({segs: a.comprometidos_segs, segs_tarde: a.comprometidos_segs_tarde}), a.comprometidos_hechos + (a.comprometidos_tarde || 0), a.comprometidos, {marca:'Comprometidos', falta:'Sin fabricar', faltaCorto:'faltan'})}
       ${tablaNoCump}
     </div>
-    ${kpi('Rechazos de ayer', fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
+    ${kpi(`Rechazos · ${fCorta(a.fecha)}`, fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
     <div class="kpi hero span2">
-      <div class="lbl"><span>Aceros por matricero · ayer</span><span class="chip neutral">Meta ${A.meta_turno} por turno</span></div>
+      <div class="lbl"><span>Producción por matricero · ${fCorta(a.fecha)}</span><span class="chip neutral">Meta ${A.meta_turno} por turno</span></div>
       ${tarjetaMatriceros(a.matriceros, A.meta_turno)}
     </div>
   </div>
 
-  <h2 class="sec">Estado actual</h2>
-  <div class="grid-estado">
+  <h2 class="sec">Estado actual de la producción</h2>
+  <div class="grid-estado1">
     <div class="kpi"><div class="lbl"><span>Fila en fabricación</span></div>
       <div class="multi">
         <div><div class="val">${fmt(k.fila)}</div><div class="desc">aceros en fila</div></div>
@@ -1067,15 +1289,13 @@ function vistaAceros(A){
         <div><div class="val" style="color:${k.vencidos?'var(--bad)':'var(--ok)'}">${fmt(k.vencidos)}</div><div class="desc">${k.vencidos?'▼ ':''}con fecha vencida</div></div>
       </div></div>
     ${kpi('Productividad promedio', fmt(k.productividad,1), 'aceros/día', `Últimos ${k.dias_prom} días con producción`)}
-    ${kpi('Fabricación por rechazo', fmt(k.pct_rechazo_30,1)+' %', '', `De lo fabricado en 30 días fue reposición por rechazo · ${fmt(k.rechazos_30)} rechazos registrados`)}
-  </div>
-  <div class="grid-manual" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    ${kpi('Fabricación por rechazo', fmt(k.pct_rechazo_30,1)+' %', '', `${fmt(k.rechazos_30)} rechazos en 30 días`)}
     ${tarjetaCortes()}
     ${kpiManual('en-fabricacion', 'Aceros en fabricación', 'aceros')}
   </div>
 
   <div class="panel" style="margin-top:16px">
-    <div class="panel-head"><div><h3 id="prod-titulo">Producción vs. capacidad</h3><p id="prod-sub"></p></div>
+    <div class="panel-head"><div><h3 id="prod-titulo">Producción de aceros vs. capacidad</h3><p id="prod-sub"></p></div>
       <div class="prod-ctrl">
         <button class="btn-volver" id="prod-volver" hidden>← Volver</button>
         <div class="seg" id="prod-vista"><button aria-pressed="true" data-v="diaria">Diario</button><button aria-pressed="false" data-v="semanal">Semanal</button><button aria-pressed="false" data-v="mensual">Mensual</button></div>
@@ -1084,20 +1304,22 @@ function vistaAceros(A){
     <div class="cap-fila" id="prod-cap-fila"></div>
   </div>
 
-  <div style="margin-top:16px">
-    <div class="panel"><div class="panel-head"><div><h3 id="comp-titulo">Cumplimiento de compromisos</h3><p id="comp-sub"></p></div>
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><div><h3 id="comp-titulo">Cumplimiento de fechas de compromiso</h3><p id="comp-sub"></p></div>
       <div class="prod-ctrl">
         <button class="btn-volver" id="comp-volver" hidden>← Volver</button>
         <div class="seg" id="comp-vista"><button aria-pressed="true" data-v="diaria">Diario</button><button aria-pressed="false" data-v="semanal">Semanal</button><button aria-pressed="false" data-v="mensual">Mensual</button></div>
       </div></div>
-      <div id="comp-leyenda"></div><div class="chart" id="ch-comp"></div></div>
+      <div id="comp-leyenda"></div><div class="chart" id="ch-comp"></div><div class="tabla" id="comp-detalle"></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas / refundidas en piso</h3><p id="ret-sub"></p></div></div>
+      <div id="ret-cuerpo"></div></div>
   </div>
 
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3 id="rech-titulo">Rechazos por semana</h3><p id="rech-desc"></p></div>
+    <div class="panel"><div class="panel-head"><div><h3 id="rech-titulo">Rechazos de aceros por semana</h3><p id="rech-desc"></p></div>
       <button class="btn-volver" id="rech-volver" hidden>← Semanas</button></div>
       <div class="chart" id="ch-rech"></div><div class="tabla" id="tb-rech"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Piezas sin acero en planta</h3><p>Puestos de la línea de proceso, de Corte a Recorte. Clic en un puesto para ver sus órdenes.</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas por falta de acero · por puesto</h3></div></div>
       <div id="ch-cuellos"></div><div class="tabla" id="tb-cuellos"></div></div>
   </div>
   </div>
@@ -1107,29 +1329,28 @@ function vistaAceros(A){
 
 // ---- Aceros OEM (BMW X5): "Inventario Aceros X5.xlsx", tabla FECHA | PIEZA | INVENTARIO MATRICERIA | INVENTARIO CALIDAD
 let subAceros = 'retrofit';
-const COLOR_X5 = {'Matricería':'#8FC5CF', 'Calidad (piso)':'#C1852A'};
 function vistaAcerosOem(){
   const X = D.x5, mod = D.fuentes && D.fuentes.x5 && D.fuentes.x5.modificado;
   if(!X) return `<div id="aceros-oem" ${subAceros==='oem'?'':'hidden'}><div class="aviso warn">⚠ <span>No se pudo leer Inventario Aceros X5.xlsx. Revisa el estado de las fuentes al final de la página.</span></div></div>`;
   const tm = X.filas.reduce((s,f)=>s+f.matriceria,0), tc = X.filas.reduce((s,f)=>s+f.calidad,0);
   const fechaInv = mod ? fLarga(mod.slice(0,10)) : '—';
   return `<div id="aceros-oem" ${subAceros==='oem'?'':'hidden'}>
-  <h2 class="sec">Inventario aceros OEM · BMW X5 <small>sale de "Inventario Aceros X5.xlsx" · Excel guardado ${mod ? fHora(mod) : '—'}</small></h2>
+  <h2 class="sec">Inventario de aceros OEM · BMW X5</h2>
   <div class="grid-kpi">
     ${kpi('Inventario total', fmt(tm+tc), 'aceros', `${fmt(X.filas.length)} piezas`, '', 'hero')}
     ${kpi('Inventario matricería', fmt(tm), 'aceros', `${fmt((tm+tc) ? tm/(tm+tc)*100 : 0)} % del total`)}
     ${kpi('Inventario calidad (piso)', fmt(tc), 'aceros', `${fmt((tm+tc) ? tc/(tm+tc)*100 : 0)} % del total`)}
   </div>
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Inventario por pieza</h3><p>Corte del ${fechaInv}</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Inventario X5 por pieza</h3><p>Corte del ${fechaInv}</p></div></div>
       <div class="tabla"><table><thead><tr><th>Fecha</th><th>Pieza</th><th class="n">Inv. matricería</th><th class="n">Inv. calidad</th><th class="n">Total inventario</th></tr></thead><tbody>${
         X.filas.map(f => `<tr><td style="white-space:nowrap">${mod ? fCorta(mod.slice(0,10)) : '—'}</td><td>${esc(f.pieza)}</td><td class="n">${fmt(f.matriceria)}</td><td class="n">${fmt(f.calidad)}</td><td class="n"><b>${fmt(f.matriceria+f.calidad)}</b></td></tr>`).join('')}
         <tr><td></td><td><b>${t('total')}</b></td><td class="n"><b>${fmt(tm)}</b></td><td class="n"><b>${fmt(tc)}</b></td><td class="n"><b>${fmt(tm+tc)}</b></td></tr></tbody></table></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Inventario X5 OEM</h3><p id="x5-desc"></p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Inventario X5 OEM por pieza</h3><p id="x5-desc"></p></div></div>
       <div class="legend"><span><i style="background:${COLOR_X5['Matricería']}"></i>Matricería</span><span><i style="background:${COLOR_X5['Calidad (piso)']}"></i>Calidad (piso)</span></div>
       <div class="chart" id="ch-x5"></div></div>
   </div>
-  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3>Histórico del inventario</h3><p>Foto diaria que guarda el tablero (el Excel no conserva historia: su FECHA es =HOY()).</p></div></div>
+  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3>Evolución del inventario X5</h3></div></div>
     <div class="legend"><span><i style="background:${COLOR_X5['Matricería']}"></i>Matricería</span><span><i style="background:${COLOR_X5['Calidad (piso)']}"></i>Calidad (piso)</span></div>
     <div class="chart" id="ch-x5-hist"></div></div>
   <div class="grid-manual" style="grid-template-columns:minmax(0,1fr)">${tarjetaX5()}</div>
@@ -1178,7 +1399,7 @@ function dibujarAceros(){
   if(D.x5 && $('#ch-x5') && !$('#aceros-oem').hidden){
     const tm = D.x5.filas.reduce((s,f)=>s+f.matriceria,0), tc = D.x5.filas.reduce((s,f)=>s+f.calidad,0);
     const modX5 = D.fuentes && D.fuentes.x5 && D.fuentes.x5.modificado;
-    $('#x5-desc').innerHTML = `<b>${fmt(tm+tc)}</b> aceros = <b>${fmt(tm)}</b> en Matricería + <b>${fmt(tc)}</b> en Calidad (piso)${modX5?` · Excel guardado ${fHora(modX5)}`:''}`;
+    $('#x5-desc').innerHTML = `<b>${fmt(tm+tc)}</b> aceros = <b>${fmt(tm)}</b> en Matricería + <b>${fmt(tc)}</b> en Calidad (piso)`;
     barrasH($('#ch-x5'), D.x5.filas.map(f => ({etiqueta:f.pieza, valor:f.matriceria+f.calidad,
       segs:[{v:f.matriceria, color:COLOR_X5['Matricería']}, {v:f.calidad, color:COLOR_X5['Calidad (piso)']}],
       tip:`<b>${esc(f.pieza)}</b><div class="r"><span>Matricería</span><span>${fmt(f.matriceria)}</span></div><div class="r"><span>Calidad (piso)</span><span>${fmt(f.calidad)}</span></div><div class="r"><span>Total</span><span>${fmt(f.matriceria+f.calidad)}</span></div>`})),
@@ -1195,7 +1416,7 @@ function dibujarAceros(){
 function filasTip(total, cap, eq, ret, nota=''){
   return `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(total)}</span></div>` +
     `<div class="r"><span style="color:#F2A69C">Capacidad</span><span>${cap?fmt(cap):'—'}</span></div>${nota?`<div style="opacity:.75">${nota}</div>`:''}` +
-    `<div class="r"><span style="color:#C9B5E6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>` +
+    `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>` +
     `<div class="r"><span>Equivalentes</span><span>${fmt(eq,1)}</span></div>`;
 }
 function filaDia(iso){ // datos reales del día o un día vacío si aún no llega
@@ -1203,19 +1424,35 @@ function filaDia(iso){ // datos reales del día o un día vacío si aún no lleg
   return real || {fecha: iso, segs: {}, total: 0, eq: 0, futuro: true,
     nota: i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : (iso === D.hoy ? 'Hoy' : 'Pendiente')};
 }
+// Piezas retenidas / refundidas en piso registradas cada día (tabla cesar.aceros_retenidas_piso). Si la tabla aún
+// no existe en el servidor, la línea sigue saliendo de la foto diaria de piezas retenidas como antes.
+function retPisoPorDia(){
+  const R = D.aceros && D.aceros.retenidas_piso; if(!R) return null;
+  const m = {}; R.filas.forEach(f => m[f.fecha] = (m[f.fecha] || 0) + 1); return m;
+}
+function retPisoDia(iso){ // piezas registradas ese día (o la foto diaria anterior si la tabla aún no existe)
+  const m = retPisoPorDia(); if(!m){ const h = (D.aceros && D.aceros.historial) || {}; return h[iso] ? h[iso].retenidas : null; }
+  return iso > D.hoy ? null : (m[iso] || 0);
+}
+function retPisoRango(desde, hasta){
+  const m = retPisoPorDia(); if(!m) return retenidasRango(desde, hasta);
+  if(desde > D.hoy) return null;
+  let n = 0; for(const f in m) if(f >= desde && f <= hasta) n += m[f]; return n;
+}
 function dibujarProduccion(){
   const A = D.aceros, hist = A.historial || {}, enZoom = zoomProd !== null && vistaProd !== 'diaria';
+  const retDia = retPisoDia;
   $('#prod-volver').hidden = !enZoom;
   const barraDia = d => {
-    const cap = capDeDiaIso(d.fecha) || null, ret = hist[d.fecha] ? hist[d.fecha].retenidas : null, e = estado(d.total, cap || 0);
-    return {cap, ret, item:{etiqueta:fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
-      sub: cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro ? COLOR_EST[e.cls] : 'var(--muted)',
+    const cap = capDeDiaIso(d.fecha) || null, ret = retDia(d.fecha), e = estado(d.total, cap || 0);
+    return {cap, ret, item:{etiqueta: d.hoy ? 'Hoy' : fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
+      sub: d.hoy ? 'en curso' : cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro && !d.hoy ? COLOR_EST[e.cls] : 'var(--muted)',
       tip: tipSegs(fLarga(d.fecha), d.segs, filasTip(d.total, cap, d.eq, ret))}};
   };
   const celdaDia = d => { const i = infoDia(d.fecha);
     return {clave: claveCapDia(d.fecha), resp: i.lab ? fmt(capDiaSemanaIso(lunesDe(d.fecha))) : '0', titulo: fLarga(d.fecha)}; };
 
-  let filas, celdas = null, tituloCeldas = 'Cap. día', titulo = 'Producción vs. capacidad', sub = '', onClick = null, porDia = true;
+  let filas, celdas = null, tituloCeldas = 'Cap. día', titulo = 'Producción de aceros vs. capacidad', sub = '', onClick = null, porDia = true;
   if(vistaProd === 'diaria'){
     const dias = A.diaria.slice(-14);
     filas = dias.map(barraDia); celdas = dias.map(celdaDia);
@@ -1228,9 +1465,9 @@ function dibujarProduccion(){
   } else {
     porDia = false;
     filas = A[vistaProd].map(s => {
-      const cap = capRango(s.desde, s.hasta), ret = retenidasRango(s.desde, s.hasta);
+      const cap = capRango(s.desde, s.hasta), ret = retPisoRango(s.desde, s.hasta);
       const capHastaAyer = capRango(s.desde, s.hasta < D.hoy ? s.hasta : isoDe(new Date(fecha(D.hoy).getTime() - 864e5)));
-      const e = estado(s.total, s.en_curso ? capHastaAyer : cap);
+      const e = estado(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
       const mensual = vistaProd === 'mensual';
       const nombre = mensual ? MESES[+s.etiqueta-1] : `${s.etiqueta} (${fCorta(s.desde)} – ${fCorta(s.hasta)})`;
       return {cap, ret, item:{etiqueta: mensual ? MESES[+s.etiqueta-1].slice(0,3) : s.etiqueta.replace('Sem ','S'), segs:s.segs, total:s.total,
@@ -1239,20 +1476,90 @@ function dibujarProduccion(){
           '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>')}};
     });
     if(vistaProd === 'semanal'){ tituloCeldas = 'Cap./día';
-      celdas = A.semanal.map(s => ({clave: claveCap(s), resp: fmt(capDiaRespaldo()), titulo: s.etiqueta})); }
+      // vacía = promedio de la capacidad de los días laborales de la semana (incluye las que se escribieron por día)
+      celdas = A.semanal.map(s => ({clave: claveCap(s), resp: fmt(capPromSemana(s), 0), titulo: `${s.etiqueta}: promedio de la capacidad diaria`})); }
     onClick = (it, i) => { zoomProd = i; dibujarProduccion(); };
-    sub = 'Clic en una barra para ver sus días';
   }
   $('#prod-titulo').textContent = titulo;
   $('#prod-sub').textContent = sub;
   $('#prod-leyenda').innerHTML = leyendaMat(matsPresentes(filas.map(x => x.item)),
     `<span><i class="linea punteada" style="color:${COLOR_META}"></i>${porDia ? 'Capacidad del día' : 'Capacidad (suma de la capacidad de cada día)'}</span>` +
-    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>Piezas retenidas</span>`);
+    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>${retPisoPorDia() ? 'Piezas retenidas/refundidas en piso' : 'Piezas retenidas'}</span>`);
   barrasApiladas($('#ch-prod'), filas.map(x => x.item), {sub:true, alto:300, aria:'Producción de aceros vs. capacidad', onClick,
     lineas:[{vals:filas.map(x=>x.cap), color:COLOR_META, etiquetas:'ultima', punteada:true},
             {vals:filas.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
   $('#prod-cap-fila').innerHTML = celdas ? capFilaHTML(tituloCeldas, celdas) : '';
 }
+
+// ---- Piezas retenidas / refundidas en piso: se escribe la orden y el tablero trae del consolidado su compromiso,
+//      ZHAL, acero, fecha de entrega y matricero; el estatus se elige a mano. Queda el histórico en la base.
+function dibujarRetenidasPiso(){
+  const cont = $('#ret-cuerpo'); if(!cont) return;
+  const R = D.aceros.retenidas_piso;
+  if(!R){ cont.innerHTML = '<div class="vacio">Disponible cuando se cree la tabla en la base (instalar_bd.py) y se reinicie el servidor.</div>'; $('#ret-sub').textContent = ''; return; }
+  const hoyN = R.filas.filter(f => f.fecha === D.hoy).length, sem = R.filas.filter(f => f.fecha >= lunesDe(D.hoy)).length;
+  const hace30 = sumarDias(D.hoy, -29), n30 = R.filas.filter(f => f.fecha >= hace30).length;
+  $('#ret-sub').textContent = 'Escribe la orden; el compromiso, ZHAL, acero, entrega y matricero salen del consolidado';
+  const opts = sel => ['', ...R.estatus].map(e => `<option value="${esc(e)}" ${e === (sel || '') ? 'selected' : ''}>${e ? esc(e) : '— Estatus —'}</option>`).join('');
+  const marca = (txt, color) => txt ? `<span class="marca" style="background:${hexA(color, .18)};color:var(--text);box-shadow:inset 0 0 0 1px ${hexA(color, .55)}">${esc(txt)}</span>` : '—';
+  cont.innerHTML = `
+    <div class="ret-form"><input id="ret-orden" inputmode="numeric" placeholder="N.º de orden" autocomplete="off">
+      <select id="ret-estatus">${opts('Retenida')}</select><button id="ret-guardar" disabled>Registrar</button></div>
+    <div class="ret-prev" id="ret-prev"></div>
+    <div class="ret-kpis"><span><b>${fmt(hoyN)}</b>hoy</span><span><b>${fmt(sem)}</b>esta semana</span><span><b>${fmt(n30)}</b>últimos 30 días</span></div>
+    <div class="tabla ret-tabla"><table><thead><tr><th>Registro</th><th>Orden</th><th>Compromiso</th><th>ZHAL</th><th>Acero</th><th>Entrega</th><th>Matricero</th><th>Estatus</th><th></th></tr></thead><tbody>${
+      R.filas.map(f => `<tr title="${esc(f.vehiculo || '')}${f.puesto ? ' · ' + esc(f.puesto) : ''}">
+        <td>${fCorta(f.fecha)}</td><td class="num">${esc(f.orden)}</td>
+        <td>${f.compromiso ? fCorta(f.compromiso) : (f.encontrada ? '—' : '<span style="color:var(--bad)">No está en el consolidado</span>')}</td>
+        <td class="num">${esc(f.zhal || '—')}</td><td class="num">${esc(f.acero || '—')}</td>
+        <td>${f.entrega ? marca(fLarga(f.entrega), PALETA[0]) : marca('Sin entregar', '#C0392B')}</td>
+        <td>${marca(f.matricero, PALETA[1])}</td>
+        <td><select data-ret-estatus="${f.id}">${opts(f.estatus)}</select></td>
+        <td><button class="borrar" data-ret-borrar="${f.id}" title="Borrar este registro">✕</button></td></tr>`).join('') ||
+      '<tr><td colspan="9" style="color:var(--muted)">Aún no hay piezas registradas</td></tr>'}</tbody></table></div>`;
+}
+async function llamarRetenidas(metodo, ruta, cuerpo){
+  const headers = {'Content-Type':'application/json'};
+  let clave = null; try { clave = sessionStorage.getItem('tablero-clave'); } catch(e){}
+  if(clave) headers['X-Clave'] = clave;
+  const r = await fetch(ruta, {method: metodo, headers, body: cuerpo ? JSON.stringify({...cuerpo, usuario: leerPref('tablero-usuario', '') || null}) : undefined});
+  if(r.status === 403){ const c = prompt('Clave de edición del tablero:'); if(c){ try { sessionStorage.setItem('tablero-clave', c); } catch(e){} return llamarRetenidas(metodo, ruta, cuerpo); } }
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || ('error ' + r.status));
+  return j;
+}
+let tBuscarRet;
+document.addEventListener('input', ev => {
+  if(ev.target.id !== 'ret-orden') return;
+  const orden = ev.target.value.trim(), prev = $('#ret-prev'), btn = $('#ret-guardar');
+  btn.disabled = orden.length < 3; clearTimeout(tBuscarRet);
+  if(orden.length < 3){ prev.textContent = ''; return; }
+  tBuscarRet = setTimeout(async () => {
+    try {
+      const j = await llamarRetenidas('GET', '/api/retenidas/buscar/' + encodeURIComponent(orden));
+      if($('#ret-orden').value.trim() !== orden) return;
+      const x = j.datos;
+      prev.innerHTML = x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
+                         : '<span style="color:var(--bad)">Esa orden no está en el consolidado (igual se puede registrar)</span>';
+    } catch(e){ prev.textContent = 'No se pudo buscar: ' + e.message; }
+  }, 350);
+});
+document.addEventListener('keydown', ev => { if(ev.target.id === 'ret-orden' && ev.key === 'Enter'){ const b = $('#ret-guardar'); if(!b.disabled) b.click(); } });
+document.addEventListener('click', async ev => {
+  const g = ev.target.closest('#ret-guardar'), b = ev.target.closest('[data-ret-borrar]');
+  if(!g && !b) return;
+  try {
+    if(g){ g.disabled = true; usuarioEdicion();
+      await llamarRetenidas('POST', '/api/retenidas', {orden: $('#ret-orden').value.trim(), estatus: $('#ret-estatus').value || null}); }
+    else { if(!confirm('¿Borrar este registro de pieza retenida?')) return; await llamarRetenidas('DELETE', '/api/retenidas/' + b.dataset.retBorrar); }
+    await cargar(true);
+  } catch(e){ alert('No se guardó: ' + e.message); if(g) g.disabled = false; }
+});
+document.addEventListener('change', async ev => {
+  const id = ev.target.dataset && ev.target.dataset.retEstatus; if(!id) return;
+  try { await llamarRetenidas('PUT', '/api/retenidas/' + id, {estatus: ev.target.value || null}); await cargar(true); }
+  catch(e){ alert('No se guardó el estatus: ' + e.message); }
+});
 
 // ---- Cumplimiento de compromisos (por fecha de entrega a producción): 10 barras por vista.
 //      Diario = últimos días + próximos días con aceros asignados ("prog."); Semanal/Mensual = 10 periodos,
@@ -1264,10 +1571,27 @@ function semanaIso(iso){
   const e = new Date(f.getFullYear(), 0, 4);
   return 1 + Math.round(((f - e) / 864e5 - 3 + ((e.getDay() + 6) % 7)) / 7);
 }
+// Lo entregado después de la fecha comprometida también cierra la barra, con el color de su material.
+const conTarde = c => { const s = {...c.segs}; for(const m in (c.segs_tarde || {})) s[m] = (s[m] || 0) + c.segs_tarde[m]; return s; };
+const sumarObj = (dias, campo) => { const o = {}; dias.forEach(d => Object.entries(d[campo] || {}).forEach(([k, v]) => o[k] = (o[k] || 0) + v)); return o; };
+// Detalle del zoom: por cada fecha comprometida, cuántos se entregaron a tiempo, tarde y pendientes, y en qué fechas
+// se entregaron (las fechas posteriores al compromiso van marcadas como tarde).
+function tablaEntregasComp(dias){
+  const chip = (iso, n, tarde) => `<span class="ent ${tarde ? 'tarde' : ''}" title="${fLarga(iso)}${tarde ? ' · después del compromiso' : ''}">${fCorta(iso)} <b>${fmt(n)}</b></span>`;
+  return `<table><thead><tr><th>Compromiso</th><th class="n">Comprometidos</th><th class="n">A tiempo</th><th class="n">Tarde</th><th class="n">Pendientes</th><th>Fechas de entrega</th></tr></thead><tbody>${
+    dias.map(d => { const pend = d.comprometidos - d.hechos - (d.tarde || 0);
+      const ent = Object.entries(d.entregas || {}).sort((a, b) => a[0] < b[0] ? -1 : 1);
+      return `<tr><td style="white-space:nowrap;font-weight:600">${fLarga(d.fecha)}</td><td class="n">${fmt(d.comprometidos)}</td>
+        <td class="n" style="color:var(--ok);font-weight:700">${fmt(d.hechos)}</td>
+        <td class="n" style="color:${d.tarde ? 'var(--bad)' : 'var(--muted)'};font-weight:700">${fmt(d.tarde || 0)}</td>
+        <td class="n" style="color:${pend > 0 ? 'var(--text)' : 'var(--muted)'}">${fmt(pend)}</td>
+        <td><div class="ents">${ent.map(([iso, n]) => chip(iso, n, iso > d.fecha)).join('') || '—'}</div></td></tr>`; }).join('')}</tbody></table>`;
+}
 function sumarComp(dias){
   const segs = {};
   dias.forEach(d => Object.entries(d.segs).forEach(([m, v]) => segs[m] = (segs[m] || 0) + v));
-  return {segs, comprometidos: dias.reduce((s, d) => s + d.comprometidos, 0), hechos: dias.reduce((s, d) => s + d.hechos, 0)};
+  return {segs, comprometidos: dias.reduce((s, d) => s + d.comprometidos, 0), hechos: dias.reduce((s, d) => s + d.hechos, 0),
+          tarde: dias.reduce((s, d) => s + (d.tarde || 0), 0), segs_tarde: sumarObj(dias, 'segs_tarde'), entregas: sumarObj(dias, 'entregas')};
 }
 function periodosComp(vista){
   const dias = D.aceros.cumplimiento, grupos = {};
@@ -1287,14 +1611,15 @@ function periodosComp(vista){
 }
 function filasComp(c, futuro){
   return `<div class="r" style="margin-top:6px"><span>Comprometidos</span><span>${fmt(c.comprometidos)}</span></div>` +
-    `<div class="r"><span>${futuro ? 'Ya fabricados (adelantados)' : 'Fabricados'}</span><span>${fmt(c.hechos)}</span></div>` +
-    `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - c.hechos)}</span></div>`;
+    `<div class="r"><span>${futuro ? 'Ya fabricados (adelantados)' : 'Entregados a tiempo'}</span><span>${fmt(c.hechos)}</span></div>` +
+    (c.tarde ? `<div class="r"><span>Entregados tarde</span><span>${fmt(c.tarde)}</span></div>` : '') +
+    `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - c.hechos - (c.tarde || 0))}</span></div>`;
 }
 function barraCompDia(c){
   const e = estado(c.hechos, c.comprometidos), i = infoDia(c.fecha);
   const sub = c.futuro ? (c.comprometidos ? 'prog.' : '') : c.comprometidos ? `${fmt(e.pct*100)} %` : (i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : '');
-  return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:c.segs, total:c.hechos, fondo:c.comprometidos,
-    etiquetaValor: c.comprometidos ? `${fmt(c.hechos)}/${fmt(c.comprometidos)}` : '',
+  return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:conTarde(c), total:c.hechos + (c.tarde || 0), fondo:c.comprometidos,
+    etiquetaValor: c.comprometidos ? `${fmt(c.hechos + (c.tarde || 0))}/${fmt(c.comprometidos)}` : '',
     sub, subColor: c.futuro || !c.comprometidos ? 'var(--muted)' : COLOR_EST[e.cls],
     tip: tipSegs(fLarga(c.fecha) + (c.futuro ? ' · programado' : ''), c.segs, filasComp(c, c.futuro))};
 }
@@ -1302,19 +1627,19 @@ function dibujarCumplimiento(){
   const A = D.aceros, enZoom = zoomComp !== null && vistaComp !== 'diaria';
   $('#comp-volver').hidden = !enZoom;
   document.querySelectorAll('#comp-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaComp));
-  let items, titulo = 'Cumplimiento de compromisos', sub, onClick = null;
+  let items, titulo = 'Cumplimiento de fechas de compromiso', sub, onClick = null, detalleDias = null;
   if(vistaComp === 'diaria'){
     const fut = A.cumplimiento.filter(c => c.futuro).slice(0, 4);
     const pas = A.cumplimiento.filter(c => !c.futuro).slice(-(BARRAS_COMP - fut.length));
     items = pas.concat(fut).map(barraCompDia);
-    sub = 'Últimos días y próximos días con aceros asignados ("prog."), por fecha de entrega a producción.';
+    sub = '';
   } else if(enZoom){
     const p = periodosComp(vistaComp)[zoomComp];
     const dias = vistaComp === 'semanal'
       ? diasRango(p.desde, p.hasta).map(x => p.dias.find(d => d.fecha === x.iso) ||
           {fecha:x.iso, comprometidos:0, hechos:0, segs:{}, futuro: x.iso >= D.hoy})
       : p.dias;
-    items = dias.map(barraCompDia);
+    items = dias.map(barraCompDia); detalleDias = dias.filter(d => d.comprometidos);
     titulo = `Cumplimiento · ${vistaComp === 'semanal' ? 'Sem ' + semanaIso(p.desde) : MESES[+p.clave.slice(5)-1] + ' ' + p.clave.slice(0,4)}`;
     sub = `${fLarga(p.desde)} a ${fLarga(p.hasta)} · ${fmt(p.hechos)} de ${fmt(p.comprometidos)} aceros comprometidos`;
   } else {
@@ -1326,19 +1651,21 @@ function dibujarCumplimiento(){
       const extra = p.estado === 'curso'
         ? `<div class="r" style="margin-top:4px"><span>Hasta ayer</span><span>${fmt(p.hastaAyer.hechos)} de ${fmt(p.hastaAyer.comprometidos)} (${fmt(eA.pct*100)} %)</span></div>` : '';
       return {etiqueta: mensual ? mes.slice(0,3) + (p.clave.slice(0,4) !== anio ? ' ' + p.clave.slice(2,4) : '') : 'S' + semanaIso(p.desde),
-        segs:p.segs, total:p.hechos, fondo:p.comprometidos, etiquetaValor:`${fmt(p.hechos)}/${fmt(p.comprometidos)}`,
+        segs:conTarde(p), total:p.hechos + (p.tarde || 0), fondo:p.comprometidos, etiquetaValor:`${fmt(p.hechos + (p.tarde || 0))}/${fmt(p.comprometidos)}`,
         sub: p.estado === 'prog' ? 'prog.' : p.estado === 'curso' ? (p.hastaAyer.comprometidos ? `${fmt(eA.pct*100)} %` : 'en curso') : `${fmt(e.pct*100)} %`,
         subColor: p.estado === 'prog' || !p.hastaAyer.comprometidos ? 'var(--muted)' : COLOR_EST[(p.estado === 'curso' ? eA : e).cls],
         tip: tipSegs(nombre + (p.estado === 'curso' ? ' · en curso' : p.estado === 'prog' ? ' · programado' : ''), p.segs,
           filasComp(p, p.estado !== 'pasado') + extra + '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>')};
     });
     onClick = (it, i) => { zoomComp = i; dibujarCumplimiento(); };
-    sub = `${mensual ? 'Últimos 10 meses' : 'Últimas 10 semanas'} (incluye las programadas) por fecha de entrega a producción. En curso: % hasta ayer. Clic en una barra para ver sus días.`;
+    sub = '';
   }
   $('#comp-titulo').textContent = titulo;
   $('#comp-sub').textContent = sub;
   $('#comp-leyenda').innerHTML = leyendaMat(matsPresentes(items), '<span><i style="background:var(--pend)"></i>Pendiente</span>');
   barrasApiladas($('#ch-comp'), items, {sub:true, aria:'Cumplimiento de compromisos', onClick});
+  $('#comp-detalle').innerHTML = detalleDias ? tablaEntregasComp(detalleDias) : '';
+  dibujarRetenidasPiso();
 }
 
 // ---- Rechazos: 12 semanas; clic en una semana = zoom a sus 7 días con la lista de órdenes
@@ -1347,8 +1674,8 @@ function dibujarRechazos(){
   const A = D.aceros, cont = $('#ch-rech'), tabla = $('#tb-rech');
   $('#rech-volver').hidden = semRech === null;
   if(semRech === null){
-    $('#rech-titulo').textContent = 'Rechazos por semana';
-    $('#rech-desc').textContent = 'Órdenes registradas en la hoja "9. Rechazos". Clic en una semana para ver sus días.';
+    $('#rech-titulo').textContent = 'Rechazos de aceros por semana';
+    $('#rech-desc').textContent = '';
     tabla.innerHTML = '';
     barrasApiladas(cont, A.rechazos_semanal.map(r => ({etiqueta:r.etiqueta.replace('Sem ','S'), segs:{'Otro':r.total}, total:r.total,
       tip:`<b>${r.etiqueta}${r.en_curso?' · en curso':''}</b><div>${fCorta(r.desde)} en adelante</div><div class="r"><span>Rechazos</span><span>${fmt(r.total)}</span></div><div style="margin-top:4px;opacity:.75">Clic para ver los días</div>`})),
@@ -1392,27 +1719,233 @@ function dibujarFlujo(){
 }
 
 // ================================================================ Mantenimiento de moldes (en vivo, app Control Inventarios)
-const COLOR_CAT = {'BMW X5':'#5B9BD5', 'Land Rover Sentinel':'#78BE8C', 'Express Van':'#E0A030', 'BMW Serie 7':'#A78BFA', 'Retrofit':'#8A9499'};
-const colorCat = c => COLOR_CAT[c] || '#8FC5CF';
+const colorCat = c => COLOR_CAT[c] || PALETA[5];
 let catMant = null, vistaMant = 'diaria';
 
+// ---- Mantenimiento: orden de los vehículos, nombres a mostrar y los que se ocultan por ahora
+const ORDEN_CAT = ['Retrofit', 'BMW X5', 'Land Rover Sentinel', 'Express Van'];
+const CAT_OCULTAS = ['BMW Serie 7'];
+const NOMBRE_CAT = {'Express Van':'Chevrolet Express Van'};
+const nomCat = c => NOMBRE_CAT[c] || c;
+const catsVisibles = M => [...ORDEN_CAT.filter(c => M.categorias.includes(c)),
+                           ...M.categorias.filter(c => !ORDEN_CAT.includes(c) && !CAT_OCULTAS.includes(c))];
+
+// ---- Mantenimiento: estadística de referencia. Un día se compara con los días del MISMO tipo
+//      (laboral vs. domingo/festivo) de los últimos 30 días: mediana y rango normal (cuartiles 25 %–75 %).
+function statsMant(M, laboral){
+  const xs = M.diaria.filter(d => !d.hoy && !!d.lab === laboral).map(d => d.total).sort((a, b) => a - b);
+  if(!xs.length) return null;
+  const q = p => { const i = (xs.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return xs[lo] + (xs[hi] - xs[lo]) * (i - lo); };
+  return {n: xs.length, prom: xs.reduce((a, b) => a + b, 0) / xs.length, p25: q(.25), med: q(.5), p75: q(.75), max: xs[xs.length - 1]};
+}
+function nivelMant(v, s){
+  if(!s) return {cls:'neutral', ico:'○', txt:'Sin referencia'};
+  if(v < s.p25) return {cls:'bad', ico:'▼', txt:'Bajo lo normal'};
+  if(v > s.p75) return {cls:'ok', ico:'▲', txt:'Sobre lo normal'};
+  return {cls:'ok', ico:'●', txt:'Normal'};
+}
+const tipoDia = laboral => laboral ? 'día laboral' : 'domingo/festivo';
+// barra de rango: banda gris = rango normal, raya = mediana, punto (o relleno si el día va en curso) = el valor
+function rangoMant(v, s, enCurso, cls){
+  if(!s) return '';
+  const max = Math.max(v, s.max, 1) * 1.08, pc = x => Math.min(100, x / max * 100);
+  return `<div class="rango" title="Rango normal ${fmt(s.p25)}–${fmt(s.p75)} · mediana ${fmt(s.med)}">
+      <span class="rango-banda" style="left:${pc(s.p25)}%;width:${Math.max(1, pc(s.p75) - pc(s.p25))}%"></span>
+      ${enCurso ? `<span class="rango-fill" style="width:${pc(v)}%"></span>` : ''}
+      <span class="rango-prom" style="left:${pc(s.med)}%"></span>
+      ${enCurso ? '' : `<span class="rango-val" style="left:${pc(v)}%;background:${COLOR_EST[cls]}"></span>`}
+    </div>
+    <div class="rango-ley"><span>0</span><span>rango normal ${fmt(s.p25)}–${fmt(s.p75)} · mediana ${fmt(s.med)}</span><span>${fmt(Math.round(max))}</span></div>`;
+}
+function catsMant(M, campo){
+  const xs = catsVisibles(M).map(c => ({c, n: (M.por_categoria.find(p => p.categoria === c) || {})[campo] || 0})).filter(x => x.n);
+  const tot = xs.reduce((a, x) => a + x.n, 0);
+  if(!tot) return '';
+  return `<div class="catbar">${xs.map(x => `<i style="width:${x.n / tot * 100}%;background:${colorCat(x.c)}" title="${esc(nomCat(x.c))}: ${x.n}"></i>`).join('')}</div>
+    <div class="catley">${xs.map(x => `<span><i style="background:${colorCat(x.c)}"></i>${esc(nomCat(x.c))} <b>${fmt(x.n)}</b></span>`).join('')}</div>`;
+}
+const nombreCorto = n => { const p = String(n || '').split(/\s+/); return p.length > 2 ? `${p[0]} ${p[p.length > 3 ? 2 : 1]}` : n; };
+function tecsMant(M, campo){
+  const xs = M.personas.filter(p => p[campo]).sort((a, b) => b[campo] - a[campo]);
+  if(!xs.length) return '<div class="tecs">Sin matriceros con mantenimientos finalizados</div>';
+  const tot = xs.reduce((a, p) => a + p[campo], 0);
+  return `<div class="tecs">${xs.slice(0, 4).map(p => `<span title="${esc(p.nombre)}">${esc(nombreCorto(p.nombre))} <b>${fmt(p[campo])}</b></span>`).join('')}${xs.length > 4 ? `<span>+${xs.length - 4} más</span>` : ''}</div>
+    <div class="mk-ref"><b>${fmt(tot / xs.length, 1)}</b> por matricero · ${fmt(xs.length)} ${xs.length === 1 ? 'matricero' : 'matriceros'}</div>`;
+}
+function tarjetasMant(M){
+  const k = M.kpis, hoyD = M.diaria.find(d => d.hoy), ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer);
+  const labHoy = hoyD ? !!hoyD.lab : true, labAyer = ayerD ? !!ayerD.lab : true;
+  const sHoy = statsMant(M, labHoy), sAyer = statsMant(M, labAyer);
+  const eAyer = nivelMant(k.ayer, sAyer);
+  const avance = sHoy && sHoy.med ? k.hoy / sHoy.med : null;
+  return `<div class="grid-mant">
+    <div class="kpi hero mk">
+      <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
+      <div class="val">${fmt(k.hoy)} <small>${sHoy ? `de ~${fmt(sHoy.med)} en un ${tipoDia(labHoy)} típico` : 'finalizados'}</small></div>
+      ${avance != null ? `<div class="mk-ref">Avance del día: <b>${fmt(avance * 100)} %</b> de lo típico</div>` : ''}
+      ${rangoMant(k.hoy, sHoy, true)}
+      <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'hoy') || '<div class="mk-ref">Aún sin finalizados hoy</div>'}</div>
+      <div class="mk-sep"><div class="mk-tit">Matriceros hoy</div>${tecsMant(M, 'hoy')}</div>
+    </div>
+    <div class="kpi hero mk">
+      <div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span><span class="chip ${eAyer.cls}">${eAyer.ico} ${eAyer.txt}</span></div>
+      <div class="val">${fmt(k.ayer)} <small>${sAyer ? `vs. ${fmt(sAyer.med)} de un ${tipoDia(labAyer)} típico` : 'finalizados'}</small></div>
+      ${sAyer ? `<div class="mk-ref">${Math.round(k.ayer - sAyer.med) === 0 ? 'Igual a' : `<b>${k.ayer > sAyer.med ? '+' : ''}${fmt(k.ayer - sAyer.med)}</b> frente a`} la mediana de los ${fmt(sAyer.n)} ${labAyer ? 'días laborales' : 'domingos/festivos'} del mes</div>` : ''}
+      ${rangoMant(k.ayer, sAyer, false, eAyer.cls)}
+      <div class="mk-sep"><div class="mk-tit">Por vehículo</div>${catsMant(M, 'ayer') || '<div class="mk-ref">Sin finalizados</div>'}</div>
+      <div class="mk-sep"><div class="mk-tit">Matriceros · ${fCorta(k.fecha_ayer)}</div>${tecsMant(M, 'ayer')}</div>
+    </div>
+  </div>`;
+}
+
+// ================================================================ Resumen: secciones con gráfica por periodo
+// Componente reutilizable (Mantenimiento hoy; Fabricación de moldes y Serigrafía después). Cada servicio registra un
+// bloque en BLOQUES_RESUMEN con:
+//   id                 prefijo de los elementos (#<id>-titulo, #<id>-vista, #<id>-volver, #<id>-sub, #<id>-leyenda, #ch-<id>)
+//   titulo, aria       textos de la gráfica
+//   periodos(vista)    barras de 'diaria' | 'semanal' | 'mensual': [{etiqueta, nombre, segs, total, enCurso, futuro, nota, desde, hasta, detalle}]
+//   dias(desde, hasta) barras de los días de una semana (para el detalle)
+//   mediana(vista)     valor de la línea de referencia (o null) y su unidad
+//   op                 {orden, colores, nombres} para apilar, la leyenda y el tooltip
+//   estado             {vista, zoom} propio del bloque
+const BLOQUES_RESUMEN = [];
+function htmlGraficaResumen(id, titulo){
+  return `<div class="kpi ra-chart">
+    <div class="lbl"><span id="${id}-titulo">${esc(titulo)}</span>
+      <span class="prod-ctrl"><button class="btn-volver" id="${id}-volver" hidden>← Semanas</button>
+        <span class="seg" id="${id}-vista"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></span></span></div>
+    <div class="desc" id="${id}-sub"></div>
+    <div id="${id}-leyenda"></div>
+    <div class="chart" id="ch-${id}"></div>
+  </div>`;
+}
+function dibujarGraficaResumen(b){
+  const cont = $('#ch-' + b.id); if(!cont) return;
+  const e = b.estado, zoom = e.vista === 'semanal' && e.zoom;
+  document.querySelectorAll(`#${b.id}-vista button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+  $(`#${b.id}-volver`).hidden = !zoom;
+  const barras = zoom ? b.dias(e.zoom.desde, e.zoom.hasta) : b.periodos(e.vista);
+  const items = barras.map(x => ({etiqueta: x.etiqueta, segs: x.segs, total: x.total, etiquetaValor: x.futuro ? '' : undefined,
+    sub: x.enCurso ? 'en curso' : (x.nota || ''), subColor: 'var(--muted)',
+    tip: tipSegs(x.nombre + (x.enCurso ? ' · en curso' : ''), x.segs,
+      `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>${t('total')}</span><span>${x.futuro ? '—' : fmt(x.total)}</span></div>` +
+      (e.vista === 'semanal' && !zoom ? `<div style="margin-top:4px;opacity:.75">${x.detalle ? 'Clic para ver los días' : 'Detalle por día disponible al reiniciar el servidor'}</div>` : ''), b.op)}));
+  const med = b.mediana(zoom ? 'diaria' : e.vista);
+  $(`#${b.id}-titulo`).textContent = zoom ? `${b.titulo} · ${e.zoom.titulo}` : b.titulo;
+  $(`#${b.id}-sub`).textContent = '';
+  $(`#${b.id}-leyenda`).innerHTML = `<div class="legend">${b.op.orden.map(c => `<span><i style="background:${b.op.colores[c]}"></i>${esc((b.op.nombres || {})[c] || c)}</span>`).join('')}` +
+    (med.valor != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana ${b.agrupada ? 'del total ' : ''}por ${med.unidad}</span>` : '') + '</div>';
+  const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; if(!x.detalle) return;
+      e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; dibujarGraficaResumen(b); } : null;
+  const referencias = med.valor != null ? [{valor: med.valor, color: 'var(--text)', etiqueta: `Mediana ${b.agrupada ? 'del total ' : ''}${fmt(med.valor, med.valor % 1 ? 1 : 0)}`}] : [];
+  if(b.agrupada){ // una barra por serie (vehículo) con su número; debajo, el total del periodo
+    barrasAgrupadas(cont, barras.map((x, i) => ({etiqueta: x.etiqueta, valores: x.segs, tip: items[i].tip,
+      sub: x.futuro ? (x.nota || '') : `Total ${fmt(x.total)}${x.enCurso ? ' · en curso' : ''}`, subCorto: x.futuro ? '' : fmt(x.total), subColor: x.enCurso || x.futuro ? 'var(--muted)' : 'var(--text-soft)'})),
+      {...b.op, alto: 280, aria: b.aria, onClick, referencias});
+  } else barrasApiladas(cont, items, {...b.op, sub: true, alto: 280, aria: b.aria, onClick, referencias, numSegmentos: !!b.numSegmentos});
+}
+document.addEventListener('click', ev => {
+  for(const b of BLOQUES_RESUMEN){
+    const bv = ev.target.closest(`#${b.id}-vista button`);
+    if(bv){ b.estado.vista = bv.dataset.v; b.estado.zoom = null; dibujarGraficaResumen(b); return; }
+    if(ev.target.closest(`#${b.id}-volver`)){ b.estado.zoom = null; dibujarGraficaResumen(b); return; }
+  }
+});
+
+// ---- Mantenimiento de moldes en el Resumen: mismas series, filtros y orden que el módulo (sin el filtro por clic
+//      en un vehículo, que es propio del módulo). Los días salen de "registros" (13 meses) o, si el servidor aún no
+//      los envía, de la serie diaria de 30 días.
+const segsSinOcultos = segs => { const s = {}; for(const k in segs) if(!CAT_OCULTAS.includes(k)) s[k] = segs[k]; return s; };
+let cacheDiasMant = {ref: null, dias: {}};
+function diasMant(M){ // fecha → segs por vehículo (sin ocultos)
+  if(cacheDiasMant.ref === M) return cacheDiasMant.dias;
+  const dias = {};
+  if(M.registros){
+    const R = M.registros;
+    for(const r of R.filas){ const c = R.categorias[r[2]]; if(CAT_OCULTAS.includes(c)) continue; const s = dias[r[0]] = dias[r[0]] || {}; s[c] = (s[c] || 0) + 1; }
+  } else M.diaria.forEach(d => dias[d.fecha] = segsSinOcultos(d.segs));
+  cacheDiasMant = {ref: M, dias};
+  return dias;
+}
+const medianaDe = xs => { if(!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const BLOQUE_RESUMEN_MANT = {
+  id: 'rm', titulo: 'Histórico de mantenimientos finalizados', aria: 'Mantenimientos finalizados por periodo y vehículo', numSegmentos: true,
+  estado: {vista: 'diaria', zoom: null},
+  get op(){ const M = D.mantenimiento; return {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT}; },
+  dias(desde, hasta){
+    const M = D.mantenimiento, dias = diasMant(M), primero = M.registros ? '0000' : M.diaria[0].fecha;
+    return diasRango(desde, hasta).map(d => {
+      const segs = d.iso >= primero ? (dias[d.iso] || {}) : {}, futuro = d.iso > D.hoy;
+      return {etiqueta: d.iso === D.hoy ? t('hoy') : fCorta(d.iso), nombre: fLarga(d.iso), segs, total: totalSegs(segs), futuro,
+              enCurso: d.iso === D.hoy, nota: futuro ? '' : d.festivo ? 'Festivo' : d.domingo ? 'Domingo' : ''};
+    });
+  },
+  periodos(vista){
+    const M = D.mantenimiento;
+    if(vista === 'diaria'){ const l = lunesDe(D.hoy); return this.dias(l, sumarDias(l, 6)); }  // solo la semana actual
+    const primero = M.registros ? '0000' : M.diaria[0].fecha;
+    return M[vista].map(p => {
+      const segs = segsSinOcultos(p.segs), mensual = vista === 'mensual';
+      return {etiqueta: mensual ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
+              nombre: mensual ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
+              segs, total: totalSegs(segs), enCurso: p.en_curso, desde: p.desde, hasta: p.hasta,
+              detalle: !mensual && p.desde >= primero};
+    });
+  },
+  mediana(vista){ // igual que en el módulo: días laborales / semanas cerradas / meses cerrados
+    const M = D.mantenimiento;
+    const xs = vista === 'diaria' ? M.diaria.filter(d => !d.hoy && d.lab).map(d => totalSegs(segsSinOcultos(d.segs)))
+                                  : M[vista].filter(p => !p.en_curso).map(p => totalSegs(segsSinOcultos(p.segs)));
+    return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
+  },
+  dibujar(){ if(D.mantenimiento) dibujarGraficaResumen(this); },
+};
+BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MANT);
+
+// Renglones "cantidad vs. media" con el mismo formato de "Producción por matricero" de Aceros.
+// filas: [{nombre, n, media, color}]; el total compara la suma contra la suma de las medias.
+function vsMediaHTML(filas, tituloTotal){
+  const max = Math.max(1, ...filas.map(f => Math.max(f.n, f.media)));
+  const tot = filas.reduce((a, f) => a + f.n, 0), medTot = filas.reduce((a, f) => a + f.media, 0), eT = estado(tot, medTot);
+  return `<div class="matr">${filas.map(f => { const e = estado(f.n, f.media);
+    return `<div class="matr-fila" title="${esc(f.nombre)}: ${fmt(f.n)} · media ${fmt(f.media, 1)}">
+      <span class="matr-nom">${esc(f.nombre)}</span>
+      <span class="matr-bar">${f.n ? `<i style="width:${f.n / max * 100}%;background:${f.color}"><em class="num" style="color:${tintaSobre(f.color)}">${fmt(f.n)}</em></i>` : `<em class="num cero">0</em>`}${f.media ? `<b style="left:${f.media / max * 100}%"></b>` : ''}</span>
+      <span class="matr-meta">media <b class="num">${fmt(f.media, 1)}</b></span>
+      <span class="matr-e" style="color:${COLOR_EST[e.cls]}">${e.pct != null ? `${e.ico} ${fmt(e.pct * 100)} %` : '—'}</span></div>`; }).join('')}
+    <div class="matr-fila matr-tot"><span class="matr-nom">${tituloTotal}</span><span class="num" style="font-size:15px">${fmt(tot)}</span>
+      <span class="matr-meta">media <b class="num">${fmt(medTot, 1)}</b></span>
+      <span class="matr-e" style="color:${COLOR_EST[eT.cls]}">${eT.pct != null ? `${eT.ico} ${fmt(eT.pct * 100)} %` : ''}</span></div></div>`;
+}
+// media de un vehículo en los días del mismo tipo (laboral vs. domingo/festivo) de los últimos 30 días, sin hoy
+function mediaMant(M, cat, laboral){
+  const dias = M.diaria.filter(d => !d.hoy && !!d.lab === laboral);
+  return dias.length ? dias.reduce((a, d) => a + ((d.segs || {})[cat] || 0), 0) / dias.length : 0;
+}
+
 function tarjetaResumenMant(M){
-  if(!M) return `<article class="serv-largo" data-ir="mantenimiento"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
-  const k = M.kpis;
-  return `<article class="serv-largo" data-ir="mantenimiento" tabindex="0">
-    <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver">${t('ver_detalle')}</span></div>
-    <div class="sl-grid">
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_ayer')}</span><span class="chip neutral">${fCorta(k.fecha_ayer)}</span></div>
-        <div class="val">${fmt(k.ayer)} <small>por ${fmt(k.personas_ayer)} personas</small></div>
-        ${minibarras(M.diaria.slice(-14).map(d => ({total:d.total, lab:false})), 0)}
-        <div class="desc">${M.categorias.map(c => { const x = M.por_categoria.find(p => p.categoria === c);
-          return x && x.ayer ? `<span class="etq" style="background:${colorCat(c)}33;color:var(--text)">${esc(c)} ${fmt(x.ayer)}</span>` : ''; }).join(' ')}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_hoy')}</span><span class="vivo" style="color:var(--text)"><i></i></span></div>
-        <div class="val">${fmt(k.hoy)}</div><div class="desc">${fmt(k.personas_hoy)} personas trabajando hoy</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_prom')}</span></div>
-        <div class="val">${fmt(k.prom_dia_30,1)} <small>/día</small></div><div class="desc">${fmt(k.fin_30)} finalizados en 30 días</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('mant_abiertos')}</span></div>
-        <div class="val">${fmt(k.abiertos)}</div><div class="desc">Duración típica ${k.mediana_min_30==null?'—':fmt(k.mediana_min_30)+' min'}</div></div>
+  if(!M) return `<article class="serv-largo"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
+  const k = M.kpis, ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer), labAyer = ayerD ? !!ayerD.lab : true;
+  const cats = catsVisibles(M), porCat = c => M.por_categoria.find(p => p.categoria === c) || {};
+  const filasAyer = cats.map(c => ({nombre: nomCat(c), n: porCat(c).ayer || 0, media: mediaMant(M, c, labAyer), color: colorCat(c)}));
+  const totAyer = filasAyer.reduce((a, f) => a + f.n, 0), medAyer = filasAyer.reduce((a, f) => a + f.media, 0), eAyer = estado(totAyer, medAyer);
+  const hoyCats = cats.map(c => ({c, n: porCat(c).hoy || 0})).filter(x => x.n), totHoy = hoyCats.reduce((a, x) => a + x.n, 0);
+  return `<article class="serv-largo">
+    <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver" data-ir="mantenimiento" tabindex="0">${t('ver_detalle')}</span></div>
+    <div class="ra-grid">
+      <div class="ra-col">
+        <div class="kpi">
+          <div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span>${chip(eAyer)}</div>
+          ${vsMediaHTML(filasAyer, 'Total del día')}
+          <div class="desc">Media de ${labAyer ? 'días laborales' : 'domingos/festivos'} · 30 días</div>
+        </div>
+        <div class="kpi">
+          <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
+          <div class="val">${fmt(totHoy)} <small>mantenimientos</small></div>
+          <div class="desc">${hoyCats.length ? hoyCats.map(x => `<span style="white-space:nowrap"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;background:${colorCat(x.c)}"></i>${esc(nomCat(x.c))} <b>${fmt(x.n)}</b></span>`).join(' · ') : 'Aún sin finalizados hoy'}</div>
+        </div>
+      </div>
+      ${htmlGraficaResumen(BLOQUE_RESUMEN_MANT.id, BLOQUE_RESUMEN_MANT.titulo)}
     </div></article>`;
 }
 
@@ -1420,22 +1953,15 @@ function vistaMantenimiento(M){
   if(!M) return `<section class="vista" id="v-mantenimiento" hidden><div class="aviso err">✖ No se pudo leer la base de mantenimientos (Control Inventarios).<button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div></section>`;
   const k = M.kpis;
   return `<section class="vista" id="v-mantenimiento" hidden>
-  <h2 class="sec">${t('hoy')} · ${t('ayer')} <small>se actualiza solo cada minuto desde la app Control Inventarios</small></h2>
-  <div class="grid-kpi">
-    ${kpi(t('mant_hoy'), fmt(k.hoy), '', `${fmt(k.personas_hoy)} personas · en vivo`, '<span class="chip ok">● En vivo</span>', 'hero')}
-    ${kpi(t('mant_ayer'), fmt(k.ayer), '', `${fLarga(k.fecha_ayer)} · ${fmt(k.personas_ayer)} personas`, '', 'hero')}
-    ${kpi(t('mant_prom'), fmt(k.prom_dia_30,1), '/día', `${fmt(k.fin_30)} finalizados · ${fmt(k.galgas_30)} galgas`)}
-    ${kpi(t('mant_mediana'), k.mediana_min_30==null?'—':fmt(k.mediana_min_30), t('minutos'), 'Mediana de lo que dura un mantenimiento (30 días), sin contar los que quedaron abiertos de un día para otro')}
-    ${kpi(t('mant_abiertos'), fmt(k.abiertos), '', `Pendientes o en proceso abiertos en los últimos ${k.dias_viejo} días`)}
-  </div>
+  <h2 class="sec">Desempeño del día</h2>
+  ${tarjetasMant(M)}
 
-  <h2 class="sec">${t('mant_cat')} <small>últimos 30 días · clic en un vehículo para filtrar las gráficas y la tabla por persona</small></h2>
-  <div class="cats" id="mant-cats">${M.por_categoria.map(c => `
+  <h2 class="sec">${t('mant_cat')}</h2>
+  <div class="cats" id="mant-cats">${catsVisibles(M).map(n => M.por_categoria.find(p => p.categoria === n)).filter(Boolean).map(c => `
     <div class="cat ${catMant===c.categoria?'sel':''}" data-cat="${esc(c.categoria)}" style="--c:${colorCat(c.categoria)}" tabindex="0">
-      <h4>${esc(c.categoria)} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
+      <h4>${esc(nomCat(c.categoria))} ${c.hoy ? `<span class="etq">${fmt(c.hoy)} hoy</span>` : ''}</h4>
       <div class="big">${fmt(c.fin_30)} <small>finalizados</small></div>
-      <div class="fila3"><span><b>${fmt(c.ayer)}</b>${t('ayer').toLowerCase()}</span><span><b>${fmt(c.abiertos)}</b>abiertos</span><span><b>${c.mediana_min==null?'—':fmt(c.mediana_min)}</b>min típico</span></div>
-      <div class="desc" title="${esc(c.vehiculos.map(v => v.vehiculo + ': ' + v.n).join(' · '))}">${c.top_moldes.length ? 'Más atendidos: ' + c.top_moldes.slice(0,3).map(m => `<b>${esc(m.molde)}</b> (${fmt(m.n)})`).join(', ') : 'Sin mantenimientos en 30 días'}</div>
+      ${topMoldesHTML(c)}
     </div>`).join('')}</div>
 
   <div class="panel" style="margin-top:16px">
@@ -1444,32 +1970,225 @@ function vistaMantenimiento(M){
     <div id="mant-leyenda"></div><div class="chart" id="ch-mant"></div>
   </div>
 
-  <div class="panel" style="margin-top:16px">
-    <div class="panel-head"><div><h3>${t('mant_personas')}</h3><p id="mant-mat-sub">Mantenimientos finalizados por cada persona en los últimos 14 días (el día cuenta cuando se finaliza). Pasa el mouse por una casilla para ver el detalle.</p></div></div>
+  <div class="sec-fila">
+    <h2 class="sec">Productividad por persona <small id="mat-rango"></small></h2>
+    <div class="prod-ctrl">
+      <button class="btn-volver" id="mat-volver" hidden>← Volver</button>
+      <div class="seg" id="mat-vista"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h3 id="mat-tit">${t('mant_personas')}</h3><p id="mat-sub"></p></div>
+      <div class="seg" id="mat-modo"><button aria-pressed="true" data-m="ranking">Ranking</button><button aria-pressed="false" data-m="mapa">Detalle por periodo</button></div></div>
     <div class="tabla" style="max-height:none" id="mant-matriz"></div>
   </div>
 
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>${t('mant_tipos')}</h3></div></div><div class="chart" id="ch-mant-tipos"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3><p>Un molde que vuelve muchas veces a mantenimiento puede necesitar revisión de fondo.</p></div></div>
-      <div class="tabla"><table><thead><tr><th>Molde</th><th>Vehículo</th><th>Categoría</th><th class="n">Veces</th></tr></thead><tbody>${
-        M.reincidentes_30.map(r => `<tr><td class="num">${esc(r.molde)}</td><td>${esc(r.vehiculo||'—')}</td><td><span class="etq" style="background:${colorCat(r.categoria)}33;color:var(--text)">${esc(r.categoria)}</span></td><td class="n">${fmt(r.n)}</td></tr>`).join('') || `<tr><td colspan="4">${t('sin_datos')}</td></tr>`}</tbody></table></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('mant_tipos')}</h3><p id="tipos-sub"></p></div></div><div id="mant-tipos"></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>${t('mant_reinc')}</h3><p id="reinc-sub"></p></div></div><div class="tabla" id="mant-reinc"></div></div>
   </div>
 
-  <div class="panel" style="margin-top:16px"><details><summary>${t('mant_lista_abiertos')} (${fmt(M.abiertos.length)})</summary>
-    <div class="tabla"><table><thead><tr><th>Desde</th><th>Molde</th><th>Vehículo</th><th>Categoría</th><th>Persona</th><th>Estado</th><th>Tipo</th></tr></thead><tbody>${
-      M.abiertos.map(a => `<tr><td style="white-space:nowrap">${fHora(a.inicio)}</td><td class="num">${esc(a.molde)}</td><td>${esc(a.vehiculo||'—')}</td><td>${esc(a.categoria)}</td><td>${esc(a.persona)}</td><td>${esc(a.estatus)}</td><td>${esc(a.tipo_mant||'—')}</td></tr>`).join('')}</tbody></table></div></details></div>
   </section>`;
 }
 
-function segsFiltrados(segs){ return catMant ? (segs[catMant] ? {[catMant]: segs[catMant]} : {}) : segs; }
+// "Más atendidos" de una categoría: mini ranking (posición · molde · barra relativa al primero · veces)
+function topMoldesHTML(c){
+  const top = c.top_moldes.slice(0, 3);
+  if(!top.length) return `<div class="top-m vacio-m">Sin mantenimientos en 30 días</div>`;
+  const max = top[0].n || 1;
+  return `<div class="top-m" title="${esc(c.vehiculos.map(v => v.vehiculo + ': ' + v.n).join(' · '))}">
+    <div class="top-m-tit">Más atendidos</div>
+    ${top.map((m, i) => `<div class="top-m-fila${i === 0 ? ' primero' : ''}">
+      <span class="top-m-pos">${i + 1}</span>
+      <span class="top-m-nom num">${esc(m.molde)}</span>
+      <span class="top-m-bar"><i style="width:${m.n / max * 100}%"></i></span>
+      <span class="top-m-n num">${fmt(m.n)}<small>×</small></span>
+    </div>`).join('')}</div>`;
+}
+
+// ---- Análisis por periodo: la matriz por matricero, la distribución por tipo y los moldes recurrentes se arman en
+//      el navegador desde los registros de lo finalizado (≈13 meses). Diario = 14 días; Semanal = 12 semanas (clic en
+//      una semana = sus 7 días); Mensual = 12 meses (clic en un mes = sus semanas). Respeta el filtro por vehículo.
+let vistaMat = 'diaria', zoomMat = null, modoMat = 'ranking';
+const sumarDias = (iso, n) => { const f = fecha(iso); f.setDate(f.getDate() + n); return isoDe(f); };
+const fDiaMes = iso => { const f = fecha(iso); return `${f.getDate()} ${MESES[f.getMonth()].slice(0,3).toLowerCase()}`; };
+const hexA = (hex, a) => { const h = hex.replace('#',''); return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`; };
+function periodosMat(){
+  const hoy = D.hoy, out = [];
+  const dia = iso => { const f = fecha(iso), i = infoDia(iso);
+    return {desde: iso, hasta: iso, et1: DIAS[f.getDay()], et2: String(f.getDate()), titulo: fLarga(iso), lab: i.lab, actual: iso === hoy, unidad: 'día'}; };
+  const semana = lunes => { const dom = sumarDias(lunes, 6);
+    return {desde: lunes, hasta: dom, et1: 'S' + semanaIso(lunes), et2: fDiaMes(lunes), titulo: `Semana ${semanaIso(lunes)} · ${fDiaMes(lunes)} – ${fDiaMes(dom)}`,
+            lab: true, actual: lunes <= hoy && hoy <= dom, zoom: vistaMat === 'semanal', unidad: 'semana'}; };
+  if(vistaMat === 'diaria'){ for(let k = 13; k >= 0; k--) out.push(dia(sumarDias(hoy, -k))); return out; }
+  if(vistaMat === 'semanal'){
+    if(zoomMat) return diasRango(zoomMat.desde, zoomMat.hasta).map(d => dia(d.iso));
+    const l = lunesDe(hoy); for(let k = 11; k >= 0; k--) out.push(semana(sumarDias(l, -7 * k))); return out;
+  }
+  if(zoomMat){ // semanas del mes, recortadas a sus días
+    for(let l = lunesDe(zoomMat.desde); l <= zoomMat.hasta && l <= hoy; l = sumarDias(l, 7)){ // sin semanas que aún no llegan
+      const s = semana(l); s.desde = s.desde < zoomMat.desde ? zoomMat.desde : s.desde; s.hasta = s.hasta > zoomMat.hasta ? zoomMat.hasta : s.hasta;
+      s.et2 = fDiaMes(s.desde); s.titulo = `Semana ${semanaIso(l)} · ${fDiaMes(s.desde)} – ${fDiaMes(s.hasta)}`; s.zoom = false; out.push(s);
+    }
+    return out;
+  }
+  const f = fecha(hoy);
+  for(let k = 11; k >= 0; k--){
+    const a = new Date(f.getFullYear(), f.getMonth() - k, 1), desde = isoDe(a), hasta = isoDe(new Date(a.getFullYear(), a.getMonth() + 1, 0));
+    out.push({desde, hasta, et1: MESES[a.getMonth()].slice(0,3), et2: String(a.getFullYear()).slice(2), titulo: `${MESES[a.getMonth()]} ${a.getFullYear()}`,
+              lab: true, actual: desde <= hoy && hoy <= hasta, zoom: true, unidad: 'mes'});
+  }
+  return out;
+}
+function analisisMat(M){
+  const R = M.registros, cols = periodosMat(), desde = cols[0].desde, hasta = cols[cols.length - 1].hasta;
+  const visibles = new Set(catsVisibles(M).filter(c => !catMant || c === catMant));
+  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({}))});
+  const per = {}, tip = {}, mol = {}, equipo = nuevo();
+  for(const r of (R ? R.filas : [])){
+    if(r[0] < desde || r[0] > hasta) continue;
+    const cat = R.categorias[r[2]]; if(!visibles.has(cat)) continue;
+    const i = cols.findIndex(c => r[0] >= c.desde && r[0] <= c.hasta); if(i < 0) continue;
+    const nombre = R.personas[r[1]], tipo = R.tipos[r[3]], molde = R.moldes[r[4]];
+    for(const x of [per[nombre] = per[nombre] || nuevo(), equipo]){
+      x.total++; x.n[i]++; x.segs[i][cat] = (x.segs[i][cat] || 0) + 1; x.tipos[i][tipo] = (x.tipos[i][tipo] || 0) + 1;
+    }
+    const tp = tip[tipo] = tip[tipo] || {n: 0, serie: cols.map(() => 0)}; tp.n++; tp.serie[i]++;
+    const m = mol[molde] = mol[molde] || {n: 0, cat, vehiculo: R.vehiculos[r[5]], personas: new Set(), ultima: r[0]};
+    m.n++; m.personas.add(nombre); if(r[0] > m.ultima) m.ultima = r[0];
+  }
+  return {cols, desde, hasta, equipo,
+    personas: Object.entries(per).map(([nombre, x]) => ({nombre, ...x, activos: x.n.filter(v => v).length})).sort((a, b) => b.total - a.total),
+    tipos: Object.entries(tip).map(([tipo, x]) => ({tipo, ...x})).sort((a, b) => b.n - a.n),
+    moldes: Object.entries(mol).filter(([, x]) => x.n > 1).map(([molde, x]) => ({molde, ...x})).sort((a, b) => b.n - a.n || (a.ultima < b.ultima ? 1 : -1)).slice(0, 10)};
+}
+// Respaldo si el servidor todavía no envía "registros": diario sale de la matriz de 14 días que ya existía;
+// tipos y moldes, de los acumulados de 30 días. Semanal y mensual necesitan los registros.
+function analisisBasico(M){
+  if(vistaMat !== 'diaria' || zoomMat) return null;
+  const cols = periodosMat(), idx = Object.fromEntries(cols.map((c, i) => [c.desde, i]));
+  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({}))});
+  const equipo = nuevo();
+  const personas = M.personas.map(p => {
+    const x = nuevo();
+    p.celdas.forEach(c => { const i = idx[c.fecha]; if(i == null) return; const s = segsFiltrados(c.segs), n = totalSegs(s);
+      x.n[i] += n; x.total += n; x.segs[i] = s; equipo.n[i] += n; equipo.total += n;
+      for(const k in s) equipo.segs[i][k] = (equipo.segs[i][k] || 0) + s[k]; });
+    return {nombre: p.nombre, ...x, activos: x.n.filter(v => v).length};
+  }).filter(p => p.total).sort((a, b) => b.total - a.total);
+  const visibles = new Set(catsVisibles(M).filter(c => !catMant || c === catMant));
+  return {cols, desde: cols[0].desde, hasta: cols[cols.length - 1].hasta, equipo, personas, parcial: true,
+    tipos: catMant ? [] : M.tipos_30.map(x => ({tipo: x.tipo, n: x.n, serie: null})),
+    moldes: M.reincidentes_30.filter(r => visibles.has(r.categoria))
+      .map(r => ({molde: r.molde, n: r.n, cat: r.categoria, vehiculo: r.vehiculo, personas: null, ultima: null}))};
+}
+// Ranking de matriceros del periodo: barra apilada por vehículo (escala = el que más hizo), total, % del equipo,
+// promedio por periodo activo y mini-tendencia por columna del periodo.
+function dibujarRankingMat(M, A, op, unidad){
+  const max = Math.max(1, ...A.personas.map(p => p.total)), tot = A.equipo.total || 1;
+  const segsTot = p => { const s = {}; p.segs.forEach(x => { for(const k in x) s[k] = (s[k] || 0) + x[k]; }); return s; };
+  const fila = (p, i) => { const s = segsTot(p), prom = p.activos ? p.total / p.activos : 0;
+    return `<div class="rk-fila ${i < 3 ? 'top' : ''}" data-tip="${esc(tipSegs(`${p.nombre} · ${fmt(p.total)} finalizados`, s,
+      `<div class="r" style="margin-top:6px"><span>${unidad === 'día' ? 'Días' : unidad === 'semana' ? 'Semanas' : 'Meses'} con actividad</span><span>${fmt(p.activos)} de ${fmt(A.cols.length)}</span></div>`, op))}">
+      <span class="rk-pos">${i + 1}</span><span class="rk-nom" title="${esc(p.nombre)}">${esc(p.nombre)}</span>
+      <span class="rk-bar" style="width:${p.total / max * 100}%">${op.orden.filter(c => s[c]).map(c => `<i style="flex:${s[c]};background:${op.colores[c]}"></i>`).join('')}</span>
+      <span class="rk-n">${fmt(p.total)}</span><span class="rk-pct">${fmt(p.total / tot * 100)} %</span>
+      <span class="rk-prom">${fmt(prom, 1)} / ${unidad}</span>${sparkMini(p.n, PALETA[0])}</div>`; };
+  $('#mant-matriz').innerHTML = A.personas.length ? `<div class="rk">
+      <div class="legend" style="margin-bottom:6px">${op.orden.map(c => `<span><i style="background:${op.colores[c]}"></i>${esc((op.nombres || {})[c] || c)}</span>`).join('')}</div>
+      <div class="rk-fila cab"><span></span><span>Matricero</span><span>Finalizados por vehículo</span><span style="text-align:right">Total</span><span style="text-align:right">% equipo</span><span style="text-align:right">Prom. ${unidad} activo</span><span>Tendencia</span></div>
+      ${A.personas.map(fila).join('')}
+      <div class="rk-fila pie"><span></span><span>Total del equipo</span><span></span><span class="rk-n">${fmt(A.equipo.total)}</span><span class="rk-pct">100 %</span><span></span>${sparkMini(A.equipo.n, 'var(--text-soft)')}</div>
+    </div>` : `<div class="vacio">${t('sin_datos')}</div>`;
+  document.querySelectorAll('#mant-matriz [data-tip]').forEach(el => {
+    el.addEventListener('mousemove', ev => mostrarTip(ev, el.dataset.tip));
+    el.addEventListener('mouseleave', ocultarTip);
+  });
+}
+function sparkMini(serie, color){
+  if(!serie) return '<span></span>'; // mini barras alineadas a las columnas del periodo
+  const W = 96, H = 22, n = serie.length, max = Math.max(1, ...serie), bw = W / n - 1.5;
+  return `<svg class="lt-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${serie.map((v, i) => {
+    const h = v ? Math.max(1.5, v / max * (H - 2)) : 1; return `<rect x="${i * W / n}" y="${H - h}" width="${bw}" height="${h}" rx="1" fill="${v ? color : 'var(--grid)'}"/>`; }).join('')}</svg>`;
+}
+function dibujarAnalisisMant(M){
+  document.querySelectorAll('#mat-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMat));
+  $('#mat-volver').hidden = !zoomMat;
+  const A = M.registros ? analisisMat(M) : analisisBasico(M);
+  if(!A){ // semanal / mensual sin registros: el servidor del tablero aún no tiene la versión que los envía
+    const aviso = '<div class="vacio">Esta vista estará disponible cuando se reinicie el servidor del tablero con la versión actualizada.</div>';
+    $('#mat-rango').textContent = ''; $('#mat-sub').textContent = ''; $('#tipos-sub').textContent = ''; $('#reinc-sub').textContent = '';
+    $('#mant-matriz').innerHTML = aviso; $('#mant-tipos').innerHTML = aviso; $('#mant-reinc').innerHTML = aviso;
+    return;
+  }
+  const cols = A.cols, op = {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT};
+  const unidad = cols[0].unidad, plural = {día:'días', semana:'semanas', mes:'meses'}[unidad];
+  const rango = `${fDiaMes(A.desde)}${A.desde.slice(0,4) !== A.hasta.slice(0,4) ? ' ' + A.desde.slice(0,4) : ''} – ${fDiaMes(A.hasta)} ${A.hasta.slice(0,4)}`;
+  $('#mat-rango').textContent = (zoomMat ? zoomMat.titulo : rango) + (catMant ? ` · solo ${nomCat(catMant)}` : '');
+  $('#mat-sub').innerHTML = `<b>${fmt(A.equipo.total)}</b> finalizados · <b>${fmt(A.personas.length)}</b> matriceros · ${cols.length} ${plural}` +
+    (modoMat === 'mapa' && cols.some(c => c.zoom) ? ` · clic en ${unidad === 'semana' ? 'una semana' : 'un mes'} para ver el detalle` : '');
+  // ---- matriz: mapa de calor de un solo tono (aguamarina), columnas no laborales rayadas, totales del equipo
+  const maxN = Math.max(1, ...A.personas.flatMap(p => p.n)), base = PALETA[0];
+  const fondo = n => n ? hexA(base, (.16 + .7 * n / maxN).toFixed(2)) : 'transparent';
+  const claro = document.documentElement.dataset.tema === 'claro'; // en oscuro el número va siempre claro
+  const tinta = n => claro && n / maxN > .6 ? '#0B2F36' : 'var(--text)';
+  const meta = unidad === 'día' ? M.kpis.meta_persona_dia : null;
+  const tipCelda = (titulo, x, i) => tipSegs(titulo, x.segs[i], Object.keys(x.tipos[i]).length ? '<div style="margin-top:6px;opacity:.85">' +
+    Object.entries(x.tipos[i]).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join('') + '</div>' : '', op);
+  const prom = p => p.activos ? p.total / p.activos : 0;
+  document.querySelectorAll('#mat-modo button').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === modoMat));
+  if(modoMat === 'ranking'){ dibujarRankingMat(M, A, op, unidad); }
+  else $('#mant-matriz').innerHTML = A.personas.length ? `<table class="matriz"><thead><tr><th class="p">Matricero</th>${cols.map((c, i) =>
+      `<th class="${c.actual ? 'hoy' : ''} ${c.lab ? '' : 'nolab'} ${c.zoom ? 'zoom' : ''}" data-col="${i}" title="${esc(c.titulo)}${c.zoom ? ' · clic para ver el detalle' : ''}">${esc(c.et1)}<br>${esc(c.et2)}</th>`).join('')}
+      <th class="n">${t('total')}</th><th class="n" style="text-align:left;padding-left:10px">% del equipo</th><th class="n" title="Promedio en los ${plural} en que el matricero finalizó al menos uno">Prom. por ${unidad} activo</th></tr></thead>
+    <tbody>${A.personas.map(p => `<tr><td class="p" title="${esc(p.nombre)}">${esc(p.nombre)}</td>${p.n.map((n, i) =>
+      `<td class="c ${n ? '' : 'cero'} ${cols[i].lab ? '' : 'nolab'} ${cols[i].actual ? 'hoy' : ''}" style="background-color:${fondo(n)};color:${n ? tinta(n) : ''}${meta && n && n < meta && cols[i].lab ? ';box-shadow:inset 0 -3px 0 var(--bad)' : ''}"
+         ${n ? `data-tip="${esc(tipCelda(`${p.nombre} · ${cols[i].titulo}`, p, i))}"` : ''}>${n || '·'}</td>`).join('')}
+      <td class="t">${fmt(p.total)}</td>
+      <td><div class="pct"><span class="pct-bar"><i style="width:${p.total / A.equipo.total * 100}%;background:${base}"></i></span>${fmt(p.total / A.equipo.total * 100)} %</div></td>
+      <td class="t" style="color:var(--text-soft);font-weight:600">${fmt(prom(p), 1)}</td></tr>`).join('')}
+      <tr class="pie"><td class="p">Total del equipo</td>${A.equipo.n.map((n, i) => `<td class="t" style="text-align:center;padding:4px 0 0" ${n ? `data-tip="${esc(tipCelda(`Equipo · ${cols[i].titulo}`, A.equipo, i))}"` : ''}>${fmt(n)}</td>`).join('')}
+        <td class="t">${fmt(A.equipo.total)}</td><td></td><td></td></tr>
+      <tr class="pie2"><td class="p">Matriceros activos</td>${cols.map((c, i) => `<td>${fmt(A.personas.filter(p => p.n[i]).length)}</td>`).join('')}<td></td><td></td><td></td></tr>
+    </tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`;
+  document.querySelectorAll('#mant-matriz [data-tip]').forEach(td => {
+    td.addEventListener('mousemove', ev => mostrarTip(ev, td.dataset.tip));
+    td.addEventListener('mouseleave', ocultarTip);
+  });
+  document.querySelectorAll('#mant-matriz th.zoom').forEach(th => th.addEventListener('click', () => {
+    const c = cols[+th.dataset.col]; zoomMat = {desde: c.desde, hasta: c.hasta, titulo: c.titulo}; dibujarAnalisisMant(M);
+  }));
+  // ---- distribución por tipo: participación del periodo + cómo se movió en cada columna
+  const totT = A.tipos.reduce((a, x) => a + x.n, 0), maxT = Math.max(1, ...A.tipos.map(x => x.n));
+  $('#tipos-sub').textContent = A.parcial ? `Últimos 30 días · ${fmt(totT)} finalizados` : (zoomMat ? zoomMat.titulo : rango) + ` · ${fmt(totT)} finalizados`;
+  $('#mant-tipos').innerHTML = A.tipos.length ? `<div class="lista-tipo">
+      <div class="lt-fila cab"><span>Tipo</span><span>Participación</span><span style="text-align:right">Cant.</span><span style="text-align:right">%</span><span>${A.parcial ? '' : 'Por ' + unidad}</span></div>
+      ${A.tipos.map(x => `<div class="lt-fila"><span class="lt-nom" title="${esc(x.tipo)}">${esc(x.tipo)}</span>
+        <span class="lt-bar"><i style="width:${x.n / maxT * 100}%;background:${base}"></i></span>
+        <span class="lt-n">${fmt(x.n)}</span><span class="lt-pct">${fmt(x.n / totT * 100)} %</span>${sparkMini(x.serie, base)}</div>`).join('')}</div>`
+    : `<div class="vacio">${t('sin_datos')}</div>`;
+  // ---- moldes que más vuelven a mantenimiento en el periodo
+  const maxM = Math.max(1, ...A.moldes.map(x => x.n));
+  $('#reinc-sub').textContent = (A.parcial ? 'Últimos 30 días' : zoomMat ? zoomMat.titulo : rango) + ' · moldes con 2 o más mantenimientos';
+  $('#mant-reinc').innerHTML = `<table><thead><tr><th>Molde</th><th>Vehículo</th><th class="n">Veces</th><th class="n">Matriceros</th><th>Último</th></tr></thead><tbody>${
+    A.moldes.map(x => `<tr><td class="num" style="white-space:nowrap"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${colorCat(x.cat)}" title="${esc(nomCat(x.cat))}"></i>${esc(x.molde)}</td>
+      <td>${esc(x.vehiculo || '—')}</td>
+      <td class="n"><div class="pct" style="min-width:90px;justify-content:flex-end"><span class="pct-bar" style="max-width:60px"><i style="width:${x.n / maxM * 100}%;background:${colorCat(x.cat)}"></i></span><b style="color:var(--text)">${fmt(x.n)}</b></div></td>
+      <td class="n">${x.personas ? fmt(x.personas.size) : '—'}</td><td style="white-space:nowrap">${x.ultima ? fCorta(x.ultima) : '—'}</td></tr>`).join('') || `<tr><td colspan="5">Ningún molde se repitió en el periodo</td></tr>`}</tbody></table>`;
+}
+
+function segsFiltrados(segs){ // quita los vehículos ocultos y, si hay uno elegido, deja solo ese
+  const s = {};
+  for(const k in segs) if(!CAT_OCULTAS.includes(k) && (!catMant || k === catMant)) s[k] = segs[k];
+  return s;
+}
 function totalSegs(segs){ return Object.values(segs).reduce((a, b) => a + b, 0); }
 
 function dibujarMantenimiento(){
   const M = D && D.mantenimiento; if(!M || $('#v-mantenimiento').hidden) return;
   document.querySelectorAll('#mant-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMant));
   document.querySelectorAll('#mant-cats .cat').forEach(x => x.classList.toggle('sel', x.dataset.cat === catMant));
-  const op = {orden: M.categorias, colores: COLOR_CAT};
+  const op = {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT};
   const serie = M[vistaMant].map(p => {
     const segs = segsFiltrados(p.segs), total = totalSegs(segs);
     const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
@@ -1477,42 +2196,28 @@ function dibujarMantenimiento(){
     return {etiqueta, segs, total, sub: p.hoy || p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
       tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>`, op)};
   });
-  $('#mant-serie-sub').textContent = (catMant ? `Solo ${catMant} · ` : '') + (vistaMant === 'diaria' ? 'Últimos 30 días' : vistaMant === 'semanal' ? 'Últimas 12 semanas' : 'Últimos 12 meses');
-  $('#mant-leyenda').innerHTML = `<div class="legend">${M.categorias.filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(c)}</span>`).join('')}</div>`;
-  barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo'});
+  // mediana de referencia: diario = días laborales; semanal/mensual = periodos ya cerrados (sin el que va en curso)
+  const base = M[vistaMant].map((p, i) => ({...p, total: serie[i].total}))
+    .filter(p => vistaMant === 'diaria' ? (!p.hoy && p.lab) : !p.en_curso).map(p => p.total).sort((a, b) => a - b);
+  const mediana = base.length ? (base.length % 2 ? base[(base.length - 1) / 2] : (base[base.length / 2 - 1] + base[base.length / 2]) / 2) : null;
+  const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
+  $('#mant-serie-sub').innerHTML = catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '';
+  $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
+    (mediana != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana por ${unidad}</span>` : '') + `</div>`;
+  barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
+    referencias: mediana != null ? [{valor: mediana, color:'var(--text)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
 
-  const meta = M.kpis.meta_persona_dia;
-  const filas = M.personas.map(p => ({...p, celdas: p.celdas.map(c => { const s = segsFiltrados(c.segs); return {...c, n: totalSegs(s), segs: s}; })}))
-    .map(p => ({...p, total: p.celdas.reduce((a, c) => a + c.n, 0)})).filter(p => p.total).sort((a, b) => b.total - a.total);
-  const maxN = Math.max(1, ...filas.flatMap(p => p.celdas.map(c => c.n)));
-  const fondo = n => { if(!n) return 'transparent'; const a = .18 + .62 * n / maxN; return `rgba(143,197,207,${a.toFixed(2)})`; };
-  const tinta = n => n / maxN > .55 ? '#0B2F36' : 'var(--text)';
-  $('#mant-matriz').innerHTML = filas.length ? `<table class="matriz"><thead><tr><th class="p">${t('persona')}</th>${M.dias14.map(d => {
-      const f = fecha(d), lab = infoDia(d).lab; return `<th class="${d===D.hoy?'hoy':''}" style="${lab?'':'color:var(--muted)'}">${DIAS[f.getDay()]}<br>${f.getDate()}</th>`; }).join('')}<th class="n">${t('total')}</th><th class="n">Prom/día</th></tr></thead>
-    <tbody>${filas.map(p => `<tr><td class="p" title="${esc(p.nombre)}">${esc(p.nombre)}</td>${p.celdas.map(c =>
-      `<td class="c ${c.n?'':'cero'} ${c.fecha===D.hoy?'hoy':''}" style="background:${fondo(c.n)};color:${c.n?tinta(c.n):''}${meta && c.n && c.n < meta ? ';box-shadow:inset 0 -3px 0 var(--bad)' : ''}"
-         data-tip="${esc(tipSegs(`${p.nombre} · ${fLarga(c.fecha)}`, c.segs, c.min!=null?`<div class="r" style="margin-top:6px"><span>Duración típica</span><span>${fmt(c.min)} min</span></div>`:'', op))}">${c.n || '·'}</td>`).join('')}
-      <td class="t">${fmt(p.total)}</td><td class="t" style="color:var(--text-soft)">${fmt(p.total / Math.max(1, p.celdas.filter(c => c.n).length), 1)}</td></tr>`).join('')}
-      <tr><td class="p">${t('total')}</td>${M.dias14.map((d, i) => `<td class="t" style="text-align:center;padding:0">${fmt(filas.reduce((a, p) => a + p.celdas[i].n, 0))}</td>`).join('')}<td class="t">${fmt(filas.reduce((a, p) => a + p.total, 0))}</td><td></td></tr>
-    </tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`;
-  document.querySelectorAll('#mant-matriz [data-tip]').forEach(td => {
-    td.addEventListener('mousemove', ev => mostrarTip(ev, td.dataset.tip));
-    td.addEventListener('mouseleave', ocultarTip);
-  });
-  barrasH($('#ch-mant-tipos'), M.tipos_30.map(x => ({etiqueta:x.tipo, valor:x.n})), {mL:190, aria:'Tipos de mantenimiento'});
+  dibujarAnalisisMant(M);
 }
 
 // ================================================================ Serigrafía
-const COLOR_RET = {'Falta de archivo (Vitrojet)':'#E0A030', 'Falta de malla':'#DC5353'};
-const COLOR_SCR = {'Mallas':'#8FC5CF', 'Logos':'#A78BFA', 'Trazabilidades':'#78BE8C'};
-const PALETA_PERSONAS = ['#8FC5CF','#E0A030','#A78BFA','#78BE8C','#5B9BD5','#CA9682','#8A9499'];
 const BLOQUES_SERI = [
-  {id:'logos', titulo:'Logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
+  {id:'logos', titulo:'Vitros logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
    reglaCarga:'Logo DISPONIBLE y sin NOMBRE_ARCHIVO. Prioridad = tiene Plan de corte (día/turno).'},
-  {id:'vitros', titulo:'Vitros normales (Vitrojet)', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
+  {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
    reglaCarga:'Calendario sin Ingeniería y STATUS VITROJET = NO EXISTE. La capacidad sale de Indicadores diarios.'},
-  {id:'pasta_plata', titulo:'Pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros', capManual:'cap-pasta-plata',
-   reglaCarga:'Puesto en Corte, CNC, Serigrafía o Planeación e INVENTARIO_3 = CREAR_VITRO.'},
+  {id:'pasta_plata', titulo:'Vitros pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros', capManual:'cap-pasta-plata',
+   reglaCarga:'Puesto en Planeación, Corte, CNC, Serigrafía o Vitrificado e INVENTARIO_3 = CREAR_VITRO.'},
 ];
 
 function tarjetaResumenSeri(S){
@@ -1538,19 +2243,20 @@ function vistaSerigrafia(S){
   if(!S) return `<section class="vista" id="v-serigrafia" hidden><div class="aviso warn">⚠ <span>Todavía no hay datos de Serigrafía. Revisa el estado de las fuentes al final de la página.</span></div></section>`;
   const r = S.retenidas;
   const ret = r ? `
-  <h2 class="sec">Piezas retenidas y screens <small>Indicadores diarios.xlsx · ${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
+  <h2 class="sec">Estado de serigrafía <small>${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
   <div class="grid-kpi">
-    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Vitrojet (falta de archivo) <b>${fmt(r.falta_archivo)}</b> · Malla (falta de malla) <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
-    ${kpi('Screens a pedir', fmt(r.screens_total), '', 'Mallas + logos + trazabilidades en fabricación', '', 'hero')}
-    ${kpi('Mallas', fmt(r.screens.mallas), '', 'en fabricación')}
-    ${kpi('Logos', fmt(r.screens.logos), '', 'en fabricación')}
-    ${kpi('Trazabilidades', fmt(r.screens.trazabilidades), '', 'en fabricación')}
+    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Falta de archivo <b>${fmt(r.falta_archivo)}</b> · Falta de malla <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
+    ${kpi('Screens en fabricación', fmt(r.screens_total), '', `Trazabilidades <b>${fmt(r.screens.trazabilidades)}</b> · Mallas <b>${fmt(r.screens.mallas)}</b> · Logos <b>${fmt(r.screens.logos)}</b>`)}
+    ${(() => { const vl = S.logos ? S.logos.carga : 0, ve = S.vitros ? S.vitros.carga_vitros : 0, vp = S.pasta_plata ? S.pasta_plata.carga : 0;
+      return kpi('Archivos Vitrojet en fabricación', fmt(vl + ve + vp), '', `Vitros logo <b>${fmt(vl)}</b> · Estándar <b>${fmt(ve)}</b> · PP <b>${fmt(vp)}</b>`); })()}
+    ${kpi('Vitros nuevos hoy', fmt(r.vitros_nuevos), r.capacidad_vitros ? `de ${fmt(r.capacidad_vitros)}` : '', 'Capacidad diaria de Indicadores diarios',
+         r.capacidad_vitros ? chip(estado(r.vitros_nuevos, r.capacidad_vitros)) : '')}
   </div>
   <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas por día</h3><p>Vitrojet = falta de archivo · Mallas = falta de malla</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Piezas retenidas por día · por causa</h3></div></div>
       <div class="legend">${Object.keys(COLOR_RET).map(k => `<span><i style="background:${COLOR_RET[k]}"></i>${k}</span>`).join('')}</div>
       <div class="chart" id="ch-seri-ret"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Screens a pedir por día</h3></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Screens pendientes por pedir · por día</h3></div></div>
       <div class="legend">${Object.keys(COLOR_SCR).map(k => `<span><i style="background:${COLOR_SCR[k]}"></i>${k}</span>`).join('')}</div>
       <div class="chart" id="ch-seri-scr"></div></div>
   </div>` : '';
@@ -1560,26 +2266,15 @@ function vistaSerigrafia(S){
 function bloqueSeri(b, X){
   if(!X) return `<h2 class="sec">${esc(b.titulo)}</h2><div class="aviso warn">⚠ <span>No hay datos de <b>${esc(b.fuente)}</b>. ${
     b.id === 'logos' ? 'Falta agregar la carpeta <b>Herramienta_Logos</b> (sitio GRP-HERRAMENTALES229) como acceso directo en OneDrive.' : 'Revisa el estado de las fuentes al final de la página.'}</span></div>`;
-  const cap = b.capManual ? valorManual(b.capManual, null) : null;
-  const hechos7 = X.diaria.slice(-7).reduce((s, d) => s + d.total, 0);
-  const extra = b.id === 'logos'
-    ? kpi('Con prioridad', fmt(X.prioridad), b.unidad, `Tienen plan de corte · ${fmt(X.sin_prioridad)} sin prioridad`, X.prioridad ? '<span class="chip bad">▼ Urgente</span>' : '')
-    : kpi('Vitros distintos', fmt(X.carga_vitros), b.unidad, b.id === 'vitros' ? `${fmt(X.inventario_vitros)} vitros ya existen en inventario` : 'Una pantalla sirve para varias órdenes');
-  return `<h2 class="sec">${esc(b.titulo)} <small>${esc(b.reglaCarga)}</small></h2>
-  <div class="grid-kpi">
-    ${kpi('Carga', fmt(X.carga), b.id === 'logos' ? b.unidad : 'órdenes', 'Lo que falta por hacer hoy', '', 'hero')}
-    ${extra}
-    ${X.en_curso != null ? kpi('En curso', fmt(X.en_curso), '', 'Marcados como realizando') : ''}
-    ${kpi('Hechos últimos 7 días', fmt(hechos7), b.unidad, `${fmt(hechos7 / 7, 1)} por día`)}
-    ${b.capManual ? `<div class="kpi"><div class="lbl"><span>Capacidad diaria</span><span class="lapiz">✎</span></div>
-      <div class="val meta-in" style="border:0;background:none;padding:0">${inputManual(b.capManual, null, '—')} <small style="color:var(--text-soft)">${b.unidad}/día</small></div>
-      <div class="desc">Se escribe a mano · ${cap ? `la carga actual son <b>${fmt(X.carga / cap, 1)}</b> días` : 'escríbela para ver los días de carga'}</div></div>` : ''}
-  </div>
-  <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>Hechos por día vs. capacidad</h3><p>Últimos 14 días${b.id === 'logos' ? ' (sale de la foto diaria: el Excel no tiene fecha de cada logo)' : ''}</p></div></div>
-      <div class="chart" id="ch-seri-${b.id}"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>Productividad por persona y por día</h3></div></div>
-      <div class="tabla" style="max-height:none" id="mx-seri-${b.id}"></div></div>
+  return `<h2 class="sec">${esc(b.titulo)}</h2>
+  <div class="panel">
+    <div class="panel-head"><div><h3 id="tit-seri-${b.id}">Producción diaria vs. capacidad</h3></div>
+      <div class="prod-ctrl">
+        ${b.capManual ? `<span class="cap-seri" title="Capacidad diaria (se escribe a mano)">Cap./día ✎ ${inputManual(b.capManual, null, '—')}</span>` : ''}
+        <button class="btn-volver" id="vol-seri-${b.id}" hidden>← Semanas</button>
+        <div class="seg" data-seri-vista="${b.id}"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div>
+      </div></div>
+    <div id="ley-seri-${b.id}"></div><div class="chart" id="ch-seri-${b.id}"></div>
   </div>
   ${detalleSeri(b, X)}`;
 }
@@ -1622,63 +2317,161 @@ function dibujarSerigrafia(){
     barrasApiladas($('#ch-seri-scr'), ult.map(d => { const segs = {'Mallas': d.mallas || 0, 'Logos': d.logos || 0, 'Trazabilidades': d.trazabilidades || 0};
       return {etiqueta: fCorta(d.fecha), segs, total: totalSegs(segs), tip: tipSegs(fLarga(d.fecha), segs, '', opS)}; }), {...opS, alto:220, aria:'Screens a pedir por día'});
   }
-  BLOQUES_SERI.forEach(b => {
-    const X = S[b.id], cont = $('#ch-seri-' + b.id); if(!X || !cont) return;
-    const capManual = b.capManual ? valorManual(b.capManual, null) : null;
-    const colores = {}; X.personas.forEach((p, i) => colores[p.nombre] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
-    const op = {orden: X.personas.map(p => p.nombre), colores};
-    barrasApiladas(cont, X.diaria.map((d, i) => {
-      const segs = {}; X.personas.forEach(p => { if(p.celdas[i]) segs[p.nombre] = p.celdas[i]; });
-      const cap = b.id === 'vitros' ? d.capacidad : (infoDia(d.fecha).lab ? capManual : null);
-      return {etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), segs, total: d.total, meta: cap || undefined,
-        tip: tipSegs(fLarga(d.fecha), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(d.total)}</span></div>` +
-          (cap ? `<div class="r"><span>Capacidad</span><span>${fmt(cap)}</span></div>` : ''), op)};
-    }), {...op, alto:230, metaRoja:true, aria:'Hechos por día'});
-    matrizSeri($('#mx-seri-' + b.id), X);
-  });
+  BLOQUES_SERI.forEach(b => dibujarBloqueSeri(S, b));
 }
 
+// Producción vs. capacidad de un bloque de Serigrafía con filtros Diario (días productivos de los últimos 30) /
+// Semanal (12 semanas, clic = sus días productivos) / Mensual (12 meses). Barras = lo hecho por persona; capacidad en
+// rojo (vitros: la de Indicadores diarios; logos y pasta de plata: la diaria escrita × días productivos); línea = carga.
+const estadoSeri = {};
+const esProductivo = iso => infoDia(iso).lab && fecha(iso).getDay() !== 6;
+function dibujarBloqueSeri(S, b){
+  const X = S[b.id], cont = $('#ch-seri-' + b.id); if(!X || !cont) return;
+  const e = estadoSeri[b.id] = estadoSeri[b.id] || {vista: 'diaria', zoom: null};
+  const zoom = e.vista === 'semanal' && e.zoom;
+  document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+  $('#vol-seri-' + b.id).hidden = !zoom;
+  const capManual = b.capManual ? valorManual(b.capManual, null) : null;
+  const ser = X.serie || {diaria: X.diaria.map((d, i) => ({...d, segs: Object.fromEntries(X.personas.filter(p => p.celdas[i]).map(p => [p.nombre, p.celdas[i]]))}))};
+  const nombres = [...new Set([...(ser.diaria || []), ...(ser.semanal || []), ...(ser.mensual || [])].flatMap(p => Object.keys(p.segs || {})))];
+  const colores = {}; nombres.forEach((n, i) => colores[n] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
+  const op = {orden: nombres, colores};
+  // carga: pasta de plata = "Vitros PP" de Indicadores diarios; los demás = foto diaria (hoy en vivo)
+  const hist = S.historial || {}, indCarga = {logos:'seri_carga_logos', vitros:'seri_carga_vitros', pasta_plata:'seri_carga_pp_comp'}[b.id];
+  const cargaPP = (S.retenidas && S.retenidas.carga_pp) || {};
+  const cargaDia = iso => b.id === 'pasta_plata' ? (cargaPP[iso] != null ? cargaPP[iso] : null)
+    : iso === D.hoy ? X.carga : (hist[iso] && hist[iso][indCarga] != null ? hist[iso][indCarga] : null);
+  const cargaRango = (desde, hasta) => { let v = null; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = cargaDia(d.iso); if(c != null) v = c; }); return v; };
+  const capRangoSeri = p => b.id === 'vitros' ? p.capacidad
+    : capManual ? capManual * diasRango(p.desde, p.hasta).filter(d => esProductivo(d.iso)).length : null;
+  let periodos;
+  if(zoom) periodos = (ser.diaria || []).filter(d => d.fecha >= e.zoom.desde && d.fecha <= e.zoom.hasta && esProductivo(d.fecha));
+  else if(e.vista === 'diaria') periodos = (ser.diaria || []).filter(d => esProductivo(d.fecha));
+  else periodos = ser[e.vista] || [];
+  const porDia = zoom || e.vista === 'diaria', mensual = e.vista === 'mensual' && !zoom;
+  const filas = periodos.map(p => {
+    const cap = porDia ? (b.id === 'vitros' ? p.capacidad : capManual) : capRangoSeri(p);
+    const carga = porDia ? cargaDia(p.fecha) : cargaRango(p.desde, p.hasta);
+    const etiqueta = porDia ? (p.fecha === D.hoy ? t('hoy') : fCorta(p.fecha)) : mensual ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S');
+    const nombre = porDia ? fLarga(p.fecha) : mensual ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`;
+    const enCurso = porDia ? p.hoy : p.en_curso, eC = cap ? estado(p.total, cap) : null;
+    return {carga, item:{etiqueta, segs: p.segs || {}, total: p.total, meta: cap || undefined,
+      sub: enCurso ? 'en curso' : eC ? `${fmt(eC.pct * 100)} %` : '', subColor: enCurso || !eC ? 'var(--muted)' : COLOR_EST[eC.cls],
+      tip: tipSegs(nombre + (enCurso ? ' · en curso' : ''), p.segs || {}, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(p.total)}</span></div>` +
+        (cap ? `<div class="r"><span>Capacidad</span><span>${fmt(cap)}</span></div>` : '') +
+        `<div class="r"><span>Carga${porDia ? ' del día' : ' (último dato)'}</span><span>${carga == null ? 'sin dato' : fmt(carga)}</span></div>` +
+        (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}};
+  });
+  $('#tit-seri-' + b.id).textContent = zoom ? `Producción vs. capacidad · ${e.zoom.titulo}` : porDia ? 'Producción diaria vs. capacidad' : `Producción ${e.vista === 'semanal' ? 'semanal' : 'mensual'} vs. capacidad`;
+  $('#ley-seri-' + b.id).innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
+    `<span><i class="linea" style="background:var(--text)"></i>Carga${b.id === 'pasta_plata' ? ' (Indicadores diarios · Vitros PP)' : ''}</span>` +
+    (capManual || b.id === 'vitros' ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : '') + '</div>';
+  barrasApiladas(cont, filas.map(x => x.item), {...op, sub: true, alto: 260, metaRoja: true, aria: 'Producción vs. capacidad',
+    onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = periodos[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`}; dibujarBloqueSeri(S, b); } : null,
+    lineas: [{vals: filas.map(x => x.carga), color: 'var(--text)', etiquetas: 'todas'}]});
+}
+document.addEventListener('click', ev => {
+  const bv = ev.target.closest('[data-seri-vista] button');
+  if(bv){ const id = bv.parentElement.dataset.seriVista, e = estadoSeri[id] = estadoSeri[id] || {}; e.vista = bv.dataset.v; e.zoom = null;
+    const b = BLOQUES_SERI.find(x => x.id === id); if(b && D && D.serigrafia) dibujarBloqueSeri(D.serigrafia, b); return; }
+  const vol = ev.target.closest('[id^="vol-seri-"]');
+  if(vol){ const id = vol.id.slice(9), e = estadoSeri[id]; if(e) e.zoom = null;
+    const b = BLOQUES_SERI.find(x => x.id === id); if(b && D && D.serigrafia) dibujarBloqueSeri(D.serigrafia, b); }
+});
+
 // ================================================================ Fabricación de moldes (Fila de moldes.xlsx)
-const COLOR_HERR = {'Molde':'#8FC5CF', 'Galga':'#E0A030', 'Otro':'#8A9499'};
 let vistaMoldesSerie = 'semanal';
 
+// ---- Fabricación de moldes en el Resumen: histórico de herramentales fabricados (estatus OK por fecha de entrega)
+//      con Diario (semana actual) / Semanal (clic = sus días, con la serie diaria de 30 días) / Mensual y mediana.
+const BLOQUE_RESUMEN_MOLDES = {
+  id: 'rf', titulo: 'Histórico de herramentales fabricados', aria: 'Herramentales fabricados por periodo',
+  estado: {vista: 'semanal', zoom: null},
+  get op(){ return {orden: ['Molde', 'Galga'], colores: COLOR_HERR, nombres: {Molde: 'Moldes', Galga: 'Galgas'}}; },
+  dias(desde, hasta){
+    const MO = D.moldes, serie = MO.diaria || [], primero = serie.length ? serie[0].fecha : D.hoy;
+    return diasRango(desde, hasta).map(d => {
+      const x = serie.find(s => s.fecha === d.iso), futuro = d.iso > D.hoy, segs = (x && x.segs) || {};
+      return {etiqueta: d.iso === D.hoy ? t('hoy') : fCorta(d.iso), nombre: fLarga(d.iso), segs, total: x ? x.total : 0, futuro,
+              enCurso: d.iso === D.hoy, nota: futuro ? '' : d.iso < primero ? 'sin dato' : d.festivo ? 'Festivo' : d.domingo ? 'Domingo' : ''};
+    });
+  },
+  periodos(vista){
+    const MO = D.moldes;
+    if(vista === 'diaria'){ const l = lunesDe(D.hoy); return this.dias(l, sumarDias(l, 6)); }
+    const primero = (MO.diaria && MO.diaria.length) ? MO.diaria[0].fecha : '9999';
+    return MO[vista].map(p => {
+      const mensual = vista === 'mensual', mes = mensual ? MESES[+p.etiqueta.slice(5) - 1] : '';
+      return {etiqueta: mensual ? mes.slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
+              nombre: mensual ? `${mes} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
+              segs: p.segs, total: p.total, enCurso: p.en_curso, desde: p.desde, hasta: p.hasta,
+              detalle: !mensual && p.desde >= primero};   // el detalle por día existe para los últimos 30 días
+    });
+  },
+  mediana(vista){
+    const MO = D.moldes;
+    const xs = vista === 'diaria' ? (MO.diaria || []).filter(d => !d.hoy && d.lab).map(d => d.total)
+                                  : MO[vista].filter(p => !p.en_curso).map(p => p.total);
+    return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
+  },
+  dibujar(){ if(D.moldes) dibujarGraficaResumen(this); },
+};
+BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
+
+// Moldes en cola para el Resumen: con fecha (por fecha de entrega) y, aparte, los que no tienen fecha establecida
+// agrupados por vehículo (las fechas limbo de diciembre las agrupa el servidor en "sin_fecha").
+const limboMolde = d => !!d.entrega && d.entrega.slice(5, 7) === '12' && (fecha(d.entrega) - fecha(D.hoy)) / 864e5 > 30;
+const sinFechaMolde = d => !d.entrega;
+const piezaMolde = d => (d.rep || d.codigo || '').replace(/\s*#\d+\s*$/, '').trim() || '—';
 function tarjetaResumenMoldes(MO){
-  if(!MO) return `<article class="serv-largo pend" data-ir="moldes"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
-  const k = MO.kpis;
-  return `<article class="serv-largo" data-ir="moldes" tabindex="0">
-    <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver">${t('ver_detalle')}</span></div>
-    <div class="sl-grid">
-      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_cola')}</span></div>
-        <div class="val">${fmt(k.cola_dias,1)} <small>${t('dias')}</small></div>
-        <div class="desc">${fmt(k.horas)} h = ${fmt(k.turnos,1)} turnos ÷ ${fmt(k.matriceros)} matriceros</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_pend')}</span></div><div class="val">${fmt(k.pendientes)}</div><div class="desc">en ${fmt(MO.vehiculos.length)} vehículos</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_venc')}</span>${k.vencidos?'<span class="chip bad">▼ Atrasados</span>':'<span class="chip ok">▲ Al día</span>'}</div><div class="val" style="color:${k.vencidos?'var(--bad)':'inherit'}">${fmt(k.vencidos)}</div><div class="desc">pendientes con fecha de entrega vencida</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>${t('moldes_entregados')}</span></div><div class="val">${fmt(k.entregados_30)}</div><div class="desc">moldes y galgas con estatus OK</div></div>
+  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
+  const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde' && !limboMolde(d));
+  const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
+  const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
+  (MO.sin_fecha || []).forEach(x => { if(x.moldes) sinFecha[x.vehiculo] = Math.max(sinFecha[x.vehiculo] || 0, x.moldes); });
+  const fDMY = iso => { const f = fecha(iso); return `${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}/${f.getFullYear()}`; };
+  const filas = conFecha.map(d => `<tr><td>MOLDE</td><td class="veh" title="${esc(d.vehiculo)}">${esc(d.vehiculo)}</td><td class="num">${esc(piezaMolde(d))}</td>
+      <td style="${d.vencido ? 'color:var(--bad);font-weight:700' : ''}">${fDMY(d.entrega)}${d.vencido ? ' ▼' : ''}</td></tr>`).join('');
+  const sinF = Object.entries(sinFecha).map(([v, n]) => `<tr><td>MOLDE</td><td class="veh" title="${esc(v)}">${esc(v)}</td><td title="${fmt(n)} moldes">SET</td><td style="color:var(--text-soft)">SIN FECHA ESTABLECIDA</td></tr>`).join('');
+  return `<article class="serv-largo">
+    <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
+    <div class="ra-grid inv">
+      ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
+      <div class="kpi ra-chart ra-tabla">
+        <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(conFecha.length)}</span></div>
+        <div class="tabla"><table><thead><tr><th>Herramental</th><th>Vehículo</th><th>Pieza</th><th>Fecha de entrega</th></tr></thead><tbody>
+          ${filas || `<tr><td colspan="4" style="color:var(--muted)">Sin moldes con fecha de entrega</td></tr>`}
+          ${sinF ? `<tr class="sep-fila"><td colspan="4">Desarrollos pendientes por diseño</td></tr>${sinF}` : ''}</tbody></table></div>
+      </div>
     </div></article>`;
 }
 
 function vistaMoldes(MO){
   if(!MO) return `<section class="vista" id="v-moldes" hidden><div class="aviso warn">⚠ Todavía no hay datos de "Fila de moldes.xlsx". Revisa el estado de las fuentes al final de la página.</div></section>`;
-  const k = MO.kpis;
-  const calidad = k.sin_estatus ? `<div class="aviso warn" style="margin-top:12px">⚠ <span><b>${fmt(k.sin_estatus)}</b> de ${fmt(k.total_registros)} filas del Excel no tienen Estatus (ni OK ni Pendiente) y no entran en la cola.</span></div>` : '';
+  const k = MO.kpis, sem = k.semana || {};
+  // Días de fila = días laborales desde hoy hasta la última fecha de entrega (columna "Fecha entrega" del Excel)
+  const diasFila = k.dias_fila != null ? fmt(k.dias_fila) : fmt(k.cola_dias, 1);
+  const descFila = k.ultima_entrega ? `hasta el ${fLarga(k.ultima_entrega)} · última fecha de entrega` : `${fmt(k.turnos,1)} turnos entre ${fmt(k.matriceros)} matriceros`;
+  const descPend = k.pend_moldes != null ? `<b>${fmt(k.pend_moldes)}</b> moldes · <b>${fmt(k.pend_galgas)}</b> galgas · ${fmt(MO.vehiculos.length)} vehículos` : `${fmt(MO.vehiculos.length)} vehículos`;
+  const fabSem = k.semana_total != null
+    ? kpi('Fabricados esta semana', fmt(k.semana_total), 'herramentales', `<b>${fmt(sem.Molde || 0)}</b> moldes · <b>${fmt(sem.Galga || 0)}</b> galgas · semana pasada <b>${fmt(k.semana_pasada)}</b>`)
+    : kpi(t('moldes_entregados'), fmt(k.entregados_30), '', '');
+  const vencidos = MO.detalle.filter(d => d.vencido);
+  const tablaVenc = vencidos.length ? `<div class="panel" style="margin-top:14px"><div class="panel-head"><div><h3 style="color:var(--bad)">Herramentales vencidos</h3></div></div>
+    <div class="tabla"><table><thead><tr><th>Entrega</th><th>Herramental</th><th>Código</th><th>Vehículo</th><th>Tamaño</th><th class="n">Horas</th><th>Fabricante</th></tr></thead><tbody>${
+      vencidos.map(d => `<tr><td style="white-space:nowrap;color:var(--bad);font-weight:700">${d.entrega ? fCorta(d.entrega) : '—'} ▼</td><td>${esc(d.herramental)}</td><td class="num">${esc(d.codigo)} ${esc(d.rep || '')}</td><td>${esc(d.vehiculo)}</td><td>${esc(d.tamano || '—')}</td><td class="n">${fmt(d.horas)}</td><td>${esc(d.fabricante || '—')}</td></tr>`).join('')}</tbody></table></div></div>` : '';
   return `<section class="vista" id="v-moldes" hidden>
-  <h2 class="sec">${t('moldes_cola')} <small>misma cuenta del Excel: horas pendientes ÷ ${fmt(k.horas_turno)} h por turno ÷ matriceros</small></h2>
+  <h2 class="sec">Estado de la fila</h2>
   <div class="grid-kpi">
-    ${kpi(t('moldes_cola'), fmt(k.cola_dias,1), t('dias'), `${fmt(k.turnos,1)} turnos entre ${fmt(k.matriceros)} matriceros`, '', 'hero')}
-    ${kpi(t('moldes_pend'), fmt(k.pendientes), '', `${fmt(MO.vehiculos.length)} vehículos`)}
-    ${kpi(t('moldes_horas'), fmt(k.horas), 'h', 'Suma de la columna Tiempo de lo pendiente')}
-    ${kpi(t('moldes_venc'), fmt(k.vencidos), '', 'Pendientes con fecha de entrega ya pasada', k.vencidos?'<span class="chip bad">▼</span>':'<span class="chip ok">▲</span>')}
-    ${kpi(t('moldes_entregados'), fmt(k.entregados_30), '', 'Con estatus OK y fecha de entrega en los últimos 30 días')}
-  </div>${calidad}
-  <div class="grid-2">
-    <div class="panel"><div class="panel-head"><div><h3>${t('moldes_vehiculo')}</h3><p>Ordenados por la entrega más próxima. La barra es el tiempo en turnos.</p></div></div>
-      <div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span></div>
-      <div class="chart" id="ch-moldes-veh"></div></div>
-    <div class="panel"><div class="panel-head"><div><h3 id="moldes-serie-tit">${t('moldes_serie')}</h3><p>Herramentales con estatus OK por fecha de entrega.</p></div>
-      <div class="seg" id="moldes-vista"><button aria-pressed="true" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div></div>
-      <div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span></div>
-      <div class="chart" id="ch-moldes-serie"></div></div>
-  </div>
+    ${kpi(t('moldes_cola'), diasFila, t('dias'), descFila, '', 'hero')}
+    ${kpi(t('moldes_pend'), fmt(k.pendientes), 'herramentales', descPend)}
+    ${kpi(t('moldes_venc'), fmt(k.vencidos), '', '', k.vencidos?'<span class="chip bad">▼</span>':'<span class="chip ok">▲</span>')}
+    ${fabSem}
+  </div>${tablaVenc}
+  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3 id="moldes-serie-tit">${t('moldes_serie')}</h3></div>
+    <div class="seg" id="moldes-vista">${MO.diaria ? `<button aria-pressed="false" data-v="diaria">${t('diario')}</button>` : ''}<button aria-pressed="true" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div></div>
+    <div id="moldes-leyenda"></div>
+    <div class="chart" id="ch-moldes-serie"></div></div>
   <div class="grid-2">
     <div class="panel"><div class="panel-head"><div><h3>${t('moldes_detalle')}</h3></div></div>
       <div class="tabla"><table><thead><tr><th>Entrega</th><th>Herramental</th><th>Código</th><th>Vehículo</th><th>Tamaño</th><th class="n">Horas</th><th>Fabricante</th></tr></thead><tbody>${
@@ -1691,22 +2484,34 @@ function vistaMoldes(MO){
 function dibujarMoldes(){
   const MO = D && D.moldes; if(!MO || $('#v-moldes').hidden) return;
   document.querySelectorAll('#moldes-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMoldesSerie));
-  barrasH($('#ch-moldes-veh'), MO.vehiculos.map(v => ({etiqueta:v.vehiculo, valor:v.turnos, etiquetaValor:`${fmt(v.turnos,1)} t`,
-    segs:[{v:v.turnos * (v.moldes / Math.max(1, v.n)), color:COLOR_HERR.Molde}, {v:v.turnos * (v.galgas / Math.max(1, v.n)), color:COLOR_HERR.Galga}],
-    tip:`<b>${esc(v.vehiculo)}</b><div class="r"><span>Pendientes</span><span>${fmt(v.n)}</span></div><div class="r"><span>Moldes / Galgas</span><span>${fmt(v.moldes)} / ${fmt(v.galgas)}</span></div><div class="r"><span>Grandes / Pequeños</span><span>${fmt(v.grande)} / ${fmt(v.pequeno)}</span></div><div class="r"><span>Horas</span><span>${fmt(v.horas)}</span></div><div class="r"><span>Entrega más próxima</span><span>${v.entrega?fCorta(v.entrega):'—'}</span></div>`})),
-    {mL:230, vacio:'Sin herramentales pendientes', aria:'Pendientes por vehículo'});
   const op = {orden:['Molde','Galga','Otro'], colores:COLOR_HERR};
-  barrasApiladas($('#ch-moldes-serie'), MO[vistaMoldesSerie].map(p => ({
-    etiqueta: vistaMoldesSerie === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3),
-    segs:p.segs, total:p.total, sub: p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
-    tip: tipSegs(vistaMoldesSerie === 'semanal' ? `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})` : `${MESES[+p.etiqueta.slice(5)-1]} ${p.etiqueta.slice(0,4)}`, p.segs,
-      `<div class="r" style="margin-top:6px"><span>Horas</span><span>${fmt(p.horas)}</span></div>`, op)})), {...op, sub:true, alto:240, aria:'Herramentales entregados'});
+  const vista = MO[vistaMoldesSerie] ? vistaMoldesSerie : 'semanal', serie = MO[vista];
+  const nombre = p => vista === 'diaria' ? fLarga(p.fecha) : vista === 'semanal' ? `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})` : `${MESES[+p.etiqueta.slice(5)-1]} ${p.etiqueta.slice(0,4)}`;
+  const enCurso = p => vista === 'diaria' ? p.hoy : p.en_curso;
+  // mediana: días laborales / semanas cerradas / meses cerrados (igual que en mantenimiento)
+  const base = serie.filter(p => vista === 'diaria' ? (!p.hoy && p.lab) : !p.en_curso).map(p => p.total);
+  const med = medianaDe(base), unidad = vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes';
+  $('#moldes-leyenda').innerHTML = `<div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span>` +
+    (med != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana por ${unidad}</span>` : '') + '</div>';
+  barrasApiladas($('#ch-moldes-serie'), serie.map(p => ({
+    etiqueta: vista === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vista === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3),
+    segs:p.segs, total:p.total, sub: enCurso(p) ? 'en curso' : '', subColor:'var(--muted)',
+    tip: tipSegs(nombre(p) + (enCurso(p) ? ' · en curso' : ''), p.segs,
+      `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(p.total)}</span></div>` +
+      (p.horas != null ? `<div class="r"><span>Horas</span><span>${fmt(p.horas)}</span></div>` : ''), op)})),
+    {...op, sub:true, alto:260, aria:'Histórico de herramentales fabricados',
+     referencias: med != null ? [{valor: med, color:'var(--text)', etiqueta:`Mediana ${fmt(med)}`}] : []});
   barrasH($('#ch-moldes-fab'), MO.fabricantes_90.map(f => ({etiqueta:f.nombre, valor:f.n})), {mL:170, aria:'Quién fabricó'});
 }
 
 document.addEventListener('click', ev => {
   const c = ev.target.closest('#mant-cats .cat');
   if(c){ catMant = catMant === c.dataset.cat ? null : c.dataset.cat; dibujarMantenimiento(); return; }
+  const bv = ev.target.closest('#mat-vista button');
+  if(bv){ vistaMat = bv.dataset.v; zoomMat = null; dibujarMantenimiento(); return; }
+  const bmo = ev.target.closest('#mat-modo button');
+  if(bmo){ modoMat = bmo.dataset.m; dibujarMantenimiento(); return; }
+  if(ev.target.closest('#mat-volver')){ zoomMat = null; dibujarMantenimiento(); return; }
   const bm = ev.target.closest('#mant-vista button');
   if(bm){ vistaMant = bm.dataset.v; dibujarMantenimiento(); return; }
   const bs = ev.target.closest('#aceros-sub button');
@@ -1774,7 +2579,7 @@ document.querySelectorAll('[data-idioma]').forEach(b => b.addEventListener('clic
 }));
 document.getElementById('btn-tema').addEventListener('click', () => {
   const tema = document.documentElement.dataset.tema === 'claro' ? 'oscuro' : 'claro';
-  guardarPref('tablero-tema', tema); aplicarTema(tema);
+  guardarPref('tablero-tema', tema); aplicarTema(tema); if(D) render();
 });
 
 cargar();

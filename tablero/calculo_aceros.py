@@ -46,7 +46,7 @@ def calcular(hoy, R):
                 fila_pend.append((entrega, mat))
         if entrega and not nmi and tipo_op != "excluido" and not _fuera_de_meta(r["operario"]):
             hecho = fab is not None and fab <= entrega
-            compromisos.append((entrega, mat, hecho))
+            compromisos.append((entrega, mat, hecho, fab is not None and fab > entrega, fab))   # tarde = fabricado después
             if hoy - dt.timedelta(days=10) <= entrega < hoy:
                 comp_detalle.append({"entrega": entrega, "hecho": hecho, "mat": mat, "orden": r["orden"], "acero": r["acero"],
                                      "vehiculo": r["vehiculo"], "fab": fab.isoformat() if fab else None, "puesto": puesto})
@@ -70,11 +70,14 @@ def calcular(hoy, R):
         return dict(s)
 
     lunes_ayer = ayer - dt.timedelta(days=ayer.weekday())
-    inicio = min(dt.date(ayer.year, 1, 1), lunes_ayer - dt.timedelta(weeks=11))
+    # Las series llegan hasta HOY (día en curso, "hoy": True) para ver lo que se lleva fabricado; los % y el promedio
+    # de productividad se siguen calculando con días completos (hasta el día de referencia).
+    lunes_hoy = hoy - dt.timedelta(days=hoy.weekday())
+    inicio = min(dt.date(ayer.year, 1, 1), lunes_hoy - dt.timedelta(weeks=11))
     diaria, d = [], inicio
-    while d <= ayer:
+    while d <= hoy:
         ev = prod_por_dia.get(d, [])
-        diaria.append({"fecha": d.isoformat(), "segs": segs(ev), "total": len(ev),
+        diaria.append({"fecha": d.isoformat(), "segs": segs(ev), "total": len(ev), "hoy": d == hoy,
                        "eq": round(sum(e["eq"] for e in ev), 1), "lab": es_laboral(d),
                        "nota": "Festivo" if d in R.festivos else ("Domingo" if d.weekday() == 6 else "")})
         d += dt.timedelta(days=1)
@@ -88,37 +91,46 @@ def calcular(hoy, R):
 
     semanal = []
     for k in range(11, -1, -1):
-        ini = lunes_ayer - dt.timedelta(weeks=k)
+        ini = lunes_hoy - dt.timedelta(weeks=k)
         fin = ini + dt.timedelta(days=6)
-        ev = [e for e in fab_events if ini <= e["fecha"] <= min(fin, ayer)]
+        ev = [e for e in fab_events if ini <= e["fecha"] <= min(fin, hoy)]
         semanal.append({"etiqueta": f"Sem {ini.isocalendar()[1]}", "desde": ini.isoformat(), "hasta": fin.isoformat(),
                         "segs": segs(ev), "total": len(ev), "eq": round(sum(e["eq"] for e in ev), 1),
                         "meta": dias_lab(ini, fin) * meta_dia, "dias_lab": dias_lab(ini, fin),
                         "dias_lab_total": sum(es_laboral(ini + dt.timedelta(days=j)) for j in range(7)),
-                        "en_curso": fin > ayer})
+                        "hoy_total": sum(1 for e in ev if e["fecha"] == hoy), "en_curso": fin >= hoy or fin > ayer})
     mensual = []
-    for mes in range(1, ayer.month + 1):
-        ini = dt.date(ayer.year, mes, 1)
-        fin = dt.date(ayer.year + (mes == 12), mes % 12 + 1, 1) - dt.timedelta(days=1)
-        ev = [e for e in fab_events if ini <= e["fecha"] <= min(fin, ayer)]
+    for mes in range(1, hoy.month + 1):
+        ini = dt.date(hoy.year, mes, 1)
+        fin = dt.date(hoy.year + (mes == 12), mes % 12 + 1, 1) - dt.timedelta(days=1)
+        ev = [e for e in fab_events if ini <= e["fecha"] <= min(fin, hoy)]
         mensual.append({"etiqueta": ini.strftime("%m"), "desde": ini.isoformat(), "hasta": fin.isoformat(),
                         "segs": segs(ev), "total": len(ev), "eq": round(sum(e["eq"] for e in ev), 1),
-                        "meta": dias_lab(ini, fin) * meta_dia, "dias_lab": dias_lab(ini, fin), "en_curso": fin > ayer})
+                        "meta": dias_lab(ini, fin) * meta_dia, "dias_lab": dias_lab(ini, fin),
+                        "hoy_total": sum(1 for e in ev if e["fecha"] == hoy), "en_curso": fin >= hoy or fin > ayer})
 
-    comp_dia = defaultdict(lambda: {"total": 0, "hechos": 0, "segs": defaultdict(int)})
-    for d, mat, hecho in compromisos:
+    comp_dia = defaultdict(lambda: {"total": 0, "hechos": 0, "tarde": 0, "segs": defaultdict(int),
+                                    "segs_tarde": defaultdict(int), "entregas": defaultdict(int)})
+    for d, mat, hecho, tarde, fab in compromisos:
         c = comp_dia[d]
         c["total"] += 1
         if hecho:
             c["hechos"] += 1
             c["segs"][mat] += 1
+        elif tarde:          # se fabricó, pero después de la fecha comprometida (cierra la barra con su material)
+            c["tarde"] += 1
+            c["segs_tarde"][mat] += 1
+        if fab:              # en qué fecha se entregó realmente lo comprometido para este día
+            c["entregas"][fab.isoformat()] += 1
     # Solo hasta 30 días adelante: hay fechas de relleno muy lejanas (ej. 31-dic-2028) que no son compromisos reales.
     cumplimiento, d = [], hoy - dt.timedelta(days=335)
     while d <= hoy + dt.timedelta(days=30):
         c = comp_dia.get(d)
         if (c and c["total"]) or (d <= ayer and es_laboral(d)):
             cumplimiento.append({"fecha": d.isoformat(), "comprometidos": c["total"] if c else 0,
-                                 "hechos": c["hechos"] if c else 0, "segs": dict(c["segs"]) if c else {},
+                                 "hechos": c["hechos"] if c else 0, "tarde": c["tarde"] if c else 0,
+                                 "segs": dict(c["segs"]) if c else {}, "segs_tarde": dict(c["segs_tarde"]) if c else {},
+                                 "entregas": dict(c["entregas"]) if c else {},
                                  "futuro": d > ayer})
         d += dt.timedelta(days=1)
 
@@ -198,7 +210,8 @@ def calcular(hoy, R):
             "fecha": ayer.isoformat(), "fabricados": len(ev_ayer), "eq": round(sum(e["eq"] for e in ev_ayer), 1),
             "segs": segs(ev_ayer), "meta": meta_dia,
             "comprometidos": comp_dia[ayer]["total"], "comprometidos_hechos": comp_dia[ayer]["hechos"],
-            "comprometidos_segs": dict(comp_dia[ayer]["segs"]),
+            "comprometidos_segs": dict(comp_dia[ayer]["segs"]), "comprometidos_tarde": comp_dia[ayer]["tarde"],
+            "comprometidos_segs_tarde": dict(comp_dia[ayer]["segs_tarde"]),
             "no_cumplidos": sorted(({k: v for k, v in c.items() if k not in ("entrega", "hecho")}
                                     for c in comp_detalle if c["entrega"] == ayer and not c["hecho"]),
                                    key=lambda x: (x["fab"] is None, x["fab"] or "", str(x["orden"]))),
