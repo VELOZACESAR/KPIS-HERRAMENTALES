@@ -129,7 +129,9 @@ def vitros(hoy):
     for d in m["diaria"]:
         d["capacidad"] = capacidad.get(dt.date.fromisoformat(d["fecha"]))
     return {
-        "carga": len(carga), "carga_vitros": len({r["codigo_vitro"] for r in carga}),
+        # el mismo código de vitro (columna U, CODIGO_MALLAyVITRO) se repite en varias filas: la carga cuenta códigos únicos
+        "carga": len({(r["codigo_vitro"] or "").strip() or r["orden"] for r in carga}), "carga_filas": len(carga),
+        "carga_vitros": len({r["codigo_vitro"] for r in carga}),
         "en_curso": sum(1 for r in hechos if norm(r["estatus"]) == "REALIZADO"),
         "inventario_vitros": len({r["codigo_vitro"] for r in cal if norm(r["status_vitrojet"]) == "EXISTE"}),
         "detalle": sorted(({"orden": r["orden"], "vitro": r["codigo_vitro"], "componente": r["denominacion"],

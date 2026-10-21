@@ -2235,7 +2235,7 @@ function dibujarMantenimiento(){
 const BLOQUES_SERI = [
   {id:'logos', titulo:'Vitros logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
    reglaCarga:'Logo DISPONIBLE y sin NOMBRE_ARCHIVO. Prioridad = tiene Plan de corte (día/turno).'},
-  {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros', capManual:'cap-vitros',
+  {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
    reglaCarga:'Calendario sin Ingeniería y STATUS VITROJET = NO EXISTE. La capacidad sale de Indicadores diarios.'},
   {id:'pasta_plata', titulo:'Vitros pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros', capManual:'cap-pasta-plata',
    reglaCarga:'Puesto en Planeación, Corte, CNC, Serigrafía o Vitrificado e INVENTARIO_3 = CREAR_VITRO.'},
@@ -2313,7 +2313,8 @@ function detalleSeri(b, X){
     filas = X.vitros.map(v => `<tr><td>${esc(v.vitro)}</td><td>${esc(v.tipo||'—')}</td><td class="n">${fmt(v.ordenes)}</td><td>${esc(v.vehiculos.join(', '))}</td><td>${esc(v.puestos.join(', '))}</td></tr>`).join('');
   }
   const n = b.id === 'pasta_plata' ? X.vitros.length : X.detalle.length;
-  return `<div class="panel" style="margin-top:16px"><details ${n && n <= 15 ? 'open' : ''}><summary>Detalle de la carga (${fmt(n)})</summary>
+  const cuenta = b.id === 'vitros' ? `${fmt(X.carga)} vitros · ${fmt(n)} órdenes` : fmt(n);   // vitros: códigos únicos (columna U)
+  return `<div class="panel" style="margin-top:16px"><details ${n && n <= 15 ? 'open' : ''}><summary>Detalle de la carga (${cuenta})</summary>
     <div class="tabla">${n ? `<table><thead><tr>${cab}</tr></thead><tbody>${filas}</tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`}</div></details></div>`;
 }
 
@@ -2388,9 +2389,9 @@ function dibujarVitrosCarga(S, b, e, cont){
   const X = S.vitros, zoom = e.vista === 'semanal' && e.zoom, ser = X.serie || {}, hist = S.historial || {};
   document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
   $('#vol-seri-' + b.id).hidden = !zoom;
-  const capManual = valorManual(b.capManual, null), capIndic = {};
+  const capIndic = {};   // capacidad solo de Indicadores diarios (sin casilla manual)
   ((S.retenidas && S.retenidas.serie) || []).forEach(d => { if(d.capacidad != null) capIndic[d.fecha] = d.capacidad; });
-  const capDia = iso => capIndic[iso] != null ? capIndic[iso] : (capManual && esDiaProductivo(iso) && iso <= D.hoy ? capManual : null);
+  const capDia = iso => capIndic[iso] != null ? capIndic[iso] : null;
   const capRangoV = (desde, hasta) => { let s = 0, hay = false; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = capDia(d.iso); if(c != null){ s += c; hay = true; } }); return hay ? s : null; };
   const pendFin = iso => iso === D.hoy ? X.carga : (hist[iso] && hist[iso].seri_carga_vitros != null ? hist[iso].seri_carga_vitros : null);
   const nombres = [...new Set(['diaria', 'semanal', 'mensual'].flatMap(v => (ser[v] || []).flatMap(p => Object.keys(p.segs || {}))))];
