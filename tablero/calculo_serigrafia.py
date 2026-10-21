@@ -150,6 +150,9 @@ def vitros(hoy):
         return None
     # carga = lo que en CAL. VITROJET dice NO EXISTE, sin el puesto de trabajo Ingeniería (regla del área, 2026-10-21)
     carga = [r for r in cal if norm(r["status_vitrojet"]) == "NO EXISTE" and norm(r["puesto_trabajo"]) != "INGENIERIA"]
+    # CAL. VITROJET tarda en pasar a EXISTE lo que ya se hizo: un vitro con estatus OK en CARGA VITROS ya no está pendiente
+    vitros_hechos = {(r["vitro"] or "").strip() for r in hechos if norm(r["estatus"]) == "OK" and (r["vitro"] or "").strip()}
+    carga = [r for r in carga if (r["codigo_vitro"] or "").strip() not in vitros_hechos]
     ok = [(r["fecha"], _persona(r["responsable"])) for r in hechos if norm(r["estatus"]) == "OK"]
     capacidad = {r["fecha"]: r["capacidad"] for r in ind if r["fecha"] and r["capacidad"] is not None}
     m = _matriz(ok, hoy)
@@ -174,10 +177,14 @@ def vitros(hoy):
 def pasta_plata(hoy):
     consulta = db.consultar("""SELECT orden, zfer, vehiculo, cliente, puesto_trabajo, componente, descripcion, denominacion,
                                       inventario_3 FROM cesar.seri_pp_consulta""")
-    archivos = db.consultar("SELECT fecha, herramental, estatus_vitro, responsable FROM cesar.seri_pp_archivos")
+    archivos = db.consultar("SELECT fecha, zfer, herramental, estatus_vitro, responsable FROM cesar.seri_pp_archivos")
     if not consulta and not archivos:
         return None
     carga = [r for r in consulta if norm(r["puesto_trabajo"]) in PUESTOS_PASTA_PLATA and norm(r["inventario_3"]) == "CREAR_VITRO"]
+    # Consulta_Mallas tarda en quitar lo que ya se hizo: un ZFER con estatus OK en Archivos PP ya no está pendiente
+    # (si no, la carga del día contaba dos veces lo hecho hoy: 6 pendientes + 5 hechos = 11 en vez de 6)
+    zfer_hechos = {(r["zfer"] or "").strip() for r in archivos if norm(r["estatus_vitro"]) == "OK" and (r["zfer"] or "").strip()}
+    carga = [r for r in carga if (r["zfer"] or "").strip() not in zfer_hechos]
     por_vitro = defaultdict(list)
     for r in carga:
         por_vitro[r["denominacion"] or r["componente"]].append(r)
