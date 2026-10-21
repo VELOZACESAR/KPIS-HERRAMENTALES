@@ -71,6 +71,19 @@ def _ultimo(filas, hoy):
     return max(previas, key=lambda r: (r["fecha"], r["fila"])) if previas else None
 
 
+def _capacidades(columna):
+    """Capacidad diaria de Indicadores diarios (hoja Vitrojet) por fecha, para la columna dada."""
+    filas = db.consultar(f"SELECT fecha, {columna} AS cap FROM cesar.seri_ind_vitrojet WHERE fecha IS NOT NULL AND {columna} IS NOT NULL")
+    return {r["fecha"]: r["cap"] for r in filas}
+
+
+def _con_capacidad(m, hechos, hoy, capacidad):
+    m["serie"] = _series(hechos, hoy, capacidad)
+    for d in m["diaria"]:
+        d["capacidad"] = capacidad.get(dt.date.fromisoformat(d["fecha"]))
+    return m
+
+
 def logos(hoy):
     filas = db.consultar("""SELECT orden, logo, tipo_logo, inv_status, vehiculo, cliente, puesto_trabajo, fecha_lib_toc,
                                    nombre_archivo, prioridad, estado, responsable, plan_corte FROM cesar.seri_logos""")
@@ -100,7 +113,7 @@ def logos(hoy):
                             "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None} for r in carga),
                           key=lambda x: (not x["prioridad"], x["toc"] or "9")),
         "hechos_por_persona": dict(hechos),
-        **_matriz(diarios, hoy), "serie": _series(diarios, hoy),
+        **_con_capacidad(_matriz(diarios, hoy), diarios, hoy, _capacidades("cap_logo")),
     }
 
 
@@ -108,16 +121,11 @@ def vitros(hoy):
     cal = db.consultar("""SELECT orden, zfer, puesto_trabajo, fecha_lib_toc, vehiculo, descripcion, componente, denominacion,
                                  codigo_vitro, status_vitrojet FROM cesar.seri_vitro_cal""")
     hechos = db.consultar("SELECT fecha, vitro, vehiculo, tipo, estatus, responsable FROM cesar.seri_vitro_hechos")
-    ind = db.consultar("SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad FROM cesar.seri_ind_vitrojet")
     if not cal and not hechos:
         return None
     carga = [r for r in cal if norm(r["puesto_trabajo"]) != "INGENIERIA" and norm(r["status_vitrojet"]) == "NO EXISTE"]
     ok = [(r["fecha"], _persona(r["responsable"])) for r in hechos if norm(r["estatus"]) == "OK"]
-    capacidad = {r["fecha"]: r["capacidad"] for r in ind if r["fecha"] and r["capacidad"] is not None}
-    m = _matriz(ok, hoy)
-    m["serie"] = _series(ok, hoy, capacidad)
-    for d in m["diaria"]:
-        d["capacidad"] = capacidad.get(dt.date.fromisoformat(d["fecha"]))
+    m = _con_capacidad(_matriz(ok, hoy), ok, hoy, _capacidades("capacidad"))
     return {
         "carga": len(carga), "carga_vitros": len({r["codigo_vitro"] for r in carga}),
         "en_curso": sum(1 for r in hechos if norm(r["estatus"]) == "REALIZADO"),
@@ -152,13 +160,14 @@ def pasta_plata(hoy):
                            "vehiculos": sorted({r["vehiculo"] or "—" for r in rs}),
                            "puestos": sorted({r["puesto_trabajo"] for r in rs})} for v, rs in por_vitro.items()),
                          key=lambda x: -x["ordenes"]),
-        **_matriz(ok, hoy), "serie": _series(ok, hoy),
+        **_con_capacidad(_matriz(ok, hoy), ok, hoy, _capacidades("cap_pp")),
     }
 
 
 def retenidas(hoy):
     pp = "vitros_pp" if db.consultar("SELECT COL_LENGTH('cesar.seri_ind_vitrojet', 'vitros_pp') AS n")[0]["n"] else "NULL AS vitros_pp"
-    vit = db.consultar(f"SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad, {pp} FROM cesar.seri_ind_vitrojet WHERE fecha IS NOT NULL")
+    vit = db.consultar(f"""SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad, {pp}, ret_logo, ret_estandar, ret_pp
+                           FROM cesar.seri_ind_vitrojet WHERE fecha IS NOT NULL""")
     mal = db.consultar(f"SELECT fila, fecha, mallas, logos, trazabilidades, piezas_quietas, {pp} FROM cesar.seri_ind_mallas WHERE fecha IS NOT NULL")
     if not vit and not mal:
         return None
@@ -174,13 +183,19 @@ def retenidas(hoy):
             serie[r["fecha"]].update(malla_quietas=r["piezas_quietas"] or 0, mallas=r["mallas"] or 0, logos=r["logos"] or 0,
                                      trazabilidades=r["trazabilidades"] or 0)
     v = lambda fila, campo: (fila or {}).get(campo) or 0
+    # "Vitros nuevos" salió del Excel en oct-2026: si no viene, se cuenta lo hecho hoy en CARGA VITROS.
+    nuevos = (uv or {}).get("vitros_nuevos")
+    if nuevos is None:
+        nuevos = db.consultar("SELECT COUNT(*) AS n FROM cesar.seri_vitro_hechos WHERE fecha = ? AND UPPER(LTRIM(RTRIM(estatus))) = 'OK'",
+                              hoy)[0]["n"]
     return {
         "fecha_vitrojet": uv["fecha"].isoformat() if uv else None, "fecha_mallas": um["fecha"].isoformat() if um else None,
         "falta_archivo": v(uv, "piezas_quietas"), "falta_malla": v(um, "piezas_quietas"),
+        "falta_archivo_tipo": {"Logos": v(uv, "ret_logo"), "Estándar": v(uv, "ret_estandar"), "Pasta de plata": v(uv, "ret_pp")},
         "total": v(uv, "piezas_quietas") + v(um, "piezas_quietas"),
         "screens": {"mallas": v(um, "mallas"), "logos": v(um, "logos"), "trazabilidades": v(um, "trazabilidades")},
         "screens_total": v(um, "mallas") + v(um, "logos") + v(um, "trazabilidades"),
-        "vitros_nuevos": v(uv, "vitros_nuevos"), "capacidad_vitros": (uv or {}).get("capacidad"),
+        "vitros_nuevos": nuevos, "capacidad_vitros": (uv or {}).get("capacidad"),
         "serie": [{"fecha": f.isoformat(), **d} for f, d in sorted(serie.items())],
         # carga del día de pasta de plata escrita en el Excel (columna "Vitros PP"), por fecha
         "carga_pp": {r["fecha"].isoformat(): r["vitros_pp"] for r in vit + mal if r["vitros_pp"] is not None},

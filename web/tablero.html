@@ -2251,7 +2251,7 @@ function vistaSerigrafia(S){
   const ret = r ? `
   <h2 class="sec">Estado de serigrafía <small>${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
   <div class="grid-kpi">
-    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Falta de archivo <b>${fmt(r.falta_archivo)}</b> · Falta de malla <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
+    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Falta de archivo <b>${fmt(r.falta_archivo)}</b>${r.falta_archivo_tipo ? ' (' + Object.entries(r.falta_archivo_tipo).map(([k, n]) => `${k} ${fmt(n)}`).join(' · ') + ')' : ''} · Falta de malla <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
     ${kpi('Screens en fabricación', fmt(r.screens_total), '', `Trazabilidades <b>${fmt(r.screens.trazabilidades)}</b> · Mallas <b>${fmt(r.screens.mallas)}</b> · Logos <b>${fmt(r.screens.logos)}</b>`)}
     ${(() => { const vl = S.logos ? S.logos.carga : 0, ve = S.vitros ? S.vitros.carga_vitros : 0, vp = S.pasta_plata ? S.pasta_plata.carga : 0;
       return kpi('Archivos Vitrojet en fabricación', fmt(vl + ve + vp), '', `Vitros logo <b>${fmt(vl)}</b> · Estándar <b>${fmt(ve)}</b> · PP <b>${fmt(vp)}</b>`); })()}
@@ -2345,18 +2345,21 @@ function dibujarBloqueSeri(S, b){
   // carga: pasta de plata = "Vitros PP" de Indicadores diarios; los demás = foto diaria (hoy en vivo)
   const hist = S.historial || {}, indCarga = {logos:'seri_carga_logos', vitros:'seri_carga_vitros', pasta_plata:'seri_carga_pp_comp'}[b.id];
   const cargaPP = (S.retenidas && S.retenidas.carga_pp) || {};
-  const cargaDia = iso => b.id === 'pasta_plata' ? (cargaPP[iso] != null ? cargaPP[iso] : null)
+  const usaCargaPP = b.id === 'pasta_plata' && Object.keys(cargaPP).length > 0;
+  const cargaDia = iso => usaCargaPP ? (cargaPP[iso] != null ? cargaPP[iso] : null)
     : iso === D.hoy ? X.carga : (hist[iso] && hist[iso][indCarga] != null ? hist[iso][indCarga] : null);
   const cargaRango = (desde, hasta) => { let v = null; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = cargaDia(d.iso); if(c != null) v = c; }); return v; };
-  const capRangoSeri = p => b.id === 'vitros' ? p.capacidad
+  // capacidad: la de Indicadores diarios (por tipo de vitro) y, si el Excel no la trae, la que se escribe a mano
+  const capRangoSeri = p => p.capacidad != null ? p.capacidad
     : capManual ? capManual * diasRango(p.desde, p.hasta).filter(d => esProductivo(d.iso)).length : null;
+  const hayCapExcel = [...(ser.diaria || [])].some(d => d.capacidad != null);
   let periodos;
   if(zoom) periodos = (ser.diaria || []).filter(d => d.fecha >= e.zoom.desde && d.fecha <= e.zoom.hasta && esProductivo(d.fecha));
   else if(e.vista === 'diaria') periodos = (ser.diaria || []).filter(d => esProductivo(d.fecha));
   else periodos = ser[e.vista] || [];
   const porDia = zoom || e.vista === 'diaria', mensual = e.vista === 'mensual' && !zoom;
   const filas = periodos.map(p => {
-    const cap = porDia ? (b.id === 'vitros' ? p.capacidad : capManual) : capRangoSeri(p);
+    const cap = porDia ? (p.capacidad != null ? p.capacidad : capManual) : capRangoSeri(p);
     const carga = porDia ? cargaDia(p.fecha) : cargaRango(p.desde, p.hasta);
     const etiqueta = porDia ? (p.fecha === D.hoy ? t('hoy') : fCorta(p.fecha)) : mensual ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S');
     const nombre = porDia ? fLarga(p.fecha) : mensual ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`;
@@ -2370,8 +2373,8 @@ function dibujarBloqueSeri(S, b){
   });
   $('#tit-seri-' + b.id).textContent = zoom ? `Producción vs. capacidad · ${e.zoom.titulo}` : porDia ? 'Producción diaria vs. capacidad' : `Producción ${e.vista === 'semanal' ? 'semanal' : 'mensual'} vs. capacidad`;
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
-    `<span><i class="linea" style="background:var(--text)"></i>Carga${b.id === 'pasta_plata' ? ' (Indicadores diarios · Vitros PP)' : ''}</span>` +
-    (capManual || b.id === 'vitros' ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : '') + '</div>';
+    `<span><i class="linea" style="background:var(--text)"></i>Carga${usaCargaPP ? ' (Indicadores diarios · Vitros PP)' : ''}</span>` +
+    (capManual || hayCapExcel ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : '') + '</div>';
   barrasApiladas(cont, filas.map(x => x.item), {...op, sub: true, alto: 260, metaRoja: true, aria: 'Producción vs. capacidad',
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = periodos[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`}; dibujarBloqueSeri(S, b); } : null,
     lineas: [{vals: filas.map(x => x.carga), color: 'var(--text)', etiquetas: 'todas'}]});

@@ -130,18 +130,27 @@ VITROS_PP = ["Vitros PP", "Vitro PP", "Carga vitros PP", "Vitros pasta de plata"
 
 def leer_indicadores_diarios(ruta: Path):
     vitro, mallas = _leer(ruta, "VITROJET", "MALLAS")
-    # En oct-2026 "Vitros nuevos" se partió en Vitros Estandar / Vitros Logo / Vitros PP: los normales son los estándar.
-    h, c = _tabla(vitro, ["Fecha", "Piezas quietas"], {
-        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos", "Vitros Estandar", "Vitros estándar"], "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad"],
-        "vitros_pp": VITROS_PP,
-    }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"])
+    # Oct-2026: la hoja Vitrojet pasó a capacidad y retenidas por tipo de vitro (logo / estándar / pasta de plata).
+    # Se aceptan también los nombres viejos para poder releer versiones anteriores del Excel.
+    h, c = _tabla(vitro, ["Fecha"], {
+        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos", "Vitros Estandar", "Vitros estándar"],
+        "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad Vitros Estandar", "Capacidad"],
+        "cap_logo": ["Capacidad Vitros Logo"], "cap_pp": ["Capacidad Vitros Pasta de Plata"],
+        "ret_logo": ["Retenidas Vitros Logos", "Retenidas Vitros Logo"], "ret_estandar": ["Retenidas Vitros Estandar"],
+        "ret_pp": ["Retenidas Vitros Pasta de Plata"], "vitros_pp": VITROS_PP,
+    }, obligatorias=["fecha"])
+    if "piezas_quietas" not in c and not any(k in c for k in ("ret_logo", "ret_estandar", "ret_pp")):
+        raise ValueError("La hoja Vitrojet no trae ni 'Piezas quietas' ni columnas de 'Retenidas Vitros ...'")
     salida_v = []
     for i, r in enumerate(vitro[h + 1:], start=h + 2):
         f = fecha(_celda(r, c["fecha"]))
         if f is None:
             continue
-        salida_v.append((i, f, numero(_celda(r, c["vitros_nuevos"])), numero(_celda(r, c["piezas_quietas"])),
-                         numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("vitros_pp")))))
+        g = lambda campo: numero(_celda(r, c.get(campo)))
+        rets = [g(k) for k in ("ret_logo", "ret_estandar", "ret_pp")]
+        quietas = g("piezas_quietas") if "piezas_quietas" in c else (sum(x or 0 for x in rets) if any(x is not None for x in rets) else None)
+        salida_v.append((i, f, g("vitros_nuevos"), quietas, g("capacidad"), g("vitros_pp"),
+                         g("cap_logo"), g("cap_pp"), *rets))
     h, c = _tabla(mallas, ["Fecha", "Piezas quietas"], {
         "fecha": ["Fecha"], "mallas": ["Mallas en fabricacion"], "logos": ["Logos en fabricacion"],
         "trazabilidades": ["Trazabilidades en fabricacion"], "piezas_quietas": ["Piezas quietas"],
@@ -155,7 +164,8 @@ def leer_indicadores_diarios(ruta: Path):
         salida_m.append((i, f, numero(_celda(r, c["mallas"])), numero(_celda(r, c["logos"])),
                          numero(_celda(r, c["trazabilidades"])), numero(_celda(r, c["piezas_quietas"])),
                          numero(_celda(r, c.get("vitros_pp")))))
-    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp"], salida_v),
+    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp",
+                                       "cap_logo", "cap_pp", "ret_logo", "ret_estandar", "ret_pp"], salida_v),
             "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas", "vitros_pp"],
                                       salida_m)}, {}
 
