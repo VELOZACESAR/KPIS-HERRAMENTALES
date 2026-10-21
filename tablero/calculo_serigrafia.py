@@ -162,6 +162,9 @@ def vitros(hoy):
     return {
         # el mismo código de vitro (columna U, CODIGO_MALLAyVITRO) se repite en varias filas: la carga cuenta códigos únicos
         "carga": len({(r["codigo_vitro"] or "").strip() or r["orden"] for r in carga}), "carga_filas": len(carga),
+        # carga del día = lo pendiente + lo que está en CARGA VITROS con fecha de hoy (cualquier estatus), código sin repetir
+        "carga_dia": len({(r["codigo_vitro"] or "").strip() or r["orden"] for r in carga} |
+                         {(r["vitro"] or "").strip() for r in hechos if r["fecha"] == hoy and (r["vitro"] or "").strip()}),
         "carga_vitros": len({r["codigo_vitro"] for r in carga}),
         "en_curso": sum(1 for r in hechos if norm(r["estatus"]) == "REALIZADO"),
         "inventario_vitros": len({r["codigo_vitro"] for r in cal if norm(r["status_vitrojet"]) == "EXISTE"}),
@@ -195,6 +198,10 @@ def pasta_plata(hoy):
     return {
         # el mismo ZFER (columna C de Consulta_Mallas) se repite en varias filas: la carga cuenta ZFER únicos (regla del área, 2026-10-21)
         "carga": len({(r["zfer"] or "").strip() or r["orden"] for r in carga}), "carga_ordenes": len(carga),
+        # carga del día = lo pendiente + lo que está en Archivos PP con fecha de hoy (cualquier estatus), ZFER sin repetir:
+        # lo que se hizo o salió de Consulta_Mallas durante el día sigue contando en la carga de hoy
+        "carga_dia": len({(r["zfer"] or "").strip() or r["orden"] for r in carga} |
+                         {(r["zfer"] or "").strip() for r in archivos if r["fecha"] == hoy and (r["zfer"] or "").strip()}),
         "carga_componentes": len({(r["componente"] or "").strip() or r["orden"] for r in carga}),
         "carga_vitros": len(por_vitro),
         "en_curso": sum(1 for r in archivos if norm(r["estatus_vitro"]) == "REALIZANDO"),

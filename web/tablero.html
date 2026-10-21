@@ -2391,9 +2391,9 @@ function datosSeri(S, b){
 const CARGA_SERI = {
   // logos: lo hecho sale de la hoja Historico (FechaCreacion, estado OK) por responsable
   logos:       {titulo: 'Procesamiento de vitros logos', capacidad: 'capacidad_logos', fotos: ['seri_carga_logos_plan']},
-  vitros:      {titulo: 'Procesamiento de vitros', capacidad: 'capacidad', fotos: ['seri_carga_vitros']},
+  vitros:      {titulo: 'Procesamiento de vitros', capacidad: 'capacidad', fotos: ['seri_carga_vitros'], fotoDia: 'seri_carga_vitros_dia'},
   // antes del 21-oct la foto guardaba componentes únicos: sirve de respaldo para los días anteriores
-  pasta_plata: {titulo: 'Procesamiento de vitros pasta de plata', capacidad: 'capacidad_pp', fotos: ['seri_carga_pp_zfer', 'seri_carga_pp_comp']},
+  pasta_plata: {titulo: 'Procesamiento de vitros pasta de plata', capacidad: 'capacidad_pp', fotos: ['seri_carga_pp_zfer', 'seri_carga_pp_comp'], fotoDia: 'seri_carga_pp_dia'},
 };
 function dibujarVitrosCarga(S, b, e, cont){
   const C = CARGA_SERI[b.id], X = S[b.id], zoom = e.vista === 'semanal' && e.zoom, ser = X.serie || {}, hist = S.historial || {};
@@ -2415,7 +2415,10 @@ function dibujarVitrosCarga(S, b, e, cont){
   if(porDia){
     per = (ser.diaria || []).filter(d => (!zoom || (d.fecha >= e.zoom.desde && d.fecha <= e.zoom.hasta)) && diaVisible(d.fecha, d.total + (pendFin(d.fecha) || 0)))
       .map(d => { const pend = pendFin(d.fecha);
-        return {segs: d.segs || {}, total: d.total, carga: pend == null ? null : pend + d.total, cap: capDia(d.fecha),
+        // carga del día ya calculada (pendiente + lo del día en la hoja de trabajo, sin repetir): hoy del servidor, antes de la foto
+        const dia = d.fecha === D.hoy ? X.carga_dia : C.fotoDia && hist[d.fecha] ? hist[d.fecha][C.fotoDia] : null;
+        const carga = dia != null ? Math.max(dia, d.total) : pend == null ? null : pend + d.total;
+        return {segs: d.segs || {}, total: d.total, carga, cap: capDia(d.fecha),
                 etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), nombre: fLarga(d.fecha), enCurso: d.hoy}; });
   } else {
     per = (ser[e.vista] || []).map(p => { const c = capRangoV(p.desde, p.hasta);
