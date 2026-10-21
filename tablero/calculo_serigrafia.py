@@ -106,13 +106,17 @@ def logos(hoy):
 
 
 def _hechos_logos(hoy):
-    """[(fecha, persona)] de logos hechos: hoja "Historico" (FechaCreacion, ESTADO OK) por responsable.
-    Si la tabla aún no existe, respaldo con la diferencia entre fotos diarias de lo hecho por persona."""
-    if db.consultar("SELECT OBJECT_ID('cesar.seri_logos_hechos') AS n")[0]["n"]:
-        filas = db.consultar("SELECT fecha, responsable, n FROM cesar.seri_logos_hechos WHERE fecha >= ?", hoy - dt.timedelta(days=400))
-        if filas:
-            # "ASIGNADO" u otro estado en vez de nombre: el logo sí está hecho, va como "Sin responsable"
-            return [(r["fecha"], _persona(r["responsable"]) or "Sin responsable") for r in filas for _ in range(r["n"])]
+    """[(fecha, persona)] de logos hechos: hoja "Historico" del Excel (FechaCreacion, ESTADO OK) por responsable, leída
+    directo del archivo. Si el Excel no está en este equipo, respaldo con la diferencia entre fotos diarias por persona."""
+    from .fuentes_serigrafia import historico_logos
+    try:
+        conteo = historico_logos()
+    except Exception:
+        conteo = None
+    if conteo:
+        desde = hoy - dt.timedelta(days=400)
+        # "ASIGNADO" u otro estado en vez de nombre: el logo sí está hecho, va como "Sin responsable"
+        return [(f, _persona(p) or "Sin responsable") for (f, p), n in conteo.items() if f >= desde for _ in range(n)]
     fotos = db.consultar("SELECT fecha, indicador, valor FROM cesar.foto_diaria WHERE indicador LIKE 'logos_hechos:%' AND fecha >= ?",
                          hoy - dt.timedelta(days=DIAS_MATRIZ + 1))
     por_dia = defaultdict(dict)

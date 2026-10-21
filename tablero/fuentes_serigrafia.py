@@ -54,25 +54,48 @@ def leer_logos(ruta: Path):
                        fecha(_celda(r, c.get("fecha_lib_toc"))), g("nombre_archivo", 400), g("prioridad", 40), g("estado", 40),
                        g("responsable", 80), g("plan_corte", 80), g("fullkit", 60)))
     return {"cesar.seri_logos": (COLUMNAS_LOGOS, salida),
-            "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], _leer_grafica_logos(ruta)),
-            "cesar.seri_logos_hechos": (["fila", "fecha", "responsable", "n"], _leer_historico_logos(ruta))}, {}
+            "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], _leer_grafica_logos(ruta))}, {}
+
+
+_HISTORICO_LOGOS = {}   # caché: {(ruta, fecha de modificación): conteo}
+
+
+def historico_logos():
+    """Hoja "Historico" del Excel de logos, leída directo del archivo (sin pasar por la base): un logo hecho por fila
+    (FechaCreacion, RESPONSABLE, ESTADO). Devuelve {(fecha, responsable): logos con ESTADO = OK}, o None si el archivo
+    no está en este equipo. Se vuelve a leer solo cuando el Excel cambia."""
+    from .config import ruta_fuente
+    ruta = _HISTORICO_LOGOS.get("ruta")
+    if ruta is None or not ruta.exists():
+        ruta = _HISTORICO_LOGOS["ruta"] = ruta_fuente("logos")
+    if ruta is None or not ruta.exists():
+        return None
+    clave = (str(ruta), ruta.stat().st_mtime)
+    if clave not in _HISTORICO_LOGOS:
+        _HISTORICO_LOGOS.clear()
+        _HISTORICO_LOGOS["ruta"] = ruta
+        _HISTORICO_LOGOS[clave] = _leer_historico_logos(ruta)
+    return _HISTORICO_LOGOS[clave]
 
 
 def _leer_historico_logos(ruta):
-    """Hoja "Historico": un logo hecho por fila (FechaCreacion, RESPONSABLE, ESTADO). Se guarda resumido:
-    cuántos logos con ESTADO = OK hizo cada responsable cada día (si la hoja no está, vacío)."""
-    try:
-        (filas,) = _leer(ruta, "HISTORICO")
-        h, c = _tabla(filas, ["FechaCreacion", "RESPONSABLE"], {"fecha": ["FechaCreacion"], "responsable": ["RESPONSABLE"],
-                                                               "estado": ["ESTADO"]}, obligatorias=["fecha", "responsable", "estado"])
-    except ValueError:
-        return []
+    # copia temporal: si alguien tiene el Excel abierto, leerlo directo puede fallar por permisos
+    import shutil, tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        copia = Path(tmp) / "logos.xlsx"
+        try:
+            shutil.copyfile(ruta, copia)
+            (filas,) = _leer(copia, "HISTORICO")
+            h, c = _tabla(filas, ["FechaCreacion", "RESPONSABLE"], {"fecha": ["FechaCreacion"], "responsable": ["RESPONSABLE"],
+                                                                   "estado": ["ESTADO"]}, obligatorias=["fecha", "responsable", "estado"])
+        except (OSError, ValueError):   # sin permiso de lectura o sin la hoja: queda en caché como "sin dato"
+            return None
     conteo = Counter()
     for r in filas[h + 1:]:
         f = fecha(_celda(r, c["fecha"]))
         if f is not None and norm(_celda(r, c["estado"])) == "OK":
             conteo[(f, texto(_celda(r, c["responsable"]), 80))] += 1
-    return [(i, f, p, n) for i, ((f, p), n) in enumerate(sorted(conteo.items(), key=lambda x: (x[0][0], x[0][1] or "")), start=1)]
+    return conteo
 
 
 def _leer_grafica_logos(ruta):
