@@ -2410,10 +2410,8 @@ function dibujarSeriFormato(S, b, e, cont){
   const tituloBase = zoom || e.vista === 'diaria' ? F.titulo : F.titulo.replace('diaria', e.vista === 'semanal' ? 'semanal' : 'mensual');
   $('#tit-seri-' + b.id).textContent = zoom ? `${F.titulo} · ${e.zoom.titulo}` : tituloBase;
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>${F.barra}</span>` +
-    (Q.conQuietas ? `<span><i class="linea puntos" style="color:var(--bad)"></i>Piezas quietas</span>` : '') +
     `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span></div>`;
   const lineas = [{vals: per.map(p => p.hayCap ? p.cap : null), color: COLOR_META, etiquetas: 'ultima', punteada: true}];
-  if(Q.conQuietas) lineas.unshift({vals: per.map(p => p.hay ? p.quietas : null), color: 'var(--bad)', etiquetas: 'todas', punteada: 'puntos', sinPuntos: true});
   barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: F.titulo,
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarSeriFormato(S, b, e, cont); } : null,
     lineas});
