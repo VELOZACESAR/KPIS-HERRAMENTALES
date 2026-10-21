@@ -1,4 +1,5 @@
 """Lectores de los Excel de Serigrafía. Mismo contrato que fuentes.py: {tabla: (columnas, filas)}, extra."""
+from collections import Counter
 from pathlib import Path
 
 import openpyxl
@@ -15,9 +16,18 @@ def _leer(ruta, *hojas):
         wb.close()
 
 
-def _tabla(filas, requeridos, mapa, obligatorias):
+def _tabla(filas, requeridos, mapa, obligatorias, contiene=None):
+    """contiene: {campo: texto o función(encabezado normalizado) -> bool} para columnas cuyo nombre puede variar
+    (ej. cualquier encabezado con "CAPACIDAD")."""
     h, enc = buscar_encabezado(filas, requeridos)
-    return h, ubicar_columnas(enc, mapa, obligatorias=obligatorias)
+    c = ubicar_columnas(enc, mapa, obligatorias=obligatorias)
+    for campo, texto_ in (contiene or {}).items():
+        if campo not in c:
+            for i, nombre in enumerate(enc):
+                if (texto_(norm(nombre)) if callable(texto_) else texto_ in norm(nombre)) and i not in c.values():
+                    c[campo] = i
+                    break
+    return h, c
 
 
 COLUMNAS_LOGOS = ["fila", "pedido_genesis", "orden", "trazabilidad", "logo", "tipo_logo", "inv_status", "zfer", "vehiculo",
@@ -43,7 +53,68 @@ def leer_logos(ruta: Path):
                        g("inv_status", 40), g("zfer", 40), g("vehiculo", 200), g("cliente", 200), g("puesto_trabajo", 40),
                        fecha(_celda(r, c.get("fecha_lib_toc"))), g("nombre_archivo", 400), g("prioridad", 40), g("estado", 40),
                        g("responsable", 80), g("plan_corte", 80), g("fullkit", 60)))
-    return {"cesar.seri_logos": (COLUMNAS_LOGOS, salida)}, {}
+    return {"cesar.seri_logos": (COLUMNAS_LOGOS, salida),
+            "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], _leer_grafica_logos(ruta))}, {}
+
+
+_HISTORICO_LOGOS = {}   # caché: {(ruta, fecha de modificación): conteo}
+
+
+def historico_logos():
+    """Hoja "Historico" del Excel de logos, leída directo del archivo (sin pasar por la base): un logo hecho por fila
+    (FechaCreacion, RESPONSABLE, ESTADO). Devuelve {(fecha, responsable): logos con ESTADO = OK}, o None si el archivo
+    no está en este equipo. Se vuelve a leer solo cuando el Excel cambia."""
+    from .config import ruta_fuente
+    ruta = _HISTORICO_LOGOS.get("ruta")
+    if ruta is None or not ruta.exists():
+        ruta = _HISTORICO_LOGOS["ruta"] = ruta_fuente("logos")
+    if ruta is None or not ruta.exists():
+        return None
+    clave = (str(ruta), ruta.stat().st_mtime)
+    if clave not in _HISTORICO_LOGOS:
+        _HISTORICO_LOGOS.clear()
+        _HISTORICO_LOGOS["ruta"] = ruta
+        _HISTORICO_LOGOS[clave] = _leer_historico_logos(ruta)
+    return _HISTORICO_LOGOS[clave]
+
+
+def _leer_historico_logos(ruta):
+    # copia temporal: si alguien tiene el Excel abierto, leerlo directo puede fallar por permisos
+    import shutil, tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        copia = Path(tmp) / "logos.xlsx"
+        try:
+            shutil.copyfile(ruta, copia)
+            (filas,) = _leer(copia, "HISTORICO")
+            h, c = _tabla(filas, ["FechaCreacion", "RESPONSABLE"], {"fecha": ["FechaCreacion"], "responsable": ["RESPONSABLE"],
+                                                                   "estado": ["ESTADO"]}, obligatorias=["fecha", "responsable", "estado"])
+        except (OSError, ValueError):   # sin permiso de lectura o sin la hoja: queda en caché como "sin dato"
+            return None
+    conteo = Counter()
+    for r in filas[h + 1:]:
+        f = fecha(_celda(r, c["fecha"]))
+        if f is not None and norm(_celda(r, c["estado"])) == "OK":
+            conteo[(f, texto(_celda(r, c["responsable"]), 80))] += 1
+    return conteo
+
+
+def _leer_grafica_logos(ruta):
+    """Hoja "Gráfica": tabla diaria Fecha | CARGA | CAPACIDAD | FALTANTES PCP (si la hoja o la tabla no están, vacío)."""
+    try:
+        (filas,) = _leer(ruta, "GRAFICA")
+        # la tabla diaria va debajo de una tabla dinámica (hacia la fila 55): se busca el encabezado en toda la hoja
+        h, enc = buscar_encabezado(filas, ["Fecha", "CARGA", "CAPACIDAD"], max_filas=len(filas))
+        c = ubicar_columnas(enc, {"fecha": ["Fecha"], "carga": ["CARGA"], "capacidad": ["CAPACIDAD"],
+                                  "faltantes": ["FALTANTES PCP", "FALTANTES"]}, obligatorias=["fecha", "carga"])
+    except ValueError:
+        return []
+    salida = []
+    for i, r in enumerate(filas[h + 1:], start=h + 2):
+        f = fecha(_celda(r, c["fecha"]))
+        if f is None:
+            continue
+        salida.append((i, f, numero(_celda(r, c["carga"])), numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("faltantes")))))
+    return salida
 
 
 COLUMNAS_VITRO_CAL = ["fila", "pedido_genesis", "orden", "zfer", "puesto_trabajo", "fecha_lib_toc", "vehiculo", "descripcion",
@@ -126,36 +197,65 @@ def leer_pasta_plata(ruta: Path):
 
 # Carga del día de pasta de plata, escrita por el equipo en Indicadores diarios (columna opcional, en VITROJET o MALLAS)
 VITROS_PP = ["Vitros PP", "Vitro PP", "Carga vitros PP", "Vitros pasta de plata"]
+# Capacidad diaria: "CAPACIDAD" = vitros estándar; con "PP" o "PLATA" en el nombre = vitros pasta de plata
+_ES_PP = lambda n: "PP" in n.split() or "PLATA" in n
+CAP_VITROS = lambda n: "CAPACIDAD" in n and not _ES_PP(n)
+CAP_PP = lambda n: "CAPACIDAD" in n and _ES_PP(n)
+
+
+def _leer_capacidades(ruta: Path):
+    """Tabla diaria de capacidades y retenidas por tipo de vitro (Fecha | Capacidad Vitros Logo | Capacidad Vitros Estandar |
+    Capacidad Vitros Pasta de Plata | Retenidas Vitros Logos | ...). Puede estar en cualquier hoja: se toma la primera que
+    tenga "Fecha" y una columna de capacidad de pasta de plata."""
+    wb = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
+    try:
+        for ws in wb.worksheets:
+            filas = _filas(ws)
+            for h, enc in enumerate(filas[:15]):
+                nombres = [norm(x) for x in enc]
+                if "FECHA" not in nombres or not any(CAP_PP(n) for n in nombres):
+                    continue
+                col = lambda pred: next((i for i, n in enumerate(nombres) if pred(n)), None)
+                c = {"fecha": nombres.index("FECHA"),
+                     "cap_logos": col(lambda n: "CAPACIDAD" in n and "LOGO" in n),
+                     "cap_estandar": col(lambda n: "CAPACIDAD" in n and "ESTANDAR" in n),
+                     "cap_pp": col(CAP_PP),
+                     "ret_logos": col(lambda n: "RETENIDA" in n and "LOGO" in n),
+                     "ret_estandar": col(lambda n: "RETENIDA" in n and "ESTANDAR" in n),
+                     "ret_pp": col(lambda n: "RETENIDA" in n and _ES_PP(n))}
+                salida = []
+                for i, r in enumerate(filas[h + 1:], start=h + 2):
+                    f = fecha(_celda(r, c["fecha"]))
+                    if f is not None:
+                        salida.append((i, ws.title[:100], f, *(numero(_celda(r, c[k])) for k in
+                                       ("cap_logos", "cap_estandar", "cap_pp", "ret_logos", "ret_estandar", "ret_pp"))))
+                return salida
+        return []
+    finally:
+        wb.close()
 
 
 def leer_indicadores_diarios(ruta: Path):
     vitro, mallas = _leer(ruta, "VITROJET", "MALLAS")
-    # Oct-2026: la hoja Vitrojet pasó a capacidad y retenidas por tipo de vitro (logo / estándar / pasta de plata).
-    # Se aceptan también los nombres viejos para poder releer versiones anteriores del Excel.
+    # Oct-2026: la hoja Vitrojet pasó a capacidad/retenidas por tipo (eso lo lee _leer_capacidades); "Vitros nuevos"
+    # y "Piezas quietas" ya no siempre vienen, por eso son opcionales.
     h, c = _tabla(vitro, ["Fecha"], {
-        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos", "Vitros Estandar", "Vitros estándar"],
-        "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad Vitros Estandar", "Capacidad"],
-        "cap_logo": ["Capacidad Vitros Logo"], "cap_pp": ["Capacidad Vitros Pasta de Plata"],
-        "ret_logo": ["Retenidas Vitros Logos", "Retenidas Vitros Logo"], "ret_estandar": ["Retenidas Vitros Estandar"],
-        "ret_pp": ["Retenidas Vitros Pasta de Plata"], "vitros_pp": VITROS_PP,
-    }, obligatorias=["fecha"])
-    if "piezas_quietas" not in c and not any(k in c for k in ("ret_logo", "ret_estandar", "ret_pp")):
-        raise ValueError("La hoja Vitrojet no trae ni 'Piezas quietas' ni columnas de 'Retenidas Vitros ...'")
+        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos", "Vitros Estandar"], "piezas_quietas": ["Piezas quietas"],
+        "capacidad": ["Capacidad Vitros Estandar", "Capacidad Vitros Estándar", "Capacidad"], "vitros_pp": VITROS_PP,
+    }, obligatorias=["fecha"], contiene={"capacidad": CAP_VITROS, "capacidad_pp": CAP_PP})
     salida_v = []
     for i, r in enumerate(vitro[h + 1:], start=h + 2):
         f = fecha(_celda(r, c["fecha"]))
         if f is None:
             continue
-        g = lambda campo: numero(_celda(r, c.get(campo)))
-        rets = [g(k) for k in ("ret_logo", "ret_estandar", "ret_pp")]
-        quietas = g("piezas_quietas") if "piezas_quietas" in c else (sum(x or 0 for x in rets) if any(x is not None for x in rets) else None)
-        salida_v.append((i, f, g("vitros_nuevos"), quietas, g("capacidad"), g("vitros_pp"),
-                         g("cap_logo"), g("cap_pp"), *rets))
+        salida_v.append((i, f, numero(_celda(r, c.get("vitros_nuevos"))), numero(_celda(r, c.get("piezas_quietas"))),
+                         numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("vitros_pp"))),
+                         numero(_celda(r, c.get("capacidad_pp")))))
     h, c = _tabla(mallas, ["Fecha", "Piezas quietas"], {
         "fecha": ["Fecha"], "mallas": ["Mallas en fabricacion"], "logos": ["Logos en fabricacion"],
         "trazabilidades": ["Trazabilidades en fabricacion"], "piezas_quietas": ["Piezas quietas"],
         "vitros_pp": VITROS_PP,
-    }, obligatorias=["fecha", "mallas", "logos", "trazabilidades", "piezas_quietas"])
+    }, obligatorias=["fecha", "mallas", "logos", "trazabilidades", "piezas_quietas"], contiene={"capacidad_pp": CAP_PP})
     salida_m = []
     for i, r in enumerate(mallas[h + 1:], start=h + 2):
         f = fecha(_celda(r, c["fecha"]))
@@ -163,11 +263,12 @@ def leer_indicadores_diarios(ruta: Path):
             continue
         salida_m.append((i, f, numero(_celda(r, c["mallas"])), numero(_celda(r, c["logos"])),
                          numero(_celda(r, c["trazabilidades"])), numero(_celda(r, c["piezas_quietas"])),
-                         numero(_celda(r, c.get("vitros_pp")))))
-    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp",
-                                       "cap_logo", "cap_pp", "ret_logo", "ret_estandar", "ret_pp"], salida_v),
-            "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas", "vitros_pp"],
-                                      salida_m)}, {}
+                         numero(_celda(r, c.get("vitros_pp"))), numero(_celda(r, c.get("capacidad_pp")))))
+    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp", "capacidad_pp"], salida_v),
+            "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas", "vitros_pp", "capacidad_pp"],
+                                      salida_m),
+            "cesar.seri_ind_capacidad": (["fila", "hoja", "fecha", "cap_logos", "cap_estandar", "cap_pp", "ret_logos", "ret_estandar",
+                                          "ret_pp"], _leer_capacidades(ruta))}, {}
 
 
 LECTORES_SERIGRAFIA = {
