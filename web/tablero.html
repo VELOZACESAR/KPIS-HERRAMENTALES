@@ -177,6 +177,15 @@
   .cat .fila3 b{display:block;font:700 15px var(--font);color:var(--text)}
   .sub-aceros{margin-bottom:6px}
   .sub-aceros button{font-size:13px;padding:8px 16px}
+  .cmp-lista{display:grid;gap:16px;margin-top:6px}
+  .cmp-nom{font-size:13px;font-weight:700;margin-bottom:6px}
+  .cmp-bar{position:relative;height:22px;background:var(--grid);border-radius:6px}
+  .cmp-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+  .cmp-carga{background:repeating-linear-gradient(135deg,var(--pend) 0 6px,var(--grid) 6px 12px);outline:1px solid var(--border)}
+  .cmp-cap{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--meta);border-radius:2px}
+  .cmp-txt{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--text-soft);margin-top:6px}
+  .cmp-txt b{color:var(--text)}
+  .cmp-ley-carga{background:repeating-linear-gradient(135deg,var(--pend) 0 3px,var(--grid) 3px 6px)!important}
   .etq{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;background:var(--pend);color:var(--text-soft)}
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
 
@@ -2269,6 +2278,84 @@ function tarjetaResumenSeri(S){
     </div></article>`;
 }
 
+// ---- Carga vs. productividad: cuánto había hoy, cuánto se hizo y en cuántos días se vacía lo pendiente
+const COMP_SERI = [
+  {id:'logos', nombre:'Vitros logos · prioridad 1', foto:'seri_carga_logos_plan'},
+  {id:'vitros', nombre:'Vitros estándar', foto:'seri_carga_vitros_dia'},
+  {id:'pasta_plata', nombre:'Vitros pasta de plata', foto:'seri_carga_pp_dia'},
+];
+let compSeri = 'vitros';
+
+function datosComparativa(S, c){
+  const X = S[c.id]; if(!X || !X.serie) return null;
+  const dias = (X.serie.diaria || []).filter(d => d.fecha <= D.hoy);
+  const hoyD = dias.find(d => d.fecha === D.hoy) || {total: 0};
+  const hechos = hoyD.total || 0;
+  // logos: la carga de prioridad 1 baja cuando se hace un logo, por eso la del día = pendiente + lo hecho hoy
+  const cargaDia = c.id === 'logos' ? (X.carga || 0) + hechos : (X.carga_dia != null ? X.carga_dia : (X.carga || 0) + hechos);
+  const previos = dias.filter(d => d.fecha < D.hoy && d.total > 0).slice(-7);
+  const ritmo = previos.length ? previos.reduce((s, d) => s + d.total, 0) / previos.length : 0;
+  const pendiente = Math.max(0, cargaDia - hechos);
+  const hist = S.historial || {};
+  const serie = dias.slice(-14).map(d => ({fecha: d.fecha, hechos: d.total || 0, segs: d.segs || {}, capacidad: d.capacidad,
+    carga: d.fecha === D.hoy ? cargaDia : (hist[d.fecha] && hist[d.fecha][c.foto] != null ? hist[d.fecha][c.foto] : null)}));
+  return {X, hechos, cargaDia, pendiente, ritmo, capacidad: hoyD.capacidad, dias: ritmo ? pendiente / ritmo : null, serie};
+}
+
+function vistaComparativa(S){
+  const filas = COMP_SERI.map(c => ({c, d: datosComparativa(S, c)})).filter(x => x.d);
+  if(!filas.length) return '';
+  // cada línea con su propia escala: así se ve el avance aunque una tenga 86 y otra 7
+  const barra = d => {
+    const max = Math.max(1, d.cargaDia, d.capacidad || 0, d.hechos);
+    const w = v => `${Math.min(100, v / max * 100)}%`, pct = d.cargaDia ? d.hechos / d.cargaDia : null;
+    const e = d.capacidad ? estado(d.hechos, d.capacidad) : null;
+    return `<div class="cmp-bar" role="img" aria-label="${fmt(d.hechos)} hechos de ${fmt(d.cargaDia)}">
+        <i class="cmp-carga" style="width:${w(d.cargaDia)}"></i>
+        <i class="cmp-hecho" style="width:${w(Math.min(d.hechos, d.cargaDia || d.hechos))};background:${e ? COLOR_EST[e.cls] : 'var(--teal)'}"></i>
+        ${d.capacidad ? `<b class="cmp-cap" style="left:${w(d.capacidad)}" title="Capacidad ${fmt(d.capacidad)}"></b>` : ''}
+      </div>
+      <div class="cmp-txt"><span><b class="num">${fmt(d.hechos)}</b> de <b class="num">${fmt(d.cargaDia)}</b>${pct != null ? ` · ${fmt(pct * 100)} %` : ''}</span>
+        <span>Faltan <b class="num">${fmt(d.pendiente)}</b></span>
+        <span>${d.capacidad ? `Capacidad <b class="num">${fmt(d.capacidad)}</b>` : 'Sin capacidad'}</span>
+        <span>${d.dias == null ? 'Sin ritmo aún' : d.pendiente ? `≈ <b class="num">${fmt(d.dias, 1)}</b> días al ritmo de ${fmt(d.ritmo, 1)}/día` : '<b style="color:var(--ok)">Al día</b>'}</span></div>`;
+  };
+  return `<h2 class="sec">Carga vs. productividad <small>lo que había para hoy, lo hecho y lo que falta</small></h2>
+  <div class="grid-2" style="margin-top:0">
+    <div class="panel"><div class="panel-head"><div><h3>Hoy · ${fLarga(D.hoy)}</h3></div></div>
+      <div class="cmp-lista">${filas.map(({c, d}) => `<div class="cmp-fila"><div class="cmp-nom">${esc(c.nombre)}</div>${barra(d)}</div>`).join('')}</div>
+      <div class="legend" style="margin-top:10px"><span><i style="background:var(--teal)"></i>Hecho</span><span><i class="cmp-ley-carga"></i>Falta (carga del día)</span><span><i style="background:${COLOR_META};width:3px"></i>Capacidad</span></div></div>
+    <div class="panel"><div class="panel-head"><div><h3 id="cmp-tit">Carga y producción por día</h3><p>Barra gris = carga del día · color = lo hecho</p></div>
+      <div class="seg" id="cmp-sel">${filas.map(({c}) => `<button data-c="${c.id}" aria-pressed="${c.id === compSeri}">${esc({logos:'Logos P1', vitros:'Estándar', pasta_plata:'Pasta de plata'}[c.id])}</button>`).join('')}</div></div>
+      <div id="cmp-ley"></div><div class="chart" id="ch-cmp"></div></div>
+  </div>`;
+}
+
+function dibujarComparativa(){
+  const S = D && D.serigrafia, cont = $('#ch-cmp'); if(!S || !cont) return;
+  const c = COMP_SERI.find(x => x.id === compSeri), d = c && datosComparativa(S, c); if(!d) return;
+  document.querySelectorAll('#cmp-sel button').forEach(b => b.setAttribute('aria-pressed', b.dataset.c === compSeri));
+  const nombres = [...new Set(d.serie.flatMap(p => Object.keys(p.segs)))];
+  const colores = {}; nombres.forEach((n, i) => colores[n] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
+  const op = {orden: nombres, colores};
+  $('#cmp-ley').innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}<span><i style="background:var(--pend)"></i>Carga del día</span><span><i style="background:${COLOR_META}"></i>Capacidad</span></div>`;
+  const dias = d.serie.filter(p => p.hechos || p.carga || infoDia(p.fecha).lab);
+  barrasApiladas(cont, dias.map(p => {
+    const pct = p.carga ? p.hechos / p.carga : null;
+    return {etiqueta: p.fecha === D.hoy ? t('hoy') : fCorta(p.fecha), segs: p.segs, total: p.hechos, fondo: p.carga || undefined,
+      meta: p.capacidad || undefined, etiquetaValor: p.carga != null ? `${fmt(p.hechos)}/${fmt(p.carga)}` : fmt(p.hechos),
+      sub: pct != null ? `${fmt(pct * 100)} %` : '', subColor: pct != null ? COLOR_EST[estado(p.hechos, p.carga).cls] : 'var(--muted)',
+      tip: tipSegs(fLarga(p.fecha), p.segs, `<div class="r" style="margin-top:6px"><span>Hecho</span><span>${fmt(p.hechos)}</span></div>` +
+        `<div class="r"><span>Carga del día</span><span>${p.carga == null ? 'sin foto' : fmt(p.carga)}</span></div>` +
+        (p.capacidad ? `<div class="r"><span>Capacidad</span><span>${fmt(p.capacidad)}</span></div>` : ''), op)};
+  }), {...op, sub: true, alto: 240, metaRoja: true, aria: 'Carga y producción por día'});
+}
+
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('#cmp-sel button');
+  if(b){ compSeri = b.dataset.c; dibujarComparativa(); }
+});
+
 function vistaSerigrafia(S){
   if(!S) return `<section class="vista" id="v-serigrafia" hidden><div class="aviso warn">⚠ <span>Todavía no hay datos de Serigrafía. Revisa el estado de las fuentes al final de la página.</span></div></section>`;
   const r = S.retenidas;
@@ -2290,7 +2377,7 @@ function vistaSerigrafia(S){
       <div class="legend">${Object.keys(COLOR_SCR).map(k => `<span><i style="background:${COLOR_SCR[k]}"></i>${k}</span>`).join('')}</div>
       <div class="chart" id="ch-seri-scr"></div></div>
   </div>` : '';
-  return `<section class="vista" id="v-serigrafia" hidden>${ret}${BLOQUES_SERI.map(b => bloqueSeri(b, S[b.id])).join('')}</section>`;
+  return `<section class="vista" id="v-serigrafia" hidden>${ret}${vistaComparativa(S)}${BLOQUES_SERI.map(b => bloqueSeri(b, S[b.id])).join('')}</section>`;
 }
 
 function bloqueSeri(b, X){
@@ -2340,6 +2427,7 @@ function matrizSeri(cont, X){
 
 function dibujarSerigrafia(){
   const S = D && D.serigrafia; if(!S || $('#v-serigrafia').hidden) return;
+  dibujarComparativa();
   const r = S.retenidas;
   if(r && $('#ch-seri-ret')){
     const opR = {orden:Object.keys(COLOR_RET), colores:COLOR_RET}, opS = {orden:Object.keys(COLOR_SCR), colores:COLOR_SCR};
