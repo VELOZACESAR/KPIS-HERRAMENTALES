@@ -12,8 +12,18 @@ PUESTOS_PASTA_PLATA = {"PLANEACION", "01CORTE", "02CNC", "03SERIG", "04SER_VT"} 
 DIAS_MATRIZ = 14
 
 
+# Nombres mal escritos en los Excel (sobre todo la hoja Historico de logos) → el nombre correcto.
+ALIAS_PERSONAS = {
+    "C": "CAMILO", "CAMIO": "CAMILO", "CAMIILO": "CAMILO", "CQMILO": "CAMILO", "CAMNILO": "CAMILO", "CAMIULO": "CAMILO",
+    "J": "JUAN PABLO", "JUAN P": "JUAN PABLO",
+    "ASIGANDO": "ASIGNADO", "CASIGNADO": "ASIGNADO", "ASIGNADA": "ASIGNADO", "AIGNADA": "ASIGNADO", "ASA": "ASIGNADO",
+    "ASIGNADOO": "ASIGNADO",
+}
+
+
 def _persona(v):
     n = norm(v)
+    n = ALIAS_PERSONAS.get(n, n)
     return None if n in NO_PERSONAS else n.title()
 
 
