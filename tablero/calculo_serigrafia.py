@@ -120,7 +120,8 @@ def vitros(hoy):
     ind = db.consultar("SELECT fila, fecha, vitros_nuevos, piezas_quietas, capacidad FROM cesar.seri_ind_vitrojet")
     if not cal and not hechos:
         return None
-    carga = [r for r in cal if norm(r["puesto_trabajo"]) != "INGENIERIA" and norm(r["status_vitrojet"]) == "NO EXISTE"]
+    # carga = todo lo que en CAL. VITROJET (columna V) dice NO EXISTE (regla del área, 2026-10-21; antes sin Ingeniería)
+    carga = [r for r in cal if norm(r["status_vitrojet"]) == "NO EXISTE"]
     ok = [(r["fecha"], _persona(r["responsable"])) for r in hechos if norm(r["estatus"]) == "OK"]
     capacidad = {r["fecha"]: r["capacidad"] for r in ind if r["fecha"] and r["capacidad"] is not None}
     m = _matriz(ok, hoy)

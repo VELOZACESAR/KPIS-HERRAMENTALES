@@ -670,8 +670,11 @@ function barrasApiladas(cont, items, o={}){
   }
   items.forEach((it, i) => {
     const cx = mL + banda*i + banda/2, x = cx - bw/2, g = svgEl('g', {}, svg);
-    if(it.fondo){ // pendiente (gris) detrás
-      svgEl('rect', {x, y:y(it.fondo), width:bw, height:Math.max(0, y(0)-y(it.fondo)), rx:4, fill:'var(--pend)'}, g);
+    if(it.fondo){ // pendiente detrás: gris, o "transparente" (solo contorno) con o.fondoContorno
+      svgEl('rect', o.fondoContorno
+        ? {x: x + .75, y: y(it.fondo) + .75, width: bw - 1.5, height: Math.max(0, y(0) - y(it.fondo) - 1.5), rx: 4, fill: 'var(--grid)', 'fill-opacity': .35,
+           stroke: 'var(--muted)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3'}
+        : {x, y:y(it.fondo), width:bw, height:Math.max(0, y(0)-y(it.fondo)), rx:4, fill:'var(--pend)'}, g);
     }
     let acc = 0;
     const mats = (o.orden || D.orden_materiales).filter(m => it.segs && it.segs[m]);
@@ -2375,7 +2378,56 @@ function datosSeri(S, b){
     return r; };
   return {X, dia, rango, conQuietas, capManual, usaDias};
 }
+// Procesamiento de vitros (Vitros estándar):
+//   barra transparente = carga del día = lo pendiente (CAL. VITROJET, columna V = "NO EXISTE") + lo hecho ese día.
+//     Hoy: lo pendiente ahora + lo hecho hoy (si durante el día entran más, la carga sube; lo hecho no la baja).
+//     Días anteriores: la foto de fin del día + lo hecho ese día.
+//   relleno = lo hecho por día (hoja CARGA VITROS, estatus OK) apilado por responsable (columna H).
+//   línea punteada roja = capacidad (Indicadores diarios; respaldo Cap./día ✎). Semanal/mensual: hechos vs. capacidad.
+function dibujarVitrosCarga(S, b, e, cont){
+  const X = S.vitros, zoom = e.vista === 'semanal' && e.zoom, ser = X.serie || {}, hist = S.historial || {};
+  document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+  $('#vol-seri-' + b.id).hidden = !zoom;
+  const capManual = valorManual(b.capManual, null), capIndic = {};
+  ((S.retenidas && S.retenidas.serie) || []).forEach(d => { if(d.capacidad != null) capIndic[d.fecha] = d.capacidad; });
+  const capDia = iso => capIndic[iso] != null ? capIndic[iso] : (capManual && esDiaProductivo(iso) && iso <= D.hoy ? capManual : null);
+  const capRangoV = (desde, hasta) => { let s = 0, hay = false; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = capDia(d.iso); if(c != null){ s += c; hay = true; } }); return hay ? s : null; };
+  const pendFin = iso => iso === D.hoy ? X.carga : (hist[iso] && hist[iso].seri_carga_vitros != null ? hist[iso].seri_carga_vitros : null);
+  const nombres = [...new Set(['diaria', 'semanal', 'mensual'].flatMap(v => (ser[v] || []).flatMap(p => Object.keys(p.segs || {}))))];
+  const colores = {}; nombres.forEach((n, i) => colores[n] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
+  const porDia = zoom || e.vista === 'diaria';
+  let per;
+  if(porDia){
+    per = (ser.diaria || []).filter(d => (!zoom || (d.fecha >= e.zoom.desde && d.fecha <= e.zoom.hasta)) && diaVisible(d.fecha, d.total + (pendFin(d.fecha) || 0)))
+      .map(d => { const pend = pendFin(d.fecha);
+        return {segs: d.segs || {}, total: d.total, carga: pend == null ? null : pend + d.total, cap: capDia(d.fecha),
+                etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), nombre: fLarga(d.fecha), enCurso: d.hoy}; });
+  } else {
+    per = (ser[e.vista] || []).map(p => ({segs: p.segs || {}, total: p.total, carga: null, cap: capRangoV(p.desde, p.hasta), desde: p.desde, hasta: p.hasta,
+      etiqueta: e.vista === 'mensual' ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
+      nombre: e.vista === 'mensual' ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
+      enCurso: p.en_curso}));
+  }
+  const op = {orden: nombres, colores};
+  const items = per.map(p => { const ref = p.carga != null ? p.carga : p.cap, eR = ref ? estado(p.total, ref) : null;
+    return {etiqueta: p.etiqueta, segs: p.segs, total: p.total, fondo: p.carga || undefined,
+      etiquetaValor: p.carga != null ? `${fmt(p.total)}/${fmt(p.carga)}` : undefined,
+      sub: eR ? `${fmt(eR.pct * 100)} %` : (p.enCurso ? 'en curso' : ''), subColor: eR && !p.enCurso ? COLOR_EST[eR.cls] : 'var(--muted)',
+      tip: tipSegs(p.nombre + (p.enCurso ? ' · en curso' : ''), p.segs,
+        `<div class="r" style="margin-top:6px"><span>Hechos</span><span>${fmt(p.total)}</span></div>` +
+        (p.carga != null ? `<div class="r"><span>Carga del día</span><span>${fmt(p.carga)}</span></div><div class="r"><span>Pendientes</span><span>${fmt(p.carga - p.total)}</span></div>` : '') +
+        `<div class="r"><span>Capacidad</span><span>${p.cap != null ? fmt(p.cap) : 'sin dato'}</span></div>` +
+        (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}; });
+  $('#tit-seri-' + b.id).textContent = zoom ? `Procesamiento de vitros · ${e.zoom.titulo}` : 'Procesamiento de vitros';
+  $('#ley-seri-' + b.id).innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
+    (porDia ? `<span><i style="background:transparent;border:1.5px dashed var(--muted)"></i>Carga del día</span>` : '') +
+    `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span></div>`;
+  barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: 'Procesamiento de vitros', fondoContorno: true,
+    onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosCarga(S, b, e, cont); } : null,
+    lineas: [{vals: per.map(p => p.cap), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true}]});
+}
 function dibujarSeriFormato(S, b, e, cont){
+  if(b.id === 'vitros') return dibujarVitrosCarga(S, b, e, cont);
   const zoom = e.vista === 'semanal' && e.zoom, F = SERI_FORMATO[b.id], Q = datosSeri(S, b);
   document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
   $('#vol-seri-' + b.id).hidden = !zoom;
