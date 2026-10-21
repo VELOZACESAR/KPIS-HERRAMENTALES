@@ -2370,9 +2370,9 @@ function datosSeri(S, b){
   const capDia = iso => { const d = dia[iso]; return d && d.cap != null ? d.cap : (capManual && esDiaProductivo(iso) && iso <= D.hoy ? capManual : null); };
   const conQuietas = b.id === 'vitros';
   // agregados: vitros suma los días (hay ~13 meses); logos y pasta de plata usan las series semanal/mensual del servidor
-  const rango = (desde, hasta, totalServidor) => { const r = {nuevos: 0, quietas: 0, cap: 0, hayCap: false, hay: false};
+  const rango = (desde, hasta, totalServidor) => { const r = {nuevos: 0, quietas: 0, cap: 0, capN: 0, hayCap: false, hay: false};
     diasRango(desde, hasta).forEach(x => { const d = dia[x.iso], c = capDia(x.iso);
-      if(c != null){ r.cap += c; r.hayCap = true; }
+      if(c != null){ r.cap += c; r.capN++; r.hayCap = true; }
       if(d){ r.hay = true; r.nuevos += d.nuevos; r.quietas += d.quietas || 0; } });
     if(totalServidor != null){ r.nuevos = totalServidor; r.hay = true; }
     if(!conQuietas) r.quietas = null;
@@ -2392,7 +2392,9 @@ function dibujarVitrosCarga(S, b, e, cont){
   const capIndic = {};   // capacidad solo de Indicadores diarios (sin casilla manual)
   ((S.retenidas && S.retenidas.serie) || []).forEach(d => { if(d.capacidad != null) capIndic[d.fecha] = d.capacidad; });
   const capDia = iso => capIndic[iso] != null ? capIndic[iso] : null;
-  const capRangoV = (desde, hasta) => { let s = 0, hay = false; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = capDia(d.iso); if(c != null){ s += c; hay = true; } }); return hay ? s : null; };
+  // capacidad de un periodo: total (para el %) y promedio por día (para la línea) = suma ÷ días con capacidad
+  const capRangoV = (desde, hasta) => { let s = 0, n = 0; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = capDia(d.iso); if(c != null){ s += c; n++; } });
+    return n ? {total: s, prom: s / n} : null; };
   const pendFin = iso => iso === D.hoy ? X.carga : (hist[iso] && hist[iso].seri_carga_vitros != null ? hist[iso].seri_carga_vitros : null);
   const nombres = [...new Set(['diaria', 'semanal', 'mensual'].flatMap(v => (ser[v] || []).flatMap(p => Object.keys(p.segs || {}))))];
   const colores = {}; nombres.forEach((n, i) => colores[n] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
@@ -2404,25 +2406,27 @@ function dibujarVitrosCarga(S, b, e, cont){
         return {segs: d.segs || {}, total: d.total, carga: pend == null ? null : pend + d.total, cap: capDia(d.fecha),
                 etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), nombre: fLarga(d.fecha), enCurso: d.hoy}; });
   } else {
-    per = (ser[e.vista] || []).map(p => ({segs: p.segs || {}, total: p.total, carga: null, cap: capRangoV(p.desde, p.hasta), desde: p.desde, hasta: p.hasta,
+    per = (ser[e.vista] || []).map(p => { const c = capRangoV(p.desde, p.hasta);
+      return {segs: p.segs || {}, total: p.total, carga: null, cap: c ? c.prom : null, capTotal: c ? c.total : null, desde: p.desde, hasta: p.hasta,
       etiqueta: e.vista === 'mensual' ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
       nombre: e.vista === 'mensual' ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
-      enCurso: p.en_curso}));
+      enCurso: p.en_curso}; });
   }
   const op = {orden: nombres, colores};
-  const items = per.map(p => { const ref = p.carga != null ? p.carga : p.cap, eR = ref ? estado(p.total, ref) : null;
+  const items = per.map(p => { const ref = p.carga != null ? p.carga : (p.capTotal != null ? p.capTotal : p.cap), eR = ref ? estado(p.total, ref) : null;
     return {etiqueta: p.etiqueta, segs: p.segs, total: p.total, fondo: p.carga || undefined,
       etiquetaValor: p.carga != null ? `${fmt(p.total)}/${fmt(p.carga)}` : undefined,
       sub: eR ? `${fmt(eR.pct * 100)} %` : (p.enCurso ? 'en curso' : ''), subColor: eR && !p.enCurso ? COLOR_EST[eR.cls] : 'var(--muted)',
       tip: tipSegs(p.nombre + (p.enCurso ? ' · en curso' : ''), p.segs,
         `<div class="r" style="margin-top:6px"><span>Hechos</span><span>${fmt(p.total)}</span></div>` +
         (p.carga != null ? `<div class="r"><span>Carga del día</span><span>${fmt(p.carga)}</span></div><div class="r"><span>Pendientes</span><span>${fmt(p.carga - p.total)}</span></div>` : '') +
-        `<div class="r"><span>Capacidad</span><span>${p.cap != null ? fmt(p.cap) : 'sin dato'}</span></div>` +
+        (p.capTotal != null ? `<div class="r"><span>Capacidad promedio/día</span><span>${fmt(p.cap, 1)}</span></div><div class="r"><span>Capacidad del periodo</span><span>${fmt(p.capTotal)}</span></div>`
+                            : `<div class="r"><span>Capacidad</span><span>${p.cap != null ? fmt(p.cap) : 'sin dato'}</span></div>`) +
         (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}; });
   $('#tit-seri-' + b.id).textContent = zoom ? `Procesamiento de vitros · ${e.zoom.titulo}` : 'Procesamiento de vitros';
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
     (porDia ? `<span><i style="background:transparent;border:1.5px dashed var(--muted)"></i>Carga del día</span>` : '') +
-    `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span></div>`;
+    `<span><i class="linea punteada" style="color:${COLOR_META}"></i>${porDia ? 'Capacidad' : 'Capacidad promedio por día'}</span></div>`;
   barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: 'Procesamiento de vitros', fondoContorno: true,
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosCarga(S, b, e, cont); } : null,
     lineas: [{vals: per.map(p => p.cap), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true}]});
@@ -2458,13 +2462,15 @@ function dibujarSeriFormato(S, b, e, cont){
     tip: `<b>${esc(p.nombre)}${p.enCurso ? ' · en curso' : ''}</b>` +
       `<div class="r" style="margin-top:6px"><span>${F.barra}</span><span>${fmt(p.nuevos)}</span></div>` +
       (Q.conQuietas ? `<div class="r"><span>Piezas quietas</span><span>${fmt(p.quietas)}</span></div>` : '') +
-      `<div class="r"><span>Capacidad</span><span>${p.hayCap ? fmt(p.cap) : 'sin dato'}</span></div>` +
+      (p.hayCap && p.capN > 1 ? `<div class="r"><span>Capacidad promedio/día</span><span>${fmt(p.cap / p.capN, 1)}</span></div><div class="r"><span>Capacidad del periodo</span><span>${fmt(p.cap)}</span></div>`
+                              : `<div class="r"><span>Capacidad</span><span>${p.hayCap ? fmt(p.cap) : 'sin dato'}</span></div>`) +
       (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : '')}));
   const tituloBase = zoom || e.vista === 'diaria' ? F.titulo : F.titulo.replace('diaria', e.vista === 'semanal' ? 'semanal' : 'mensual');
   $('#tit-seri-' + b.id).textContent = zoom ? `${F.titulo} · ${e.zoom.titulo}` : tituloBase;
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>${F.barra}</span>` +
-    `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span></div>`;
-  const lineas = [{vals: per.map(p => p.hayCap ? p.cap : null), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true}];
+    `<span><i class="linea punteada" style="color:${COLOR_META}"></i>${zoom || e.vista === 'diaria' ? 'Capacidad' : 'Capacidad promedio por día'}</span></div>`;
+  // en semanas y meses la línea es la capacidad promedio por día (suma de la capacidad de los días ÷ esos días)
+  const lineas = [{vals: per.map(p => p.hayCap ? p.cap / p.capN : null), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true}];
   barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: F.titulo,
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarSeriFormato(S, b, e, cont); } : null,
     lineas});
