@@ -51,7 +51,8 @@ def construir(hoy=None):
         "mantenimiento": ("Mantenimiento de moldes", lambda: calculo_mantenimiento.calcular(hoy, R)),
         "serigrafia": ("Serigrafía", lambda: calculo_serigrafia.calcular(hoy)),
         "historial_seri": ("Historial de serigrafía", lambda: historial(["seri_retenidas", "seri_screens", "seri_carga_logos",
-                                                                           "seri_carga_vitros", "seri_carga_pp", "seri_carga_pp_comp"])),
+                                                                           "seri_carga_vitros", "seri_carga_pp", "seri_carga_pp_comp",
+                                                                           "seri_carga_pp_zfer"])),
         "fuentes": ("Estado de fuentes", estado_fuentes),
         "manuales": ("Valores manuales", manuales),
     }
@@ -151,9 +152,10 @@ def guardar_foto(hoy=None):
         if s.get("vitros"):
             valores.update(seri_carga_vitros=s["vitros"]["carga"])
         if s.get("pasta_plata"):
-            # seri_carga_pp_comp = componentes únicos (desde 2026-10-20); seri_carga_pp guardaba órdenes y queda como estaba
-            valores.update(seri_carga_pp=s["pasta_plata"].get("carga_ordenes", s["pasta_plata"]["carga"]),
-                           seri_carga_pp_comp=s["pasta_plata"]["carga"])
+            # seri_carga_pp = órdenes, seri_carga_pp_comp = componentes únicos (desde 2026-10-20),
+            # seri_carga_pp_zfer = ZFER únicos (desde 2026-10-21, la carga que usa la gráfica)
+            valores.update(seri_carga_pp=s["pasta_plata"]["carga_ordenes"], seri_carga_pp_comp=s["pasta_plata"]["carga_componentes"],
+                           seri_carga_pp_zfer=s["pasta_plata"]["carga"])
         if s.get("logos"):
             valores.update(seri_carga_logos=s["logos"]["carga"])
             # El Excel de logos no dice cuándo se hizo cada logo: con la foto diaria de lo hecho por persona

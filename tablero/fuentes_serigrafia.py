@@ -16,13 +16,14 @@ def _leer(ruta, *hojas):
 
 
 def _tabla(filas, requeridos, mapa, obligatorias, contiene=None):
-    """contiene: {campo: texto} para columnas cuyo nombre puede variar (ej. cualquier encabezado con "CAPACIDAD")."""
+    """contiene: {campo: texto o función(encabezado normalizado) -> bool} para columnas cuyo nombre puede variar
+    (ej. cualquier encabezado con "CAPACIDAD")."""
     h, enc = buscar_encabezado(filas, requeridos)
     c = ubicar_columnas(enc, mapa, obligatorias=obligatorias)
     for campo, texto_ in (contiene or {}).items():
         if campo not in c:
             for i, nombre in enumerate(enc):
-                if texto_ in norm(nombre) and i not in c.values():
+                if (texto_(norm(nombre)) if callable(texto_) else texto_ in norm(nombre)) and i not in c.values():
                     c[campo] = i
                     break
     return h, c
@@ -154,6 +155,10 @@ def leer_pasta_plata(ruta: Path):
 
 # Carga del día de pasta de plata, escrita por el equipo en Indicadores diarios (columna opcional, en VITROJET o MALLAS)
 VITROS_PP = ["Vitros PP", "Vitro PP", "Carga vitros PP", "Vitros pasta de plata"]
+# Capacidad diaria: "CAPACIDAD" = vitros estándar; con "PP" o "PLATA" en el nombre = vitros pasta de plata
+_ES_PP = lambda n: "PP" in n.split() or "PLATA" in n
+CAP_VITROS = lambda n: "CAPACIDAD" in n and not _ES_PP(n)
+CAP_PP = lambda n: "CAPACIDAD" in n and _ES_PP(n)
 
 
 def leer_indicadores_diarios(ruta: Path):
@@ -161,19 +166,20 @@ def leer_indicadores_diarios(ruta: Path):
     h, c = _tabla(vitro, ["Fecha", "Vitros nuevos"], {
         "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos"], "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad"],
         "vitros_pp": VITROS_PP,
-    }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"], contiene={"capacidad": "CAPACIDAD"})
+    }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"], contiene={"capacidad": CAP_VITROS, "capacidad_pp": CAP_PP})
     salida_v = []
     for i, r in enumerate(vitro[h + 1:], start=h + 2):
         f = fecha(_celda(r, c["fecha"]))
         if f is None:
             continue
         salida_v.append((i, f, numero(_celda(r, c["vitros_nuevos"])), numero(_celda(r, c["piezas_quietas"])),
-                         numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("vitros_pp")))))
+                         numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("vitros_pp"))),
+                         numero(_celda(r, c.get("capacidad_pp")))))
     h, c = _tabla(mallas, ["Fecha", "Piezas quietas"], {
         "fecha": ["Fecha"], "mallas": ["Mallas en fabricacion"], "logos": ["Logos en fabricacion"],
         "trazabilidades": ["Trazabilidades en fabricacion"], "piezas_quietas": ["Piezas quietas"],
         "vitros_pp": VITROS_PP,
-    }, obligatorias=["fecha", "mallas", "logos", "trazabilidades", "piezas_quietas"])
+    }, obligatorias=["fecha", "mallas", "logos", "trazabilidades", "piezas_quietas"], contiene={"capacidad_pp": CAP_PP})
     salida_m = []
     for i, r in enumerate(mallas[h + 1:], start=h + 2):
         f = fecha(_celda(r, c["fecha"]))
@@ -181,9 +187,9 @@ def leer_indicadores_diarios(ruta: Path):
             continue
         salida_m.append((i, f, numero(_celda(r, c["mallas"])), numero(_celda(r, c["logos"])),
                          numero(_celda(r, c["trazabilidades"])), numero(_celda(r, c["piezas_quietas"])),
-                         numero(_celda(r, c.get("vitros_pp")))))
-    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp"], salida_v),
-            "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas", "vitros_pp"],
+                         numero(_celda(r, c.get("vitros_pp"))), numero(_celda(r, c.get("capacidad_pp")))))
+    return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp", "capacidad_pp"], salida_v),
+            "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas", "vitros_pp", "capacidad_pp"],
                                       salida_m)}, {}
 
 

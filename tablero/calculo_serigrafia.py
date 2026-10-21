@@ -154,9 +154,13 @@ def pasta_plata(hoy):
     for r in carga:
         por_vitro[r["denominacion"] or r["componente"]].append(r)
     ok = [(r["fecha"], _persona(r["responsable"])) for r in archivos if norm(r["estatus_vitro"]) == "OK"]
+    capacidad = _capacidad_pp()
+    m = _matriz(ok, hoy)
+    m["serie"] = _series(ok, hoy, capacidad)   # cada día, semana y mes trae su "capacidad" (suma de los días)
     return {
-        # el mismo número de componente se repite en varias órdenes: la carga cuenta componentes únicos
-        "carga": len({(r["componente"] or "").strip() or r["orden"] for r in carga}), "carga_ordenes": len(carga),
+        # el mismo ZFER (columna C de Consulta_Mallas) se repite en varias filas: la carga cuenta ZFER únicos (regla del área, 2026-10-21)
+        "carga": len({(r["zfer"] or "").strip() or r["orden"] for r in carga}), "carga_ordenes": len(carga),
+        "carga_componentes": len({(r["componente"] or "").strip() or r["orden"] for r in carga}),
         "carga_vitros": len(por_vitro),
         "en_curso": sum(1 for r in archivos if norm(r["estatus_vitro"]) == "REALIZANDO"),
         "por_puesto": [{"nombre": n, "n": c} for n, c in Counter(r["puesto_trabajo"] for r in carga).most_common()],
@@ -164,8 +168,18 @@ def pasta_plata(hoy):
                            "vehiculos": sorted({r["vehiculo"] or "—" for r in rs}),
                            "puestos": sorted({r["puesto_trabajo"] for r in rs})} for v, rs in por_vitro.items()),
                          key=lambda x: -x["ordenes"]),
-        **_matriz(ok, hoy), "serie": _series(ok, hoy),
+        **m,
     }
+
+
+def _capacidad_pp():
+    """{fecha: capacidad diaria de vitros pasta de plata} de Indicadores diarios (hoja VITROJET o MALLAS); vacío si aún no existe."""
+    salida = {}
+    for tabla in ("cesar.seri_ind_mallas", "cesar.seri_ind_vitrojet"):   # VITROJET gana si las dos la traen
+        if db.consultar(f"SELECT COL_LENGTH('{tabla}', 'capacidad_pp') AS n")[0]["n"]:
+            salida.update({r["fecha"]: r["capacidad_pp"] for r in
+                           db.consultar(f"SELECT fecha, capacidad_pp FROM {tabla} WHERE fecha IS NOT NULL AND capacidad_pp IS NOT NULL")})
+    return salida
 
 
 def retenidas(hoy):
@@ -187,6 +201,9 @@ def retenidas(hoy):
         if desde <= r["fecha"] <= hoy:
             serie[r["fecha"]].update(malla_quietas=r["piezas_quietas"] or 0, mallas=r["mallas"] or 0, logos=r["logos"] or 0,
                                      trazabilidades=r["trazabilidades"] or 0)
+    for f, c in _capacidad_pp().items():   # capacidad diaria de vitros pasta de plata (Indicadores diarios)
+        if desde <= f <= hoy:
+            serie[f]["capacidad_pp"] = c
     v = lambda fila, campo: (fila or {}).get(campo) or 0
     return {
         "fecha_vitrojet": uv["fecha"].isoformat() if uv else None, "fecha_mallas": um["fecha"].isoformat() if um else None,
