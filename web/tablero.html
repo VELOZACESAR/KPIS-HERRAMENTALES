@@ -1872,8 +1872,8 @@ function dibujarGraficaResumen(b){
 document.addEventListener('click', ev => {
   for(const b of BLOQUES_RESUMEN){
     const bv = ev.target.closest(`#${b.id}-vista button`);
-    if(bv){ b.estado.vista = bv.dataset.v; b.estado.zoom = null; dibujarGraficaResumen(b); return; }
-    if(ev.target.closest(`#${b.id}-volver`)){ b.estado.zoom = null; dibujarGraficaResumen(b); return; }
+    if(bv){ b.estado.vista = bv.dataset.v; b.estado.zoom = null; (b.pintar ? b.pintar() : dibujarGraficaResumen(b)); return; }
+    if(ev.target.closest(`#${b.id}-volver`)){ b.estado.zoom = null; (b.pintar ? b.pintar() : dibujarGraficaResumen(b)); return; }
   }
 });
 
@@ -2248,20 +2248,27 @@ const BLOQUES_SERI = [
 
 function tarjetaResumenSeri(S){
   if(!S) return `<article class="serv-largo pend" data-ir="serigrafia"><div class="sl-head"><h3>${t('serigrafia')}</h3><span class="chip neutral">○ Sin datos</span></div></article>`;
-  const r = S.retenidas, carga = b => S[b] ? fmt(S[b].carga) : '—';
-  return `<article class="serv-largo" data-ir="serigrafia" tabindex="0">
-    <div class="sl-head"><h3>${t('serigrafia')}</h3><span class="ver">${t('ver_detalle')}</span></div>
-    <div class="sl-grid">
-      <div class="sl-bloque"><div class="lbl"><span>Piezas retenidas</span>${r && r.total ? '<span class="chip bad">▼ Hay retenidas</span>' : '<span class="chip ok">▲ Sin retenidas</span>'}</div>
-        <div class="val">${r ? fmt(r.total) : '—'}</div>
-        <div class="desc">${r ? `${fmt(r.falta_archivo)} por falta de archivo · ${fmt(r.falta_malla)} por falta de malla` : ''}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>Screens a pedir</span></div><div class="val">${r ? fmt(r.screens_total) : '—'}</div>
-        <div class="desc">${r ? `Mallas ${fmt(r.screens.mallas)} · Logos ${fmt(r.screens.logos)} · Trazab. ${fmt(r.screens.trazabilidades)}` : ''}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>Carga</span></div>
-        <div class="desc" style="font-size:13px;display:grid;gap:4px">
-          <span>Logos <b class="num">${carga('logos')}</b></span><span>Vitros normales <b class="num">${carga('vitros')}</b></span><span>Pasta de plata <b class="num">${carga('pasta_plata')}</b></span></div></div>
-      <div class="sl-bloque"><div class="lbl"><span>Vitros nuevos hoy</span></div>
-        <div class="val">${r ? fmt(r.vitros_nuevos) : '—'} <small>${r && r.capacidad_vitros ? 'de ' + fmt(r.capacidad_vitros) : ''}</small></div></div>
+  const hoy = RAMAS_SERI.map(r => { const d = seriDia(S, r, D.hoy); return {...r, ...d}; }).filter(r => S[r.id]);
+  const hechos = hoy.reduce((a, r) => a + r.hechos, 0), carga = hoy.reduce((a, r) => a + (r.carga || 0), 0);
+  const ret = retSeriDia(S, D.hoy) || retSeriDia(S, ultimoRetSeri(S));
+  const fRet = retSeriDia(S, D.hoy) ? null : ultimoRetSeri(S);
+  const punto = c => `<i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;background:${c}"></i>`;
+  return `<article class="serv-largo">
+    <div class="sl-head"><h3>${t('serigrafia')}</h3><span class="ver" data-ir="serigrafia" tabindex="0">${t('ver_detalle')}</span></div>
+    <div class="ra-grid">
+      <div class="ra-col">
+        <div class="kpi">
+          <div class="lbl"><span>Archivos vitro hoy</span><span class="chip ok">● ${t('en_vivo')}</span></div>
+          <div class="val">${fmt(hechos)} <small>de ${fmt(carga)} en carga</small></div>
+          <div class="desc">${hoy.map(r => `<span style="white-space:nowrap">${punto(r.color)}${r.nombre} <b>${fmt(r.hechos)}/${fmt(r.carga || 0)}</b></span>`).join(' · ')}</div>
+        </div>
+        <div class="kpi">
+          <div class="lbl"><span>Piezas retenidas${fRet ? ' · ' + fCorta(fRet) : ' hoy'}</span>${ret ? (ret.total ? '<span class="chip bad">▼ Hay retenidas</span>' : '<span class="chip ok">▲ Sin retenidas</span>') : ''}</div>
+          <div class="val">${ret ? fmt(ret.total) : '—'} <small>piezas</small></div>
+          <div class="desc">${ret ? `Logos <b>${fmt(ret.logos)}</b> · Estándar <b>${fmt(ret.estandar)}</b> · Pasta de plata <b>${fmt(ret.pp)}</b>` : 'Sin dato en Indicadores diarios'}</div>
+        </div>
+      </div>
+      ${htmlGraficaResumen(BLOQUE_RESUMEN_SERI.id, BLOQUE_RESUMEN_SERI.titulo)}
     </div></article>`;
 }
 
@@ -2482,6 +2489,104 @@ function dibujarVitrosCarga(S, b, e, cont){
       lineas: g.conCap ? [{vals: per.map(p => p.cap), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true}] : []});
   });
 }
+// ---- Serigrafía en el Resumen: archivos vitro de las 3 ramas en una sola gráfica.
+//   barra transparente = carga del día sumada (logos: prioridades con plan de corte; estándar; pasta de plata), con la
+//   misma regla de cada gráfica del módulo; relleno = lo hecho, apilado por rama; línea roja punteada = capacidad sumada
+//   de las 3 (Indicadores diarios); línea oscura = piezas retenidas sumadas (Retenidas Vitros Logos + Estándar + Pasta de plata).
+//   Diario = semana actual (como Mantenimiento y Moldes); Semanal (clic = sus días) / Mensual: hechos vs. capacidad,
+//   piezas retenidas = el último día con dato del periodo.
+const RAMAS_SERI = [
+  {id: 'logos', nombre: 'Logos', capacidad: 'capacidad_logos', ret: 'logos'},
+  {id: 'vitros', nombre: 'Estándar', capacidad: 'capacidad', ret: 'estandar'},
+  {id: 'pasta_plata', nombre: 'Pasta de plata', capacidad: 'capacidad_pp', ret: 'pp'},
+];
+RAMAS_SERI.forEach((r, i) => Object.defineProperty(r, 'color', {get: () => PALETA[i]}));
+function capSeriDia(S, r, iso){
+  const R = S.retenidas || {};
+  if(r.capacidad === 'capacidad'){ const d = (R.serie || []).find(x => x.fecha === iso); return d && d.capacidad != null ? d.capacidad : null; }
+  const m = (R.capacidades || {})[r.capacidad] || {}; return m[iso] != null ? m[iso] : null;
+}
+function seriDia(S, r, iso){ // {hechos, carga, cap} de una rama en un día, con la misma regla de su gráfica del módulo
+  const X = S[r.id]; if(!X) return {hechos: 0, carga: null, cap: null};
+  const C = CARGA_SERI[r.id], hist = (S.historial || {})[iso] || {};
+  const d = ((X.serie || {}).diaria || []).find(x => x.fecha === iso), hechos = d ? d.total : 0;
+  const k = C.fotos.find(k => hist[k] != null), pend = iso === D.hoy ? X.carga : k ? hist[k] : null;
+  const dia = iso === D.hoy ? X.carga_dia : C.fotoDia ? hist[C.fotoDia] : null;
+  const carga = dia != null ? Math.max(dia, hechos) : pend == null ? null : pend + hechos;
+  return {hechos, carga, cap: capSeriDia(S, r, iso)};
+}
+function retSeriDia(S, iso){
+  const x = ((S.retenidas || {}).retenidas_vitros || {})[iso]; if(!x) return null;
+  return {logos: x.logos || 0, estandar: x.estandar || 0, pp: x.pp || 0, total: (x.logos || 0) + (x.estandar || 0) + (x.pp || 0)};
+}
+const ultimoRetSeri = (S, hasta = D.hoy, desde = '0000') =>
+  Object.keys((S.retenidas || {}).retenidas_vitros || {}).filter(f => f >= desde && f <= hasta).sort().pop() || null;
+const BLOQUE_RESUMEN_SERI = {
+  id: 'rs', titulo: 'Procesamiento de archivos vitro', aria: 'Archivos vitro de las 3 ramas: hechos, carga, capacidad y piezas retenidas',
+  estado: {vista: 'diaria', zoom: null},
+  get op(){ return {orden: RAMAS_SERI.map(r => r.nombre), colores: Object.fromEntries(RAMAS_SERI.map(r => [r.nombre, r.color]))}; },
+  dias(desde, hasta){
+    const S = D.serigrafia;
+    return diasRango(desde, hasta).map(d => {
+      const ramas = RAMAS_SERI.map(r => ({r, ...seriDia(S, r, d.iso)})), futuro = d.iso > D.hoy;
+      const segs = Object.fromEntries(ramas.filter(x => x.hechos).map(x => [x.r.nombre, x.hechos]));
+      const conCarga = ramas.filter(x => x.carga != null), conCap = ramas.filter(x => x.cap != null), ret = retSeriDia(S, d.iso);
+      return {etiqueta: d.iso === D.hoy ? t('hoy') : fCorta(d.iso), nombre: fLarga(d.iso), iso: d.iso, segs, total: totalSegs(segs), futuro,
+              enCurso: d.iso === D.hoy, ramas, ret: ret ? ret.total : null, retDet: ret,
+              // la carga del día solo si las 3 ramas la tienen (si falta una, el día se compara contra la capacidad)
+              carga: !futuro && conCarga.length === ramas.filter(x => S[x.r.id]).length ? conCarga.reduce((a, x) => a + x.carga, 0) : null,
+              cap: conCap.length ? conCap.reduce((a, x) => a + x.cap, 0) : null,
+              nota: futuro ? '' : d.festivo ? 'Festivo' : d.domingo ? 'Domingo' : ''};
+    }).filter(x => diaVisible(x.iso, x.total + (x.carga || 0)));
+  },
+  periodos(vista){
+    const S = D.serigrafia;
+    if(vista === 'diaria'){ const l = lunesDe(D.hoy); return this.dias(l, sumarDias(l, 6)); }
+    const base = ((S.vitros || S.logos || S.pasta_plata).serie || {})[vista] || [], mensual = vista === 'mensual';
+    return base.map(p => {
+      const segs = {};
+      RAMAS_SERI.forEach(r => { const x = S[r.id] && ((S[r.id].serie || {})[vista] || []).find(q => q.desde === p.desde); if(x && x.total) segs[r.nombre] = x.total; });
+      let cap = null; diasRango(p.desde, p.hasta < D.hoy ? p.hasta : D.hoy).forEach(d => RAMAS_SERI.forEach(r => { const c = capSeriDia(S, r, d.iso); if(c != null) cap = (cap || 0) + c; }));
+      const fRet = ultimoRetSeri(S, p.hasta < D.hoy ? p.hasta : D.hoy, p.desde), ret = fRet ? retSeriDia(S, fRet) : null;
+      return {etiqueta: mensual ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
+              nombre: mensual ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
+              segs, total: totalSegs(segs), enCurso: p.en_curso, desde: p.desde, hasta: p.hasta, cap, ret: ret ? ret.total : null, retDet: ret,
+              fRet, carga: null, detalle: !mensual};
+    });
+  },
+  pintar(){
+    const S = D.serigrafia, cont = $('#ch-' + this.id); if(!S || !cont) return;
+    const e = this.estado, zoom = e.vista === 'semanal' && e.zoom;
+    document.querySelectorAll(`#${this.id}-vista button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+    $(`#${this.id}-volver`).hidden = !zoom;
+    const barras = zoom ? this.dias(e.zoom.desde, e.zoom.hasta) : this.periodos(e.vista), porDia = zoom || e.vista === 'diaria', op = this.op;
+    const items = barras.map(x => { const ref = x.carga != null ? x.carga : x.cap, eR = ref && !x.futuro ? estado(x.total, ref) : null;
+      return {etiqueta: x.etiqueta, segs: x.segs, total: x.total, fondo: x.carga || undefined,
+        etiquetaValor: x.futuro ? '' : x.carga != null ? `${fmt(x.total)}/${fmt(x.carga)}` : undefined,
+        sub: x.futuro ? (x.nota || '') : eR ? `${fmt(eR.pct * 100)} %` : (x.enCurso ? 'en curso' : (x.nota || '')),
+        subColor: eR && !x.enCurso ? COLOR_EST[eR.cls] : 'var(--muted)',
+        tip: tipSegs(x.nombre + (x.enCurso ? ' · en curso' : ''), x.segs,
+          `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Hechos</span><span>${x.futuro ? '—' : fmt(x.total)}</span></div>` +
+          (x.carga != null ? `<div class="r"><span>Carga del día</span><span>${fmt(x.carga)}</span></div>` +
+            x.ramas.map(y => `<div class="r" style="opacity:.8"><span>&nbsp;· ${y.r.nombre}</span><span>${fmt(y.hechos)}/${y.carga != null ? fmt(y.carga) : '—'}</span></div>`).join('') : '') +
+          `<div class="r"><span style="color:#F2A69C">Capacidad</span><span>${x.cap != null ? fmt(x.cap) : 'sin dato'}</span></div>` +
+          `<div class="r"><span style="color:#D6DEE6">Piezas retenidas${x.fRet && x.fRet !== x.hasta ? ' · ' + fCorta(x.fRet) : ''}</span><span>${x.ret != null ? fmt(x.ret) : 'sin dato'}</span></div>` +
+          (x.retDet ? `<div style="opacity:.75">Logos ${fmt(x.retDet.logos)} · Estándar ${fmt(x.retDet.estandar)} · PP ${fmt(x.retDet.pp)}</div>` : '') +
+          (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}; });
+    $(`#${this.id}-titulo`).textContent = zoom ? `${this.titulo} · ${e.zoom.titulo}` : this.titulo;
+    $(`#${this.id}-sub`).textContent = '';
+    $(`#${this.id}-leyenda`).innerHTML = `<div class="legend">${op.orden.map(n => `<span><i style="background:${op.colores[n]}"></i>${esc(n)}</span>`).join('')}` +
+      (porDia ? `<span><i style="background:transparent;border:1.5px dashed var(--muted)"></i>Carga del día</span>` : '') +
+      `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad (suma de las 3)</span>` +
+      `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>Piezas retenidas</span></div>`;
+    const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; this.pintar(); } : null;
+    barrasApiladas(cont, items, {...op, sub: true, alto: 280, aria: this.aria, onClick, fondoContorno: true,
+      lineas: [{vals: barras.map(x => x.cap), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true},
+               {vals: barras.map(x => x.futuro ? null : x.ret), color: COLOR_RETENIDAS, etiquetas: 'todas'}]});
+  },
+  dibujar(){ if(D.serigrafia) this.pintar(); },
+};
+BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_SERI);
 function dibujarSeriFormato(S, b, e, cont){
   if(CARGA_SERI[b.id]) return dibujarVitrosCarga(S, b, e, cont);
   const zoom = e.vista === 'semanal' && e.zoom, F = SERI_FORMATO[b.id], Q = datosSeri(S, b);

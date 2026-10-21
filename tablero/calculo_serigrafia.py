@@ -243,6 +243,16 @@ def pasta_plata(hoy):
     }
 
 
+def _retenidas_vitros(desde, hoy):
+    """{fecha: {logos, estandar, pp}} de la tabla de capacidades de Indicadores diarios; vacío si aún no existe."""
+    if not db.consultar("SELECT OBJECT_ID('cesar.seri_ind_capacidad') AS n")[0]["n"]:
+        return {}
+    filas = db.consultar("""SELECT fecha, ret_logos, ret_estandar, ret_pp FROM cesar.seri_ind_capacidad
+                            WHERE fecha BETWEEN ? AND ? AND (ret_logos IS NOT NULL OR ret_estandar IS NOT NULL OR ret_pp IS NOT NULL)""",
+                         desde, hoy)
+    return {r["fecha"].isoformat(): {"logos": r["ret_logos"], "estandar": r["ret_estandar"], "pp": r["ret_pp"]} for r in filas}
+
+
 def _capacidad_pp():
     """{fecha: capacidad diaria de vitros pasta de plata} de Indicadores diarios: columna "Capacidad Vitros Pasta de Plata"
     (tabla cesar.seri_ind_capacidad) o, de respaldo, una columna de capacidad PP en las hojas VITROJET o MALLAS."""
@@ -290,6 +300,8 @@ def retenidas(hoy):
         # capacidad diaria de vitros logos y pasta de plata, {fecha: valor} (la de vitros estándar va en "serie")
         "capacidades": {nombre: {f.isoformat(): c for f, c in caps.items() if desde <= f <= hoy}
                         for nombre, caps in (("capacidad_logos", _capacidad_logos(hoy)), ("capacidad_pp", _capacidad_pp()))},
+        # piezas retenidas por tipo de vitro (Indicadores diarios: Retenidas Vitros Logos / Estandar / Pasta de Plata)
+        "retenidas_vitros": _retenidas_vitros(desde, hoy),
         # carga del día de pasta de plata escrita en el Excel (columna "Vitros PP"), por fecha
         "carga_pp": {r["fecha"].isoformat(): r["vitros_pp"] for r in vit + mal if r["vitros_pp"] is not None},
     }
