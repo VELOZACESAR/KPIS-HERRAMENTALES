@@ -62,7 +62,7 @@ _HISTORICO_LOGOS = {}   # caché: {(ruta, fecha de modificación): conteo}
 
 def historico_logos():
     """Hoja "Historico" del Excel de logos, leída directo del archivo (sin pasar por la base): un logo hecho por fila
-    (FechaCreacion, RESPONSABLE, ESTADO). Devuelve {(fecha, responsable): logos con ESTADO = OK}, o None si el archivo
+    (FechaCreacion, RESPONSABLE, ESTADO, ORDEN). Devuelve {(fecha, responsable, orden): logos con ESTADO = OK}, o None si el archivo
     no está en este equipo. Se vuelve a leer solo cuando el Excel cambia."""
     from .config import ruta_fuente
     ruta = _HISTORICO_LOGOS.get("ruta")
@@ -87,14 +87,15 @@ def _leer_historico_logos(ruta):
             shutil.copyfile(ruta, copia)
             (filas,) = _leer(copia, "HISTORICO")
             h, c = _tabla(filas, ["FechaCreacion", "RESPONSABLE"], {"fecha": ["FechaCreacion"], "responsable": ["RESPONSABLE"],
-                                                                   "estado": ["ESTADO"]}, obligatorias=["fecha", "responsable", "estado"])
+                                                                   "estado": ["ESTADO"], "orden": ["ORDEN"]},
+                          obligatorias=["fecha", "responsable", "estado"])
         except (OSError, ValueError):   # sin permiso de lectura o sin la hoja: queda en caché como "sin dato"
             return None
     conteo = Counter()
     for r in filas[h + 1:]:
         f = fecha(_celda(r, c["fecha"]))
         if f is not None and norm(_celda(r, c["estado"])) == "OK":
-            conteo[(f, texto(_celda(r, c["responsable"]), 80))] += 1
+            conteo[(f, texto(_celda(r, c["responsable"]), 80), texto(_celda(r, c.get("orden")), 40))] += 1
     return conteo
 
 

@@ -2303,6 +2303,10 @@ function bloqueSeri(b, X){
         <div class="seg" data-seri-vista="${b.id}"><button aria-pressed="true" data-v="diaria">${t('diario')}</button><button aria-pressed="false" data-v="semanal">${t('semanal')}</button><button aria-pressed="false" data-v="mensual">${t('mensual')}</button></div>
       </div></div>
     <div id="ley-seri-${b.id}"></div><div class="chart" id="ch-seri-${b.id}"></div>
+    ${CARGA_SERI[b.id] && CARGA_SERI[b.id].planeacion ? `
+    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+      <div class="panel-head"><div><h3 id="tit-seri-${b.id}-pl"></h3></div></div>
+      <div id="ley-seri-${b.id}-pl"></div><div class="chart" id="ch-seri-${b.id}-pl"></div></div>` : ''}
   </div>
   ${detalleSeri(b, X)}`;
 }
@@ -2405,18 +2409,18 @@ function datosSeri(S, b){
 //     Días anteriores: la foto de fin del día + lo hecho ese día.
 //   relleno = lo hecho por día apilado por responsable (estándar: hoja CARGA VITROS; pasta de plata: hoja Archivos PP, estatus OK).
 //   línea punteada roja = capacidad de Indicadores diarios (semana o mes = suma de sus días).
-const S_logosP2 = () => D.serigrafia && D.serigrafia.logos ? D.serigrafia.logos.carga_p2 : null;
 const CARGA_SERI = {
-  // logos: lo hecho sale de la hoja Historico (FechaCreacion, estado OK) por responsable
-  // la carga es la prioridad 1 (con plan de corte); la prioridad 2 (sin plan) va como "+N" encima de cada barra
-  logos:       {titulo: 'Procesamiento de vitros logos', capacidad: 'capacidad_logos', fotos: ['seri_carga_logos_plan'],
-                p2: iso => iso === D.hoy ? S_logosP2() : null, fotoP2: 'seri_carga_logos_p2'},
+  // logos: lo hecho sale de la hoja Historico (FechaCreacion, estado OK) por responsable, separado por la orden en
+  // prioridades (con plan de corte) y planeación (sin plan de corte); dos gráficas alineadas con las mismas fechas
+  logos:       {titulo: 'Procesamiento de vitros logos · Prioridades (con plan de corte)', capacidad: 'capacidad_logos', fotos: ['seri_carga_logos_plan'],
+                planeacion: {titulo: 'Procesamiento de vitros logos · Planeación (sin plan de corte)', serie: 'serie_pl', pendiente: 'carga_p2',
+                             fotos: ['seri_carga_logos_p2']}},
   vitros:      {titulo: 'Procesamiento de vitros', capacidad: 'capacidad', fotos: ['seri_carga_vitros'], fotoDia: 'seri_carga_vitros_dia'},
   // antes del 21-oct la foto guardaba componentes únicos: sirve de respaldo para los días anteriores
   pasta_plata: {titulo: 'Procesamiento de vitros pasta de plata', capacidad: 'capacidad_pp', fotos: ['seri_carga_pp_zfer', 'seri_carga_pp_comp'], fotoDia: 'seri_carga_pp_dia'},
 };
 function dibujarVitrosCarga(S, b, e, cont){
-  const C = CARGA_SERI[b.id], X = S[b.id], zoom = e.vista === 'semanal' && e.zoom, ser = X.serie || {}, hist = S.historial || {};
+  const C = CARGA_SERI[b.id], X = S[b.id], zoom = e.vista === 'semanal' && e.zoom, hist = S.historial || {};
   document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
   $('#vol-seri-' + b.id).hidden = !zoom;
   const capIndic = {};   // capacidad solo de Indicadores diarios (sin casilla manual)
@@ -2426,47 +2430,57 @@ function dibujarVitrosCarga(S, b, e, cont){
   // capacidad de una semana o mes = suma de las capacidades de sus días
   const capRangoV = (desde, hasta) => { let s = 0, hay = false; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = capDia(d.iso); if(c != null){ s += c; hay = true; } });
     return hay ? s : null; };
-  const pendFin = iso => { if(iso === D.hoy) return X.carga;
-    const h = hist[iso] || {}, k = C.fotos.find(k => h[k] != null); return k ? h[k] : null; };
-  const nombres = [...new Set(['diaria', 'semanal', 'mensual'].flatMap(v => (ser[v] || []).flatMap(p => Object.keys(p.segs || {}))))];
-  const colores = {}; nombres.forEach((n, i) => colores[n] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
+  // una o dos gráficas (logos: prioridades arriba, planeación abajo) con la misma vista y las mismas fechas
+  const graficas = [{ser: X.serie || {}, cont, sufijo: '', titulo: C.titulo, conCap: true, pendHoy: X.carga, cargaDiaHoy: X.carga_dia, fotos: C.fotos, fotoDia: C.fotoDia}];
+  if(C.planeacion && $(`#ch-seri-${b.id}-pl`))
+    graficas.push({ser: X[C.planeacion.serie] || {}, cont: $(`#ch-seri-${b.id}-pl`), sufijo: '-pl', titulo: C.planeacion.titulo, conCap: false,
+                   pendHoy: X[C.planeacion.pendiente], fotos: C.planeacion.fotos});
+  graficas.forEach(g => g.pendFin = iso => { if(iso === D.hoy) return g.pendHoy;
+    const h = hist[iso] || {}, k = g.fotos.find(k => h[k] != null); return k ? h[k] : null; });
+  // mismos colores por persona en las dos gráficas; "Sin clasificar" en gris
+  const nombres = [...new Set(graficas.flatMap(g => ['diaria', 'semanal', 'mensual'].flatMap(v => (g.ser[v] || []).flatMap(p => Object.keys(p.segs || {})))))]
+    .sort((a, b) => (a === 'Sin clasificar') - (b === 'Sin clasificar'));
+  const colores = {}; nombres.filter(n => n !== 'Sin clasificar').forEach((n, i) => colores[n] = PALETA_PERSONAS[i % PALETA_PERSONAS.length]);
+  colores['Sin clasificar'] = COLOR_OTRO;
   const porDia = zoom || e.vista === 'diaria';
-  let per;
-  if(porDia){
-    per = (ser.diaria || []).filter(d => (!zoom || (d.fecha >= e.zoom.desde && d.fecha <= e.zoom.hasta)) && diaVisible(d.fecha, d.total + (pendFin(d.fecha) || 0)))
-      .map(d => { const pend = pendFin(d.fecha);
+  // días que se muestran: los mismos en las dos gráficas (un día aparece si tiene algo en cualquiera de ellas)
+  const visibles = new Set();
+  if(porDia) graficas.forEach(g => (g.ser.diaria || []).forEach(d => { if((!zoom || (d.fecha >= e.zoom.desde && d.fecha <= e.zoom.hasta)) &&
+    diaVisible(d.fecha, d.total + (g.pendFin(d.fecha) || 0))) visibles.add(d.fecha); }));
+  const clicSemana = per => e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosCarga(S, b, e, cont); } : null;
+  graficas.forEach(g => {
+    let per;
+    if(porDia){
+      per = (g.ser.diaria || []).filter(d => visibles.has(d.fecha)).map(d => { const pend = g.pendFin(d.fecha);
         // carga del día ya calculada (pendiente + lo del día en la hoja de trabajo, sin repetir): hoy del servidor, antes de la foto
-        const dia = d.fecha === D.hoy ? X.carga_dia : C.fotoDia && hist[d.fecha] ? hist[d.fecha][C.fotoDia] : null;
+        const dia = d.fecha === D.hoy ? g.cargaDiaHoy : g.fotoDia && hist[d.fecha] ? hist[d.fecha][g.fotoDia] : null;
         const carga = dia != null ? Math.max(dia, d.total) : pend == null ? null : pend + d.total;
-        const p2 = !C.p2 ? null : C.p2(d.fecha) ?? (hist[d.fecha] && hist[d.fecha][C.fotoP2] != null ? hist[d.fecha][C.fotoP2] : null);
-        return {segs: d.segs || {}, total: d.total, carga, p2, cap: capDia(d.fecha),
+        return {segs: d.segs || {}, total: d.total, carga, cap: g.conCap ? capDia(d.fecha) : null,
                 etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), nombre: fLarga(d.fecha), enCurso: d.hoy}; });
-  } else {
-    per = (ser[e.vista] || []).map(p => { const c = capRangoV(p.desde, p.hasta);
-      return {segs: p.segs || {}, total: p.total, carga: null, cap: c, desde: p.desde, hasta: p.hasta,
-      etiqueta: e.vista === 'mensual' ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
-      nombre: e.vista === 'mensual' ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
-      enCurso: p.en_curso}; });
-  }
-  const op = {orden: nombres, colores};
-  const items = per.map(p => { const ref = p.carga != null ? p.carga : p.cap, eR = ref ? estado(p.total, ref) : null;
-    return {etiqueta: p.etiqueta, segs: p.segs, total: p.total, fondo: p.carga || undefined, extra: p.p2 != null ? `+${fmt(p.p2)}` : undefined,
-      etiquetaValor: p.carga != null ? `${fmt(p.total)}/${fmt(p.carga)}` : undefined,
-      sub: eR ? `${fmt(eR.pct * 100)} %` : (p.enCurso ? 'en curso' : ''), subColor: eR && !p.enCurso ? COLOR_EST[eR.cls] : 'var(--muted)',
-      tip: tipSegs(p.nombre + (p.enCurso ? ' · en curso' : ''), p.segs,
-        `<div class="r" style="margin-top:6px"><span>Hechos</span><span>${fmt(p.total)}</span></div>` +
-        (p.carga != null ? `<div class="r"><span>Carga del día${p.p2 != null ? ' (prioridad 1)' : ''}</span><span>${fmt(p.carga)}</span></div><div class="r"><span>Pendientes</span><span>${fmt(p.carga - p.total)}</span></div>` : '') +
-        (p.p2 != null ? `<div class="r"><span>Prioridad 2 (sin plan de corte)</span><span>${fmt(p.p2)}</span></div>` : '') +
-        `<div class="r"><span>Capacidad</span><span>${p.cap != null ? fmt(p.cap) : 'sin dato'}</span></div>` +
-        (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}; });
-  $('#tit-seri-' + b.id).textContent = zoom ? `${C.titulo} · ${e.zoom.titulo}` : C.titulo;
-  $('#ley-seri-' + b.id).innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
-    (porDia ? `<span><i style="background:transparent;border:1.5px dashed var(--muted)"></i>Carga del día${C.p2 ? ' (prioridad 1: con plan de corte)' : ''}</span>` : '') +
-    (porDia && C.p2 ? `<span><b style="color:var(--muted);font-size:11px">+N</b>&nbsp;Prioridad 2 (sin plan de corte)</span>` : '') +
-    `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span></div>`;
-  barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: C.titulo, fondoContorno: true,
-    onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosCarga(S, b, e, cont); } : null,
-    lineas: [{vals: per.map(p => p.cap), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true}]});
+    } else {
+      per = (g.ser[e.vista] || []).map(p => ({segs: p.segs || {}, total: p.total, carga: null, cap: g.conCap ? capRangoV(p.desde, p.hasta) : null, desde: p.desde, hasta: p.hasta,
+        etiqueta: e.vista === 'mensual' ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
+        nombre: e.vista === 'mensual' ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
+        enCurso: p.en_curso}));
+    }
+    const presentes = nombres.filter(n => per.some(p => p.segs[n]));
+    const op = {orden: nombres, colores};
+    const items = per.map(p => { const ref = p.carga != null ? p.carga : p.cap, eR = ref ? estado(p.total, ref) : null;
+      return {etiqueta: p.etiqueta, segs: p.segs, total: p.total, fondo: p.carga || undefined,
+        etiquetaValor: p.carga != null ? `${fmt(p.total)}/${fmt(p.carga)}` : undefined,
+        sub: eR ? `${fmt(eR.pct * 100)} %` : (p.enCurso ? 'en curso' : ''), subColor: eR && !p.enCurso ? COLOR_EST[eR.cls] : 'var(--muted)',
+        tip: tipSegs(p.nombre + (p.enCurso ? ' · en curso' : ''), p.segs,
+          `<div class="r" style="margin-top:6px"><span>Hechos</span><span>${fmt(p.total)}</span></div>` +
+          (p.carga != null ? `<div class="r"><span>Carga del día</span><span>${fmt(p.carga)}</span></div><div class="r"><span>Pendientes</span><span>${fmt(p.carga - p.total)}</span></div>` : '') +
+          (g.conCap ? `<div class="r"><span>Capacidad</span><span>${p.cap != null ? fmt(p.cap) : 'sin dato'}</span></div>` : '') +
+          (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}; });
+    $('#tit-seri-' + b.id + g.sufijo).textContent = zoom ? `${g.titulo} · ${e.zoom.titulo}` : g.titulo;
+    $('#ley-seri-' + b.id + g.sufijo).innerHTML = `<div class="legend">${presentes.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
+      (porDia ? `<span><i style="background:transparent;border:1.5px dashed var(--muted)"></i>Carga del día</span>` : '') +
+      (g.conCap ? `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span>` : '') + `</div>`;
+    barrasApiladas(g.cont, items, {...op, sub: true, alto: g.conCap ? 260 : 220, aria: g.titulo, fondoContorno: true, onClick: clicSemana(per),
+      lineas: g.conCap ? [{vals: per.map(p => p.cap), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true}] : []});
+  });
 }
 function dibujarSeriFormato(S, b, e, cont){
   if(CARGA_SERI[b.id]) return dibujarVitrosCarga(S, b, e, cont);

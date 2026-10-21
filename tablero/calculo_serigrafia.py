@@ -92,7 +92,22 @@ def logos(hoy):
     sin_plan = [r for r in disponibles if not (r["plan_corte"] or "").strip()]
     hechos = Counter(_persona(r["responsable"]) for r in filas if (r["nombre_archivo"] or "").strip())
     hechos.pop(None, None)
-    diarios = _hechos_logos(hoy)
+    # lo hecho se separa por la orden: con plan de corte (prioridades), sin plan (planeación) o sin clasificar
+    # (la orden ya no está en Herramienta_Logos). Se usa el plan de corte que la orden tiene hoy.
+    con_plan = defaultdict(bool)
+    for r in filas:
+        con_plan[(r["orden"] or "").strip()] |= bool((r["plan_corte"] or "").strip())
+    def grupo(orden):
+        o = (orden or "").strip()
+        return None if not o or o not in con_plan else ("p1" if con_plan[o] else "pl")
+    diarios, diarios_p1, diarios_pl = [], [], []
+    for f, persona, orden in _hechos_logos(hoy):
+        diarios.append((f, persona))
+        g = grupo(orden)
+        if g == "p1":
+            diarios_p1.append((f, persona))
+        else:
+            diarios_pl.append((f, persona if g == "pl" else "Sin clasificar"))
     return {
         "carga": len(carga), "prioridad": len(carga), "sin_prioridad": len(sin_plan), "carga_p2": len(sin_plan),
         "disponibles_sin_archivo": len(disponibles),
@@ -106,7 +121,9 @@ def logos(hoy):
                                "puesto": r["puesto_trabajo"], "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None}
                               for r in sin_plan), key=lambda x: x["toc"] or "9"),
         "hechos_por_persona": dict(hechos),
-        **_matriz(diarios, hoy), "serie": _series(diarios, hoy, _capacidad_logos(hoy)), "grafica": _grafica_logos(hoy),
+        # serie = prioridades (lo hecho con plan de corte, contra la capacidad); serie_pl = planeación (sin plan + sin clasificar)
+        **_matriz(diarios, hoy), "serie": _series(diarios_p1, hoy, _capacidad_logos(hoy)), "serie_pl": _series(diarios_pl, hoy),
+        "grafica": _grafica_logos(hoy),
     }
 
 
@@ -118,7 +135,7 @@ def _orden_plan(plan):
 
 
 def _hechos_logos(hoy):
-    """[(fecha, persona)] de logos hechos: hoja "Historico" del Excel (FechaCreacion, ESTADO OK) por responsable, leída
+    """[(fecha, persona, orden)] de logos hechos: hoja "Historico" del Excel (FechaCreacion, ESTADO OK) por responsable, leída
     directo del archivo. Si el Excel no está en este equipo, respaldo con la diferencia entre fotos diarias por persona."""
     from .fuentes_serigrafia import historico_logos
     try:
@@ -128,7 +145,7 @@ def _hechos_logos(hoy):
     if conteo:
         desde = hoy - dt.timedelta(days=400)
         # "ASIGNADO" u otro estado en vez de nombre: el logo sí está hecho, va como "Sin responsable"
-        return [(f, _persona(p) or "Sin responsable") for (f, p), n in conteo.items() if f >= desde for _ in range(n)]
+        return [(f, _persona(p) or "Sin responsable", o) for (f, p, o), n in conteo.items() if f >= desde for _ in range(n)]
     fotos = db.consultar("SELECT fecha, indicador, valor FROM cesar.foto_diaria WHERE indicador LIKE 'logos_hechos:%' AND fecha >= ?",
                          hoy - dt.timedelta(days=DIAS_MATRIZ + 1))
     por_dia = defaultdict(dict)
@@ -139,7 +156,7 @@ def _hechos_logos(hoy):
     for antes, despues in zip(fechas, fechas[1:]):
         for p, n in por_dia[despues].items():
             delta = n - por_dia[antes].get(p, n)
-            diarios.extend([(despues, p)] * int(max(0, delta)))
+            diarios.extend([(despues, p, None)] * int(max(0, delta)))
     return diarios
 
 
