@@ -2342,7 +2342,6 @@ function dibujarSerigrafia(){
 // Semanal (12 semanas, clic = sus días productivos) / Mensual (12 meses). Barras = lo hecho por persona; capacidad en
 // rojo (vitros: la de Indicadores diarios; logos y pasta de plata: la diaria escrita × días productivos); línea = carga.
 const estadoSeri = {};
-const COLOR_CAP_SERI = '#2F80D1';   // capacidad en las gráficas de serigrafía (línea azul arriba)
 // Formato común de las gráficas de Serigrafía (como el Excel "Procesamiento de Vitros"): barras = lo hecho, línea azul
 // arriba = capacidad, línea punteada roja = piezas quietas (solo donde hay dato). Diario / Semanal (clic = días) / Mensual.
 //   Vitros estándar: Indicadores diarios, hoja VITROJET (vitros nuevos, piezas quietas, capacidad; si no hay
@@ -2359,6 +2358,11 @@ function datosSeri(S, b){
   if(b.id === 'vitros' && S.retenidas && S.retenidas.serie)
     S.retenidas.serie.forEach(d => dia[d.fecha] = {nuevos: d.vitros_nuevos || 0, quietas: d.vitro_quietas || 0, cap: d.capacidad});
   else ((X.serie && X.serie.diaria) || []).forEach(d => dia[d.fecha] = {nuevos: d.total || 0, quietas: null, cap: null});
+  // Vitros logos: la hoja "Gráfica" del Excel trae lo hecho (CARGA) y la CAPACIDAD de cada día desde enero
+  const grafica = b.id === 'logos' && X.grafica ? X.grafica : {};
+  for(const f in grafica){ const g = grafica[f], d = dia[f] || {nuevos: 0, quietas: null, cap: null};
+    dia[f] = {nuevos: g.carga != null ? g.carga : d.nuevos, quietas: null, cap: g.capacidad != null ? g.capacidad : d.cap}; }
+  const usaDias = b.id === 'vitros' || Object.keys(grafica).length > 0;   // historia día a día: semanas y meses se suman
   const capDia = iso => { const d = dia[iso]; return d && d.cap != null ? d.cap : (capManual && esDiaProductivo(iso) && iso <= D.hoy ? capManual : null); };
   const conQuietas = b.id === 'vitros';
   // agregados: vitros suma los días (hay ~13 meses); logos y pasta de plata usan las series semanal/mensual del servidor
@@ -2369,7 +2373,7 @@ function datosSeri(S, b){
     if(totalServidor != null){ r.nuevos = totalServidor; r.hay = true; }
     if(!conQuietas) r.quietas = null;
     return r; };
-  return {X, dia, rango, conQuietas, capManual};
+  return {X, dia, rango, conQuietas, capManual, usaDias};
 }
 function dibujarSeriFormato(S, b, e, cont){
   const zoom = e.vista === 'semanal' && e.zoom, F = SERI_FORMATO[b.id], Q = datosSeri(S, b);
@@ -2384,14 +2388,14 @@ function dibujarSeriFormato(S, b, e, cont){
   } else if(e.vista === 'semanal'){
     const l = lunesDe(D.hoy);
     for(let k = 11; k >= 0; k--){ const ini = sumarDias(l, -7 * k), fin = sumarDias(ini, 6);
-      const s = b.id === 'vitros' ? null : (serv.semanal || []).find(x => x.desde === ini);
-      per.push({...Q.rango(ini, fin, s ? s.total : (b.id === 'vitros' ? null : 0)), desde: ini, hasta: fin, etiqueta: 'S' + semanaIso(ini),
+      const s = Q.usaDias ? null : (serv.semanal || []).find(x => x.desde === ini);
+      per.push({...Q.rango(ini, fin, s ? s.total : (Q.usaDias ? null : 0)), desde: ini, hasta: fin, etiqueta: 'S' + semanaIso(ini),
                 nombre: `Semana ${semanaIso(ini)} (${fCorta(ini)} – ${fCorta(fin)})`, enCurso: fin >= D.hoy}); }
   } else {
     const f = fecha(D.hoy);
     for(let k = 11; k >= 0; k--){ const a = new Date(f.getFullYear(), f.getMonth() - k, 1), ini = isoDe(a), fin = isoDe(new Date(a.getFullYear(), a.getMonth() + 1, 0));
-      const s = b.id === 'vitros' ? null : (serv.mensual || []).find(x => x.desde === ini);
-      per.push({...Q.rango(ini, fin, s ? s.total : (b.id === 'vitros' ? null : 0)), etiqueta: MESES[a.getMonth()].slice(0, 3),
+      const s = Q.usaDias ? null : (serv.mensual || []).find(x => x.desde === ini);
+      per.push({...Q.rango(ini, fin, s ? s.total : (Q.usaDias ? null : 0)), etiqueta: MESES[a.getMonth()].slice(0, 3),
                 nombre: `${MESES[a.getMonth()]} ${a.getFullYear()}`, enCurso: fin >= D.hoy}); }
   }
   const op = {orden: [F.barra], colores: {[F.barra]: PALETA[0]}};
@@ -2407,8 +2411,8 @@ function dibujarSeriFormato(S, b, e, cont){
   $('#tit-seri-' + b.id).textContent = zoom ? `${F.titulo} · ${e.zoom.titulo}` : tituloBase;
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>${F.barra}</span>` +
     (Q.conQuietas ? `<span><i class="linea puntos" style="color:var(--bad)"></i>Piezas quietas</span>` : '') +
-    `<span><i class="linea" style="background:${COLOR_CAP_SERI}"></i>Capacidad</span></div>`;
-  const lineas = [{vals: per.map(p => p.hayCap ? p.cap : null), color: COLOR_CAP_SERI, etiquetas: 'todas'}];
+    `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span></div>`;
+  const lineas = [{vals: per.map(p => p.hayCap ? p.cap : null), color: COLOR_META, etiquetas: 'ultima', punteada: true}];
   if(Q.conQuietas) lineas.unshift({vals: per.map(p => p.hay ? p.quietas : null), color: 'var(--bad)', etiquetas: 'todas', punteada: 'puntos', sinPuntos: true});
   barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: F.titulo,
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarSeriFormato(S, b, e, cont); } : null,

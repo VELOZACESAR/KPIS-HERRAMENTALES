@@ -66,6 +66,15 @@ def _series(hechos, hoy, capacidad=None):
     return {"diaria": diaria, "semanal": semanal, "mensual": mensual}
 
 
+def _grafica_logos(hoy):
+    """Hoja "Gráfica" de logos: {fecha: {carga, capacidad, faltantes}} (vacío si la tabla aún no existe)."""
+    if not db.consultar("SELECT OBJECT_ID('cesar.seri_logos_grafica') AS id")[0]["id"]:
+        return {}
+    filas = db.consultar("SELECT fecha, carga, capacidad, faltantes FROM cesar.seri_logos_grafica WHERE fecha IS NOT NULL AND fecha >= ?",
+                         hoy - dt.timedelta(days=400))
+    return {r["fecha"].isoformat(): {"carga": r["carga"], "capacidad": r["capacidad"], "faltantes": r["faltantes"]} for r in filas}
+
+
 def _ultimo(filas, hoy):
     previas = [r for r in filas if r["fecha"] and r["fecha"] <= hoy]
     return max(previas, key=lambda r: (r["fecha"], r["fila"])) if previas else None
@@ -100,7 +109,7 @@ def logos(hoy):
                             "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None} for r in carga),
                           key=lambda x: (not x["prioridad"], x["toc"] or "9")),
         "hechos_por_persona": dict(hechos),
-        **_matriz(diarios, hoy), "serie": _series(diarios, hoy),
+        **_matriz(diarios, hoy), "serie": _series(diarios, hoy), "grafica": _grafica_logos(hoy),
     }
 
 

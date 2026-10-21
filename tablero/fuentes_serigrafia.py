@@ -51,7 +51,27 @@ def leer_logos(ruta: Path):
                        g("inv_status", 40), g("zfer", 40), g("vehiculo", 200), g("cliente", 200), g("puesto_trabajo", 40),
                        fecha(_celda(r, c.get("fecha_lib_toc"))), g("nombre_archivo", 400), g("prioridad", 40), g("estado", 40),
                        g("responsable", 80), g("plan_corte", 80), g("fullkit", 60)))
-    return {"cesar.seri_logos": (COLUMNAS_LOGOS, salida)}, {}
+    return {"cesar.seri_logos": (COLUMNAS_LOGOS, salida),
+            "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], _leer_grafica_logos(ruta))}, {}
+
+
+def _leer_grafica_logos(ruta):
+    """Hoja "Gráfica": tabla diaria Fecha | CARGA | CAPACIDAD | FALTANTES PCP (si la hoja o la tabla no están, vacío)."""
+    try:
+        (filas,) = _leer(ruta, "GRAFICA")
+        # la tabla diaria va debajo de una tabla dinámica (hacia la fila 55): se busca el encabezado en toda la hoja
+        h, enc = buscar_encabezado(filas, ["Fecha", "CARGA", "CAPACIDAD"], max_filas=len(filas))
+        c = ubicar_columnas(enc, {"fecha": ["Fecha"], "carga": ["CARGA"], "capacidad": ["CAPACIDAD"],
+                                  "faltantes": ["FALTANTES PCP", "FALTANTES"]}, obligatorias=["fecha", "carga"])
+    except ValueError:
+        return []
+    salida = []
+    for i, r in enumerate(filas[h + 1:], start=h + 2):
+        f = fecha(_celda(r, c["fecha"]))
+        if f is None:
+            continue
+        salida.append((i, f, numero(_celda(r, c["carga"])), numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("faltantes")))))
+    return salida
 
 
 COLUMNAS_VITRO_CAL = ["fila", "pedido_genesis", "orden", "zfer", "puesto_trabajo", "fecha_lib_toc", "vehiculo", "descripcion",
