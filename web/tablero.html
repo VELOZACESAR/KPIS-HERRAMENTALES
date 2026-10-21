@@ -893,6 +893,8 @@ function infoDia(iso){ // laboral = lunes a sábado sin festivo
 // si tienen datos (si se trabajó); así no aparecen barras en 0 de días que no son productivos.
 const esDiaProductivo = iso => { const i = infoDia(iso); return i.lab && fecha(iso).getDay() !== 6; };
 const diaVisible = (iso, valor) => esDiaProductivo(iso) || (valor || 0) > 0;
+// Aceros trabaja también los sábados: en sus gráficas el sábado es día laboral (siempre se muestra, aunque vaya en 0)
+const diaVisibleAceros = (iso, valor) => infoDia(iso).lab || (valor || 0) > 0;
 function lunesDe(iso){ const f = fecha(iso); f.setDate(f.getDate() - ((f.getDay() + 6) % 7)); return isoDe(f); }
 function capDiaSemanaIso(lunes){ const p = valorManual('cap-' + lunes, null); return p != null ? p : capDiaRespaldo(); }
 function capDiaSemana(s){ return capDiaSemanaIso(s.desde); }
@@ -936,10 +938,10 @@ function dibujarResumen(){
       const base = real || {fecha: x.iso, segs: {}, total: 0, eq: 0, futuro: true,
         nota: x.festivo ? 'Festivo' : x.domingo ? 'Domingo' : (x.iso === D.hoy ? 'Hoy' : 'Pendiente')};
       return {...base, lab: x.lab, info: x};
-    }).filter(d => diaVisible(d.fecha, d.total));
-    // casillas de capacidad por día, alineadas bajo cada día (vacía = la de la semana; domingos/festivos = 0 salvo que se escriba)
+    }).filter(d => diaVisibleAceros(d.fecha, d.total));
+    // casillas de capacidad por día, una bajo cada barra (vacía = la de la semana; domingos/festivos = 0 salvo que se escriba)
     $('#res-cap-fila').innerHTML = `<span class="cap-tit">Cap. día</span>
-      <div class="cap-celdas" style="grid-template-columns:repeat(7,minmax(0,1fr))">${dias.map(d => {
+      <div class="cap-celdas" style="grid-template-columns:repeat(${dias.length},minmax(0,1fr))">${dias.map(d => {
         const propia = valorManual(claveCapDia(d.fecha), null) != null, resp = d.lab ? fmt(capDiaSemana(s)) : '0';
         return `<span class="${propia?'propia':''}" title="${fLarga(d.fecha)}: vacía = ${resp}">${inputManual(claveCapDia(d.fecha), null, resp)}</span>`; }).join('')}</div>`;
     const filas = dias.map(d => {
@@ -972,7 +974,7 @@ function dibujarResumen(){
       tip: tipSegs(`${s.etiqueta} (${fCorta(s.desde)} – ${fCorta(s.hasta)})${s.en_curso?' · en curso':''}`, s.segs,
         `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Fabricados</span><span>${fmt(s.total)}</span></div>` +
         `<div class="r"><span style="color:#F2A69C">Capacidad semana</span><span>${fmt(cap)}</span></div>` +
-        `<div style="opacity:.75">${fmt(capDiaSemana(s))}/día × ${s.dias_lab_total} días laborales${ajustados?` · ${ajustados} día(s) con capacidad propia`:''}</div>` +
+        `<div style="opacity:.75">suma de la capacidad de cada día · promedio ${fmt(capPromSemana(s), 0)}/día${ajustados?` · ${ajustados} día(s) con capacidad propia`:''}</div>` +
         `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
   });
   $('#res-leyenda').innerHTML = leyendaMat(matsPresentes(sem.map(x=>x.item)), leyendaLineas);
@@ -983,7 +985,8 @@ function dibujarResumen(){
   // fila de casillas: una por semana, alineada con su barra (mismo margen izquierdo/derecho que la gráfica)
   $('#res-cap-fila').innerHTML = `<span class="cap-tit">Cap./día</span>
     <div class="cap-celdas" style="grid-template-columns:repeat(${A.semanal.length},minmax(0,1fr))">${
-      A.semanal.map(s => `<span class="${valorManual(claveCap(s), null)!=null?'propia':''}" title="${esc(s.etiqueta)}: capacidad por día (vacía = ${fmt(capDiaRespaldo())})">${inputManual(claveCap(s), null, fmt(capDiaRespaldo()))}</span>`).join('')}</div>`;
+      // vacía = promedio de la capacidad de los días laborales de esa semana (como en el módulo Aceros)
+      A.semanal.map(s => `<span class="${valorManual(claveCap(s), null)!=null?'propia':''}" title="${esc(s.etiqueta)}: promedio de la capacidad diaria (vacía = ${fmt(capPromSemana(s), 0)})">${inputManual(claveCap(s), null, fmt(capPromSemana(s), 0))}</span>`).join('')}</div>`;
 }
 
 // ---- meta diaria de producción: se escribe a mano en la gráfica "Producción vs. meta"
@@ -1474,12 +1477,12 @@ function dibujarProduccion(){
 
   let filas, celdas = null, tituloCeldas = 'Cap. día', titulo = 'Producción de aceros vs. capacidad', sub = '', onClick = null, porDia = true;
   if(vistaProd === 'diaria'){
-    const dias = A.diaria.filter(d => diaVisible(d.fecha, d.total)).slice(-14);
+    const dias = A.diaria.filter(d => diaVisibleAceros(d.fecha, d.total)).slice(-14);
     filas = dias.map(barraDia); celdas = dias.map(celdaDia);
   } else if(enZoom){
     const p = A[vistaProd][zoomProd];
     const dias = (vistaProd === 'semanal' ? diasRango(p.desde, p.hasta).map(x => filaDia(x.iso))   // semana: sus días
-                                          : A.diaria.filter(d => d.fecha >= p.desde && d.fecha <= p.hasta)).filter(d => diaVisible(d.fecha, d.total));
+                                          : A.diaria.filter(d => d.fecha >= p.desde && d.fecha <= p.hasta)).filter(d => diaVisibleAceros(d.fecha, d.total));
     filas = dias.map(barraDia); celdas = dias.map(celdaDia);
     titulo = `Producción ${vistaProd === 'mensual' ? MESES[+p.etiqueta-1] : p.etiqueta} vs. capacidad`;
   } else {
@@ -1650,15 +1653,15 @@ function dibujarCumplimiento(){
   let items, titulo = 'Cumplimiento de fechas de compromiso', sub, onClick = null, detalleDias = null;
   if(vistaComp === 'diaria'){
     const fut = A.cumplimiento.filter(c => c.futuro).slice(0, 4);
-    const pas = A.cumplimiento.filter(c => !c.futuro && diaVisible(c.fecha, c.comprometidos)).slice(-(BARRAS_COMP - fut.length));
+    const pas = A.cumplimiento.filter(c => !c.futuro && diaVisibleAceros(c.fecha, c.comprometidos)).slice(-(BARRAS_COMP - fut.length));
     items = pas.concat(fut).map(barraCompDia);
     sub = '';
   } else if(enZoom){
     const p = periodosComp(vistaComp)[zoomComp];
     const dias = vistaComp === 'semanal'
       ? diasRango(p.desde, p.hasta).map(x => p.dias.find(d => d.fecha === x.iso) ||
-          {fecha:x.iso, comprometidos:0, hechos:0, segs:{}, futuro: x.iso >= D.hoy}).filter(d => diaVisible(d.fecha, d.comprometidos))
-      : p.dias.filter(d => diaVisible(d.fecha, d.comprometidos));
+          {fecha:x.iso, comprometidos:0, hechos:0, segs:{}, futuro: x.iso >= D.hoy}).filter(d => diaVisibleAceros(d.fecha, d.comprometidos))
+      : p.dias.filter(d => diaVisibleAceros(d.fecha, d.comprometidos));
     items = dias.map(barraCompDia); detalleDias = dias.filter(d => d.comprometidos);
     titulo = `Cumplimiento · ${vistaComp === 'semanal' ? 'Sem ' + semanaIso(p.desde) : MESES[+p.clave.slice(5)-1] + ' ' + p.clave.slice(0,4)}`;
     sub = `${fLarga(p.desde)} a ${fLarga(p.hasta)} · ${fmt(p.hechos)} de ${fmt(p.comprometidos)} aceros comprometidos`;
@@ -1705,7 +1708,7 @@ function dibujarRechazos(){
   const s = A.rechazos_semanal[semRech], ini = fecha(s.desde);
   const dias = [...Array(7)].map((_, k) => { const d = new Date(ini); d.setDate(ini.getDate()+k);
     const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    return {iso, lista: A.rechazos_12s.filter(r => r.fecha === iso)}; }).filter(d => diaVisible(d.iso, d.lista.length));
+    return {iso, lista: A.rechazos_12s.filter(r => r.fecha === iso)}; }).filter(d => diaVisibleAceros(d.iso, d.lista.length));
   $('#rech-titulo').textContent = `Rechazos · ${s.etiqueta}`;
   $('#rech-desc').textContent = `${fLarga(dias[0].iso)} a ${fLarga(dias[6].iso)} · ${fmt(s.total)} órdenes`;
   barrasApiladas(cont, dias.map(d => ({etiqueta:fCorta(d.iso), segs:{'Otro':d.lista.length}, total:d.lista.length,
