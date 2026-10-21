@@ -659,7 +659,7 @@ function barrasApiladas(cont, items, o={}){
   // "hechos/meta" que no cabe en el ancho de la barra se parte en dos renglones ("1.050" y "de 1.063")
   const partir = t => typeof t === 'string' && t.includes('/') && t.length * 7.2 > banda - 2;
   const dosRenglones = items.some(it => partir(it.etiquetaValor));
-  const mT = (o.metaRoja ? 36 : 20) + (dosRenglones ? 13 : 0);
+  const mT = (o.metaRoja ? 36 : 20) + (dosRenglones ? 13 : 0) + (items.some(it => it.extra) ? 13 : 0);
   const y = v => mT + (H - mT - mB) * (1 - v/max);
   const svg = svgEl('svg', {width:W, height:H, viewBox:`0 0 ${W} ${H}`, role:'img', 'aria-label': o.aria || 'Gráfica de barras'}, cont);
 
@@ -704,6 +704,8 @@ function barrasApiladas(cont, items, o={}){
       svgEl('text', {x:cx, y:yTot-13, 'text-anchor':'middle', class:'v'}, g).textContent = hecho;
       svgEl('text', {x:cx, y:yTot, 'text-anchor':'middle', class:'v', style:'fill:var(--text-soft);font-weight:500'}, g).textContent = 'de ' + meta;
     } else svgEl('text', {x:cx, y:yTot, 'text-anchor':'middle', class:'v'}, g).textContent = it.etiquetaValor ?? fmt(it.total);
+    if(it.extra) // dato secundario encima del número (ej. carga de prioridad 2 en logos)
+      svgEl('text', {x:cx, y:yTot - (partir(it.etiquetaValor) ? 26 : 13), 'text-anchor':'middle', style:'fill:var(--muted);font-size:10px;font-weight:600'}, g).textContent = it.extra;
     svgEl('text', {x:cx, y:H-mB+16, 'text-anchor':'middle'}, g).textContent = it.etiqueta;
     if(o.sub && it.sub){
       const t = svgEl('text', {x:cx, y:H-mB+32, 'text-anchor':'middle', 'font-weight':600, style:`fill:${it.subColor||'var(--text-soft)'}`}, g);
@@ -2271,8 +2273,10 @@ function vistaSerigrafia(S){
   <div class="grid-kpi">
     ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Falta de archivo <b>${fmt(r.falta_archivo)}</b> · Falta de malla <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
     ${kpi('Screens en fabricación', fmt(r.screens_total), '', `Trazabilidades <b>${fmt(r.screens.trazabilidades)}</b> · Mallas <b>${fmt(r.screens.mallas)}</b> · Logos <b>${fmt(r.screens.logos)}</b>`)}
-    ${(() => { const vl = S.logos ? S.logos.carga : 0, ve = S.vitros ? S.vitros.carga_vitros : 0, vp = S.pasta_plata ? S.pasta_plata.carga : 0;
-      return kpi('Archivos Vitrojet en fabricación', fmt(vl + ve + vp), '', `Vitros logo <b>${fmt(vl)}</b> · Estándar <b>${fmt(ve)}</b> · PP <b>${fmt(vp)}</b>`); })()}
+    ${(() => { const l1 = S.logos ? S.logos.carga : 0, l2 = S.logos ? S.logos.carga_p2 || 0 : 0, vl = l1 + l2,
+                   ve = S.vitros ? S.vitros.carga_vitros : 0, vp = S.pasta_plata ? S.pasta_plata.carga : 0;
+      return kpi('Archivos Vitrojet en fabricación', fmt(vl + ve + vp), '',
+        `Vitros logo <b>${fmt(vl)}</b> (P1 ${fmt(l1)} · P2 ${fmt(l2)}) · Estándar <b>${fmt(ve)}</b> · PP <b>${fmt(vp)}</b>`); })()}
     ${kpi('Vitros nuevos hoy', fmt(r.vitros_nuevos), r.capacidad_vitros ? `de ${fmt(r.capacidad_vitros)}` : '', 'Capacidad diaria de Indicadores diarios',
          r.capacidad_vitros ? chip(estado(r.vitros_nuevos, r.capacidad_vitros)) : '')}
   </div>
@@ -2315,11 +2319,21 @@ function detalleSeri(b, X){
     cab = '<th>Vitro por crear</th><th>Tipo</th><th class="n">Órdenes</th><th>Vehículo</th><th>Puestos</th>';
     filas = X.vitros.map(v => `<tr><td>${esc(v.vitro)}</td><td>${esc(v.tipo||'—')}</td><td class="n">${fmt(v.ordenes)}</td><td>${esc(v.vehiculos.join(', '))}</td><td>${esc(v.puestos.join(', '))}</td></tr>`).join('');
   }
+  if(b.id === 'logos') return detalleLogos(X, cab, filas);
   const n = b.id === 'pasta_plata' ? X.vitros.length : X.detalle.length;
   // vitros: códigos únicos (columna U); pasta de plata: ZFER únicos (columna C)
   const cuenta = b.id === 'vitros' ? `${fmt(X.carga)} vitros · ${fmt(n)} órdenes` : b.id === 'pasta_plata' ? `${fmt(X.carga)} ZFER · ${fmt(X.carga_ordenes)} órdenes` : fmt(n);
   return `<div class="panel" style="margin-top:16px"><details ${n && n <= 15 ? 'open' : ''}><summary>Detalle de la carga (${cuenta})</summary>
     <div class="tabla">${n ? `<table><thead><tr>${cab}</tr></thead><tbody>${filas}</tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`}</div></details></div>`;
+}
+
+// Logos: prioridad 1 (con plan de corte, ordenada por plan) abierta si es corta; prioridad 2 (sin plan, por fecha TOC) cerrada
+function detalleLogos(X, cab, filas){
+  const p2 = X.detalle_p2 || [], n1 = X.detalle.length, tabla = (c, f, n) => `<div class="tabla">${n ? `<table><thead><tr>${c}</tr></thead><tbody>${f}</tbody></table>` : `<div class="vacio">${t('sin_datos')}</div>`}</div>`;
+  const filas2 = p2.map(d => `<tr><td>${d.toc ? fCorta(d.toc) : '—'}</td><td class="num">${esc(d.orden)}</td><td>${esc(d.logo)}</td><td>${esc(d.vehiculo||'—')}</td><td>${esc(d.cliente||'—')}</td><td>${esc(d.puesto||'—')}</td></tr>`).join('');
+  return `<div class="panel" style="margin-top:16px"><details ${n1 && n1 <= 15 ? 'open' : ''}><summary>Detalle de la carga · Prioridad 1, con plan de corte (${fmt(n1)})</summary>${tabla(cab, filas, n1)}</details>
+    <details style="margin-top:10px"><summary>Prioridad 2, sin plan de corte (${fmt(p2.length)})</summary>
+      ${tabla('<th>Liberación TOC</th><th>Orden</th><th>Logo</th><th>Vehículo</th><th>Cliente</th><th>Puesto</th>', filas2, p2.length)}</details></div>`;
 }
 
 function matrizSeri(cont, X){
@@ -2391,9 +2405,12 @@ function datosSeri(S, b){
 //     Días anteriores: la foto de fin del día + lo hecho ese día.
 //   relleno = lo hecho por día apilado por responsable (estándar: hoja CARGA VITROS; pasta de plata: hoja Archivos PP, estatus OK).
 //   línea punteada roja = capacidad de Indicadores diarios (semana o mes = suma de sus días).
+const S_logosP2 = () => D.serigrafia && D.serigrafia.logos ? D.serigrafia.logos.carga_p2 : null;
 const CARGA_SERI = {
   // logos: lo hecho sale de la hoja Historico (FechaCreacion, estado OK) por responsable
-  logos:       {titulo: 'Procesamiento de vitros logos', capacidad: 'capacidad_logos', fotos: ['seri_carga_logos_plan']},
+  // la carga es la prioridad 1 (con plan de corte); la prioridad 2 (sin plan) va como "+N" encima de cada barra
+  logos:       {titulo: 'Procesamiento de vitros logos', capacidad: 'capacidad_logos', fotos: ['seri_carga_logos_plan'],
+                p2: iso => iso === D.hoy ? S_logosP2() : null, fotoP2: 'seri_carga_logos_p2'},
   vitros:      {titulo: 'Procesamiento de vitros', capacidad: 'capacidad', fotos: ['seri_carga_vitros'], fotoDia: 'seri_carga_vitros_dia'},
   // antes del 21-oct la foto guardaba componentes únicos: sirve de respaldo para los días anteriores
   pasta_plata: {titulo: 'Procesamiento de vitros pasta de plata', capacidad: 'capacidad_pp', fotos: ['seri_carga_pp_zfer', 'seri_carga_pp_comp'], fotoDia: 'seri_carga_pp_dia'},
@@ -2421,7 +2438,8 @@ function dibujarVitrosCarga(S, b, e, cont){
         // carga del día ya calculada (pendiente + lo del día en la hoja de trabajo, sin repetir): hoy del servidor, antes de la foto
         const dia = d.fecha === D.hoy ? X.carga_dia : C.fotoDia && hist[d.fecha] ? hist[d.fecha][C.fotoDia] : null;
         const carga = dia != null ? Math.max(dia, d.total) : pend == null ? null : pend + d.total;
-        return {segs: d.segs || {}, total: d.total, carga, cap: capDia(d.fecha),
+        const p2 = !C.p2 ? null : C.p2(d.fecha) ?? (hist[d.fecha] && hist[d.fecha][C.fotoP2] != null ? hist[d.fecha][C.fotoP2] : null);
+        return {segs: d.segs || {}, total: d.total, carga, p2, cap: capDia(d.fecha),
                 etiqueta: d.fecha === D.hoy ? t('hoy') : fCorta(d.fecha), nombre: fLarga(d.fecha), enCurso: d.hoy}; });
   } else {
     per = (ser[e.vista] || []).map(p => { const c = capRangoV(p.desde, p.hasta);
@@ -2432,17 +2450,19 @@ function dibujarVitrosCarga(S, b, e, cont){
   }
   const op = {orden: nombres, colores};
   const items = per.map(p => { const ref = p.carga != null ? p.carga : p.cap, eR = ref ? estado(p.total, ref) : null;
-    return {etiqueta: p.etiqueta, segs: p.segs, total: p.total, fondo: p.carga || undefined,
+    return {etiqueta: p.etiqueta, segs: p.segs, total: p.total, fondo: p.carga || undefined, extra: p.p2 != null ? `+${fmt(p.p2)}` : undefined,
       etiquetaValor: p.carga != null ? `${fmt(p.total)}/${fmt(p.carga)}` : undefined,
       sub: eR ? `${fmt(eR.pct * 100)} %` : (p.enCurso ? 'en curso' : ''), subColor: eR && !p.enCurso ? COLOR_EST[eR.cls] : 'var(--muted)',
       tip: tipSegs(p.nombre + (p.enCurso ? ' · en curso' : ''), p.segs,
         `<div class="r" style="margin-top:6px"><span>Hechos</span><span>${fmt(p.total)}</span></div>` +
-        (p.carga != null ? `<div class="r"><span>Carga del día</span><span>${fmt(p.carga)}</span></div><div class="r"><span>Pendientes</span><span>${fmt(p.carga - p.total)}</span></div>` : '') +
+        (p.carga != null ? `<div class="r"><span>Carga del día${p.p2 != null ? ' (prioridad 1)' : ''}</span><span>${fmt(p.carga)}</span></div><div class="r"><span>Pendientes</span><span>${fmt(p.carga - p.total)}</span></div>` : '') +
+        (p.p2 != null ? `<div class="r"><span>Prioridad 2 (sin plan de corte)</span><span>${fmt(p.p2)}</span></div>` : '') +
         `<div class="r"><span>Capacidad</span><span>${p.cap != null ? fmt(p.cap) : 'sin dato'}</span></div>` +
         (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}; });
   $('#tit-seri-' + b.id).textContent = zoom ? `${C.titulo} · ${e.zoom.titulo}` : C.titulo;
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
-    (porDia ? `<span><i style="background:transparent;border:1.5px dashed var(--muted)"></i>Carga del día</span>` : '') +
+    (porDia ? `<span><i style="background:transparent;border:1.5px dashed var(--muted)"></i>Carga del día${C.p2 ? ' (prioridad 1: con plan de corte)' : ''}</span>` : '') +
+    (porDia && C.p2 ? `<span><b style="color:var(--muted);font-size:11px">+N</b>&nbsp;Prioridad 2 (sin plan de corte)</span>` : '') +
     `<span><i class="linea punteada" style="color:${COLOR_META}"></i>Capacidad</span></div>`;
   barrasApiladas(cont, items, {...op, sub: true, alto: 260, aria: C.titulo, fondoContorno: true,
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = per[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: p.nombre}; dibujarVitrosCarga(S, b, e, cont); } : null,

@@ -88,21 +88,33 @@ def logos(hoy):
     disponibles = [r for r in filas if norm(r["inv_status"]) == "DISPONIBLE" and not (r["nombre_archivo"] or "").strip()]
     # carga = INV_LOGO.STATUS (col. G) DISPONIBLE, NOMBRE_ARCHIVO (col. T) vacío y con Plan de corte (col. X) (regla del área, 2026-10-21)
     carga = [r for r in disponibles if (r["plan_corte"] or "").strip()]
+    # prioridad 2 = disponibles sin archivo y SIN plan de corte: también son carga, pero no lo urgente (no entran al %)
+    sin_plan = [r for r in disponibles if not (r["plan_corte"] or "").strip()]
     hechos = Counter(_persona(r["responsable"]) for r in filas if (r["nombre_archivo"] or "").strip())
     hechos.pop(None, None)
     diarios = _hechos_logos(hoy)
     return {
-        "carga": len(carga), "prioridad": len(carga), "sin_prioridad": len(disponibles) - len(carga),
+        "carga": len(carga), "prioridad": len(carga), "sin_prioridad": len(sin_plan), "carga_p2": len(sin_plan),
         "disponibles_sin_archivo": len(disponibles),
         "por_responsable": [{"nombre": n, "n": c} for n, c in hechos.most_common()],
         "por_cliente": [{"nombre": n, "n": c} for n, c in Counter((r["cliente"] or "Sin cliente") for r in carga).most_common(8)],
         "detalle": sorted(({"orden": r["orden"], "logo": r["logo"], "vehiculo": r["vehiculo"], "cliente": r["cliente"],
                             "puesto": r["puesto_trabajo"], "plan_corte": r["plan_corte"], "prioridad": bool((r["plan_corte"] or "").strip()),
                             "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None} for r in carga),
-                          key=lambda x: (not x["prioridad"], x["toc"] or "9")),
+                          key=lambda x: (_orden_plan(x["plan_corte"]), x["toc"] or "9")),
+        "detalle_p2": sorted(({"orden": r["orden"], "logo": r["logo"], "vehiculo": r["vehiculo"], "cliente": r["cliente"],
+                               "puesto": r["puesto_trabajo"], "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None}
+                              for r in sin_plan), key=lambda x: x["toc"] or "9"),
         "hechos_por_persona": dict(hechos),
         **_matriz(diarios, hoy), "serie": _series(diarios, hoy, _capacidad_logos(hoy)), "grafica": _grafica_logos(hoy),
     }
+
+
+def _orden_plan(plan):
+    """Plan de corte "Viernes 2-4421": se ordena por el número después del guion (el más bajo primero)."""
+    import re
+    m = re.search(r"-(\d+)", plan or "")
+    return (int(m[1]) if m else 10 ** 9, plan or "")
 
 
 def _hechos_logos(hoy):
