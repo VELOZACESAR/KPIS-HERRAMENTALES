@@ -161,6 +161,38 @@ CAP_VITROS = lambda n: "CAPACIDAD" in n and not _ES_PP(n)
 CAP_PP = lambda n: "CAPACIDAD" in n and _ES_PP(n)
 
 
+def _leer_capacidades(ruta: Path):
+    """Tabla diaria de capacidades y retenidas por tipo de vitro (Fecha | Capacidad Vitros Logo | Capacidad Vitros Estandar |
+    Capacidad Vitros Pasta de Plata | Retenidas Vitros Logos | ...). Puede estar en cualquier hoja: se toma la primera que
+    tenga "Fecha" y una columna de capacidad de pasta de plata."""
+    wb = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
+    try:
+        for ws in wb.worksheets:
+            filas = _filas(ws)
+            for h, enc in enumerate(filas[:15]):
+                nombres = [norm(x) for x in enc]
+                if "FECHA" not in nombres or not any(CAP_PP(n) for n in nombres):
+                    continue
+                col = lambda pred: next((i for i, n in enumerate(nombres) if pred(n)), None)
+                c = {"fecha": nombres.index("FECHA"),
+                     "cap_logos": col(lambda n: "CAPACIDAD" in n and "LOGO" in n),
+                     "cap_estandar": col(lambda n: "CAPACIDAD" in n and "ESTANDAR" in n),
+                     "cap_pp": col(CAP_PP),
+                     "ret_logos": col(lambda n: "RETENIDA" in n and "LOGO" in n),
+                     "ret_estandar": col(lambda n: "RETENIDA" in n and "ESTANDAR" in n),
+                     "ret_pp": col(lambda n: "RETENIDA" in n and _ES_PP(n))}
+                salida = []
+                for i, r in enumerate(filas[h + 1:], start=h + 2):
+                    f = fecha(_celda(r, c["fecha"]))
+                    if f is not None:
+                        salida.append((i, ws.title[:100], f, *(numero(_celda(r, c[k])) for k in
+                                       ("cap_logos", "cap_estandar", "cap_pp", "ret_logos", "ret_estandar", "ret_pp"))))
+                return salida
+        return []
+    finally:
+        wb.close()
+
+
 def leer_indicadores_diarios(ruta: Path):
     vitro, mallas = _leer(ruta, "VITROJET", "MALLAS")
     h, c = _tabla(vitro, ["Fecha", "Vitros nuevos"], {
@@ -190,7 +222,9 @@ def leer_indicadores_diarios(ruta: Path):
                          numero(_celda(r, c.get("vitros_pp"))), numero(_celda(r, c.get("capacidad_pp")))))
     return {"cesar.seri_ind_vitrojet": (["fila", "fecha", "vitros_nuevos", "piezas_quietas", "capacidad", "vitros_pp", "capacidad_pp"], salida_v),
             "cesar.seri_ind_mallas": (["fila", "fecha", "mallas", "logos", "trazabilidades", "piezas_quietas", "vitros_pp", "capacidad_pp"],
-                                      salida_m)}, {}
+                                      salida_m),
+            "cesar.seri_ind_capacidad": (["fila", "hoja", "fecha", "cap_logos", "cap_estandar", "cap_pp", "ret_logos", "ret_estandar",
+                                          "ret_pp"], _leer_capacidades(ruta))}, {}
 
 
 LECTORES_SERIGRAFIA = {

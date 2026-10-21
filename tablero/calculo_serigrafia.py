@@ -173,9 +173,15 @@ def pasta_plata(hoy):
 
 
 def _capacidad_pp():
-    """{fecha: capacidad diaria de vitros pasta de plata} de Indicadores diarios (hoja VITROJET o MALLAS); vacío si aún no existe."""
+    """{fecha: capacidad diaria de vitros pasta de plata} de Indicadores diarios: columna "Capacidad Vitros Pasta de Plata"
+    (tabla cesar.seri_ind_capacidad) o, de respaldo, una columna de capacidad PP en las hojas VITROJET o MALLAS."""
     salida = {}
-    for tabla in ("cesar.seri_ind_mallas", "cesar.seri_ind_vitrojet"):   # VITROJET gana si las dos la traen
+    if db.consultar("SELECT OBJECT_ID('cesar.seri_ind_capacidad') AS n")[0]["n"]:
+        salida.update({r["fecha"]: r["cap_pp"] for r in
+                       db.consultar("SELECT fecha, cap_pp FROM cesar.seri_ind_capacidad WHERE fecha IS NOT NULL AND cap_pp IS NOT NULL")})
+    for tabla in ("cesar.seri_ind_mallas", "cesar.seri_ind_vitrojet"):
+        if salida:
+            break
         if db.consultar(f"SELECT COL_LENGTH('{tabla}', 'capacidad_pp') AS n")[0]["n"]:
             salida.update({r["fecha"]: r["capacidad_pp"] for r in
                            db.consultar(f"SELECT fecha, capacidad_pp FROM {tabla} WHERE fecha IS NOT NULL AND capacidad_pp IS NOT NULL")})
