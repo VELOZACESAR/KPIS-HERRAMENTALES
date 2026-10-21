@@ -2233,8 +2233,8 @@ function dibujarMantenimiento(){
 
 // ================================================================ Serigrafía
 const BLOQUES_SERI = [
-  {id:'logos', titulo:'Vitros logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos', capManual:'cap-logos',
-   reglaCarga:'Logo DISPONIBLE y sin NOMBRE_ARCHIVO. Prioridad = tiene Plan de corte (día/turno).'},
+  {id:'logos', titulo:'Vitros logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos',
+   reglaCarga:'Logo DISPONIBLE, sin NOMBRE_ARCHIVO y con Plan de corte. La capacidad sale de Indicadores diarios.'},
   {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
    reglaCarga:'Calendario sin Ingeniería y STATUS VITROJET = NO EXISTE. La capacidad sale de Indicadores diarios.'},
   {id:'pasta_plata', titulo:'Vitros pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros',
@@ -2303,8 +2303,8 @@ function bloqueSeri(b, X){
 function detalleSeri(b, X){
   let filas = '', cab = '';
   if(b.id === 'logos'){
-    cab = '<th>Prioridad</th><th>Orden</th><th>Logo</th><th>Vehículo</th><th>Cliente</th><th>Puesto</th><th>Plan de corte</th>';
-    filas = X.detalle.map(d => `<tr><td>${d.prioridad ? '<span class="chip bad">▼ Prioridad</span>' : '<span class="chip neutral">Sin prioridad</span>'}</td><td class="num">${esc(d.orden)}</td><td>${esc(d.logo)}</td><td>${esc(d.vehiculo||'—')}</td><td>${esc(d.cliente||'—')}</td><td>${esc(d.puesto||'—')}</td><td>${esc(d.plan_corte||'—')}</td></tr>`).join('');
+    cab = '<th>Orden</th><th>Logo</th><th>Vehículo</th><th>Cliente</th><th>Puesto</th><th>Plan de corte</th>';
+    filas = X.detalle.map(d => `<tr><td class="num">${esc(d.orden)}</td><td>${esc(d.logo)}</td><td>${esc(d.vehiculo||'—')}</td><td>${esc(d.cliente||'—')}</td><td>${esc(d.puesto||'—')}</td><td>${esc(d.plan_corte||'—')}</td></tr>`).join('');
   } else if(b.id === 'vitros'){
     cab = '<th>Liberación TOC</th><th>Orden</th><th>Vitro</th><th>Componente</th><th>Vehículo</th><th>Puesto</th>';
     filas = X.detalle.map(d => `<tr><td>${d.toc ? fCorta(d.toc) : '—'}</td><td class="num">${esc(d.orden)}</td><td class="num">${esc(d.vitro)}</td><td>${esc(d.componente)}</td><td>${esc(d.vehiculo||'—')}</td><td>${esc(d.puesto)}</td></tr>`).join('');
@@ -2389,6 +2389,8 @@ function datosSeri(S, b){
 //   relleno = lo hecho por día apilado por responsable (estándar: hoja CARGA VITROS; pasta de plata: hoja Archivos PP, estatus OK).
 //   línea punteada roja = capacidad de Indicadores diarios (semana o mes = suma de sus días).
 const CARGA_SERI = {
+  // logos: lo hecho sale de la hoja Historico (FechaCreacion, estado OK) por responsable
+  logos:       {titulo: 'Procesamiento de vitros logos', capacidad: 'capacidad_logos', fotos: ['seri_carga_logos_plan']},
   vitros:      {titulo: 'Procesamiento de vitros', capacidad: 'capacidad', fotos: ['seri_carga_vitros']},
   // antes del 21-oct la foto guardaba componentes únicos: sirve de respaldo para los días anteriores
   pasta_plata: {titulo: 'Procesamiento de vitros pasta de plata', capacidad: 'capacidad_pp', fotos: ['seri_carga_pp_zfer', 'seri_carga_pp_comp']},
@@ -2399,6 +2401,7 @@ function dibujarVitrosCarga(S, b, e, cont){
   $('#vol-seri-' + b.id).hidden = !zoom;
   const capIndic = {};   // capacidad solo de Indicadores diarios (sin casilla manual)
   ((S.retenidas && S.retenidas.serie) || []).forEach(d => { if(d[C.capacidad] != null) capIndic[d.fecha] = d[C.capacidad]; });
+  Object.assign(capIndic, ((S.retenidas && S.retenidas.capacidades) || {})[C.capacidad] || {});
   const capDia = iso => capIndic[iso] != null ? capIndic[iso] : null;
   // capacidad de una semana o mes = suma de las capacidades de sus días
   const capRangoV = (desde, hasta) => { let s = 0, hay = false; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = capDia(d.iso); if(c != null){ s += c; hay = true; } });

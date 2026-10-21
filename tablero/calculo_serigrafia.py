@@ -85,10 +85,34 @@ def logos(hoy):
                                    nombre_archivo, prioridad, estado, responsable, plan_corte FROM cesar.seri_logos""")
     if not filas:
         return None
-    carga = [r for r in filas if norm(r["inv_status"]) == "DISPONIBLE" and not (r["nombre_archivo"] or "").strip()]
-    prioritaria = [r for r in carga if (r["plan_corte"] or "").strip()]
+    disponibles = [r for r in filas if norm(r["inv_status"]) == "DISPONIBLE" and not (r["nombre_archivo"] or "").strip()]
+    # carga = INV_LOGO.STATUS (col. G) DISPONIBLE, NOMBRE_ARCHIVO (col. T) vacío y con Plan de corte (col. X) (regla del área, 2026-10-21)
+    carga = [r for r in disponibles if (r["plan_corte"] or "").strip()]
     hechos = Counter(_persona(r["responsable"]) for r in filas if (r["nombre_archivo"] or "").strip())
     hechos.pop(None, None)
+    diarios = _hechos_logos(hoy)
+    return {
+        "carga": len(carga), "prioridad": len(carga), "sin_prioridad": len(disponibles) - len(carga),
+        "disponibles_sin_archivo": len(disponibles),
+        "por_responsable": [{"nombre": n, "n": c} for n, c in hechos.most_common()],
+        "por_cliente": [{"nombre": n, "n": c} for n, c in Counter((r["cliente"] or "Sin cliente") for r in carga).most_common(8)],
+        "detalle": sorted(({"orden": r["orden"], "logo": r["logo"], "vehiculo": r["vehiculo"], "cliente": r["cliente"],
+                            "puesto": r["puesto_trabajo"], "plan_corte": r["plan_corte"], "prioridad": bool((r["plan_corte"] or "").strip()),
+                            "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None} for r in carga),
+                          key=lambda x: (not x["prioridad"], x["toc"] or "9")),
+        "hechos_por_persona": dict(hechos),
+        **_matriz(diarios, hoy), "serie": _series(diarios, hoy, _capacidad_logos(hoy)), "grafica": _grafica_logos(hoy),
+    }
+
+
+def _hechos_logos(hoy):
+    """[(fecha, persona)] de logos hechos: hoja "Historico" (FechaCreacion, ESTADO OK) por responsable.
+    Si la tabla aún no existe, respaldo con la diferencia entre fotos diarias de lo hecho por persona."""
+    if db.consultar("SELECT OBJECT_ID('cesar.seri_logos_hechos') AS n")[0]["n"]:
+        filas = db.consultar("SELECT fecha, responsable, n FROM cesar.seri_logos_hechos WHERE fecha >= ?", hoy - dt.timedelta(days=400))
+        if filas:
+            # "ASIGNADO" u otro estado en vez de nombre: el logo sí está hecho, va como "Sin responsable"
+            return [(r["fecha"], _persona(r["responsable"]) or "Sin responsable") for r in filas for _ in range(r["n"])]
     fotos = db.consultar("SELECT fecha, indicador, valor FROM cesar.foto_diaria WHERE indicador LIKE 'logos_hechos:%' AND fecha >= ?",
                          hoy - dt.timedelta(days=DIAS_MATRIZ + 1))
     por_dia = defaultdict(dict)
@@ -100,17 +124,17 @@ def logos(hoy):
         for p, n in por_dia[despues].items():
             delta = n - por_dia[antes].get(p, n)
             diarios.extend([(despues, p)] * int(max(0, delta)))
-    return {
-        "carga": len(carga), "prioridad": len(prioritaria), "sin_prioridad": len(carga) - len(prioritaria),
-        "por_responsable": [{"nombre": n, "n": c} for n, c in hechos.most_common()],
-        "por_cliente": [{"nombre": n, "n": c} for n, c in Counter((r["cliente"] or "Sin cliente") for r in carga).most_common(8)],
-        "detalle": sorted(({"orden": r["orden"], "logo": r["logo"], "vehiculo": r["vehiculo"], "cliente": r["cliente"],
-                            "puesto": r["puesto_trabajo"], "plan_corte": r["plan_corte"], "prioridad": bool((r["plan_corte"] or "").strip()),
-                            "toc": r["fecha_lib_toc"].isoformat() if r["fecha_lib_toc"] else None} for r in carga),
-                          key=lambda x: (not x["prioridad"], x["toc"] or "9")),
-        "hechos_por_persona": dict(hechos),
-        **_matriz(diarios, hoy), "serie": _series(diarios, hoy), "grafica": _grafica_logos(hoy),
-    }
+    return diarios
+
+
+def _capacidad_logos(hoy):
+    """{fecha: capacidad diaria de vitros logos}: Indicadores diarios, columna "Capacidad Vitros Logo" (tabla
+    cesar.seri_ind_capacidad); los días sin ese dato, la CAPACIDAD de la hoja "Gráfica" del Excel de logos."""
+    salida = {dt.date.fromisoformat(f): g["capacidad"] for f, g in _grafica_logos(hoy).items() if g["capacidad"] is not None}
+    if db.consultar("SELECT OBJECT_ID('cesar.seri_ind_capacidad') AS n")[0]["n"]:
+        salida.update({r["fecha"]: r["cap_logos"] for r in
+                       db.consultar("SELECT fecha, cap_logos FROM cesar.seri_ind_capacidad WHERE fecha IS NOT NULL AND cap_logos IS NOT NULL")})
+    return salida
 
 
 def vitros(hoy):
@@ -207,9 +231,6 @@ def retenidas(hoy):
         if desde <= r["fecha"] <= hoy:
             serie[r["fecha"]].update(malla_quietas=r["piezas_quietas"] or 0, mallas=r["mallas"] or 0, logos=r["logos"] or 0,
                                      trazabilidades=r["trazabilidades"] or 0)
-    for f, c in _capacidad_pp().items():   # capacidad diaria de vitros pasta de plata (Indicadores diarios)
-        if desde <= f <= hoy:
-            serie[f]["capacidad_pp"] = c
     v = lambda fila, campo: (fila or {}).get(campo) or 0
     return {
         "fecha_vitrojet": uv["fecha"].isoformat() if uv else None, "fecha_mallas": um["fecha"].isoformat() if um else None,
@@ -219,6 +240,9 @@ def retenidas(hoy):
         "screens_total": v(um, "mallas") + v(um, "logos") + v(um, "trazabilidades"),
         "vitros_nuevos": v(uv, "vitros_nuevos"), "capacidad_vitros": (uv or {}).get("capacidad"),
         "serie": [{"fecha": f.isoformat(), **d} for f, d in sorted(serie.items())],
+        # capacidad diaria de vitros logos y pasta de plata, {fecha: valor} (la de vitros estándar va en "serie")
+        "capacidades": {nombre: {f.isoformat(): c for f, c in caps.items() if desde <= f <= hoy}
+                        for nombre, caps in (("capacidad_logos", _capacidad_logos(hoy)), ("capacidad_pp", _capacidad_pp()))},
         # carga del día de pasta de plata escrita en el Excel (columna "Vitros PP"), por fecha
         "carga_pp": {r["fecha"].isoformat(): r["vitros_pp"] for r in vit + mal if r["vitros_pp"] is not None},
     }

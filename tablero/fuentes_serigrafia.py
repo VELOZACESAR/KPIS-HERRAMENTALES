@@ -1,4 +1,5 @@
 """Lectores de los Excel de Serigrafía. Mismo contrato que fuentes.py: {tabla: (columnas, filas)}, extra."""
+from collections import Counter
 from pathlib import Path
 
 import openpyxl
@@ -53,7 +54,25 @@ def leer_logos(ruta: Path):
                        fecha(_celda(r, c.get("fecha_lib_toc"))), g("nombre_archivo", 400), g("prioridad", 40), g("estado", 40),
                        g("responsable", 80), g("plan_corte", 80), g("fullkit", 60)))
     return {"cesar.seri_logos": (COLUMNAS_LOGOS, salida),
-            "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], _leer_grafica_logos(ruta))}, {}
+            "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], _leer_grafica_logos(ruta)),
+            "cesar.seri_logos_hechos": (["fila", "fecha", "responsable", "n"], _leer_historico_logos(ruta))}, {}
+
+
+def _leer_historico_logos(ruta):
+    """Hoja "Historico": un logo hecho por fila (FechaCreacion, RESPONSABLE, ESTADO). Se guarda resumido:
+    cuántos logos con ESTADO = OK hizo cada responsable cada día (si la hoja no está, vacío)."""
+    try:
+        (filas,) = _leer(ruta, "HISTORICO")
+        h, c = _tabla(filas, ["FechaCreacion", "RESPONSABLE"], {"fecha": ["FechaCreacion"], "responsable": ["RESPONSABLE"],
+                                                               "estado": ["ESTADO"]}, obligatorias=["fecha", "responsable", "estado"])
+    except ValueError:
+        return []
+    conteo = Counter()
+    for r in filas[h + 1:]:
+        f = fecha(_celda(r, c["fecha"]))
+        if f is not None and norm(_celda(r, c["estado"])) == "OK":
+            conteo[(f, texto(_celda(r, c["responsable"]), 80))] += 1
+    return [(i, f, p, n) for i, ((f, p), n) in enumerate(sorted(conteo.items(), key=lambda x: (x[0][0], x[0][1] or "")), start=1)]
 
 
 def _leer_grafica_logos(ruta):
