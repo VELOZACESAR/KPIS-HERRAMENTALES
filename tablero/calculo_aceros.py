@@ -279,5 +279,9 @@ def inventario_x5():
     hist = db.consultar("""SELECT fecha, SUM(matriceria) AS matriceria, SUM(calidad) AS calidad
                            FROM cesar.x5_inventario_diario WHERE fecha >= ?
                            GROUP BY fecha ORDER BY fecha""", dt.date.today() - dt.timedelta(days=90))
+    # foto por pieza (la primera del día = inventario con que se cerró el día anterior): para sacar lo hecho por día
+    por_pieza = db.consultar("""SELECT fecha, pieza, matriceria, calidad FROM cesar.x5_inventario_diario
+                                WHERE fecha >= ? ORDER BY fecha, pieza""", dt.date.today() - dt.timedelta(days=400))
     return {"filas": [{"pieza": r["pieza"], "matriceria": r["matriceria"] or 0, "calidad": r["calidad"] or 0} for r in filas],
-            "historial": [{"fecha": r["fecha"].isoformat(), "matriceria": r["matriceria"], "calidad": r["calidad"]} for r in hist]}
+            "historial": [{"fecha": r["fecha"].isoformat(), "matriceria": r["matriceria"], "calidad": r["calidad"]} for r in hist],
+            "fotos_pieza": [[r["fecha"].isoformat(), r["pieza"], r["matriceria"] or 0, r["calidad"] or 0] for r in por_pieza]}

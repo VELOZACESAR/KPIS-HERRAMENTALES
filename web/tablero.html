@@ -357,6 +357,15 @@
   table.tx5 th{font-size:10.5px;padding:5px 4px;letter-spacing:.04em}
   table.tx5 td{padding:4px;color:var(--text)}
   table.tx5 tr.tot td{font-weight:700;border-top:1px solid var(--border);border-bottom:0}
+  /* Resumen X5: inventario por pieza agrupado por familia */
+  table.tx5r{font-size:12.5px}
+  table.tx5r th{font-size:10.5px;letter-spacing:.04em}
+  table.tx5r td{padding:6px 6px}
+  table.tx5r tr.fam td{font-weight:700;color:var(--text);border-top:1px solid var(--grid)}
+  table.tx5r tr.det td{color:var(--text-soft);border:0;padding-top:3px;padding-bottom:3px}
+  table.tx5r tr.det td:first-child{padding-left:24px}
+  table.tx5r tr.tot td{font-weight:800;border-top:2px solid var(--border)}
+  .x5-c{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
   .grid-estado{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
   /* estado actual de aceros en una sola fila */
   .grid-estado1{display:grid;grid-template-columns:minmax(0,1.7fr) repeat(4,minmax(0,1fr));gap:14px}
@@ -1381,19 +1390,97 @@ function vistaAcerosOem(){
   <div class="grid-manual" style="grid-template-columns:minmax(0,1fr)">${tarjetaX5()}</div>
   </div>`;
 }
+// ---- Aceros OEM · BMW X5 en el Resumen
+// Lo hecho cada día = inventario al cierre del día − inventario al cierre del día anterior (Matricería + Calidad, por pieza;
+// si una pieza baja, cuenta 0 ese día). La foto diaria se toma con el primer cargue del día, así que la foto de un día es el
+// cierre del anterior; hoy se compara el inventario en vivo contra la foto de esta mañana.
+// Piezas agrupadas por familia: "DELANTERALES IZQUIERDAS (INOX)" → familia Delanterales · Inox, detalle Izquierdas.
+const MATERIALES_X5 = ['INOX', 'RAMOR'];
+const capX5 = s => { s = String(s || '').toLowerCase().trim(); return s ? s[0].toUpperCase() + s.slice(1) : ''; };
+function piezaX5(nombre){
+  const n = String(nombre || '').replace(/\s+/g, ' ').trim(), m = n.match(/^(\S+)\s*(.*?)\s*(?:\(([^)]+)\))?$/) || [null, n, '', ''];
+  const paren = (m[3] || '').trim(), material = MATERIALES_X5.includes(paren.toUpperCase()) ? paren : '';
+  const detalle = (m[2] || '').trim() || (material ? '' : paren);
+  return {familia: capX5(m[1]) + (material ? ' · ' + capX5(material) : ''), base: capX5(m[1]), detalle: capX5(detalle) || 'Única'};
+}
+let cacheHechosX5 = {ref: null, dias: {}};
+function hechosX5(){ // {fecha: {familia: hechos}} desde las fotos por pieza
+  const X = D.x5; if(cacheHechosX5.ref === X) return cacheHechosX5.dias;
+  const fotos = {};
+  (X.fotos_pieza || []).forEach(([f, pz, m, c]) => (fotos[f] = fotos[f] || {})[pz] = m + c);
+  const vivo = {}; X.filas.forEach(r => vivo[r.pieza] = r.matriceria + r.calidad);
+  const fechas = Object.keys(fotos).sort(), dias = {};
+  fechas.forEach((f, i) => {
+    const ini = fotos[f], fin = f === D.hoy ? vivo : fotos[fechas[i + 1]];
+    if(!fin || (f !== D.hoy && fechas[i + 1] !== sumarDias(f, 1))) return;   // sin la foto del día siguiente no hay cierre
+    const segs = {};
+    for(const pz in fin){ if(ini[pz] == null) continue;   // pieza nueva en el Excel: ese día no se cuenta
+      const h = Math.max(0, fin[pz] - ini[pz]); if(h){ const fam = piezaX5(pz).familia; segs[fam] = (segs[fam] || 0) + h; } }
+    dias[f] = segs;
+  });
+  return (cacheHechosX5 = {ref: X, dias}).dias;
+}
+const familiasX5 = () => [...new Set(D.x5.filas.map(r => piezaX5(r.pieza).familia))];
+const BLOQUE_RESUMEN_X5 = {
+  id: 'rx', titulo: 'Aceros BMW X5 fabricados', aria: 'Aceros BMW X5 fabricados por periodo y familia de pieza', numSegmentos: true,
+  estado: {vista: 'diaria', zoom: null},
+  get op(){ const fams = familiasX5(); return {orden: fams, colores: Object.fromEntries(fams.map((f, i) => [f, PALETA[i % PALETA.length]]))}; },
+  dias(desde, hasta){
+    const H = hechosX5(), primero = Object.keys(H).sort()[0] || D.hoy;
+    return diasRango(desde, hasta).map(d => {
+      const segs = H[d.iso] || {}, futuro = d.iso > D.hoy;
+      return {etiqueta: d.iso === D.hoy ? t('hoy') : fCorta(d.iso), nombre: fLarga(d.iso), segs, total: totalSegs(segs), futuro,
+              enCurso: d.iso === D.hoy, iso: d.iso, nota: futuro ? '' : d.iso < primero ? 'sin dato' : d.festivo ? 'Festivo' : d.domingo ? 'Domingo' : ''};
+    }).filter(x => diaVisibleAceros(x.iso, x.total));
+  },
+  periodos(vista){
+    if(vista === 'diaria'){ const l = lunesDe(D.hoy); return this.dias(l, sumarDias(l, 6)); }
+    const H = hechosX5(), primero = Object.keys(H).sort()[0] || D.hoy, f = fecha(D.hoy), out = [];
+    const suma = (desde, hasta) => { const s = {}; Object.keys(H).filter(x => x >= desde && x <= hasta).forEach(x => { for(const k in H[x]) s[k] = (s[k] || 0) + H[x][k]; }); return s; };
+    for(let k = 11; k >= 0; k--){
+      let desde, hasta, etiqueta, nombre;
+      if(vista === 'semanal'){ desde = sumarDias(lunesDe(D.hoy), -7 * k); hasta = sumarDias(desde, 6);
+        etiqueta = 'S' + semanaIso(desde); nombre = `Semana ${semanaIso(desde)} (${fCorta(desde)} – ${fCorta(hasta)})`; }
+      else { const a = new Date(f.getFullYear(), f.getMonth() - k, 1); desde = isoDe(a); hasta = isoDe(new Date(a.getFullYear(), a.getMonth() + 1, 0));
+        etiqueta = MESES[a.getMonth()].slice(0, 3); nombre = `${MESES[a.getMonth()]} ${a.getFullYear()}`; }
+      if(hasta < primero) continue;   // antes de la primera foto no hay dato
+      const segs = suma(desde, hasta);
+      out.push({etiqueta, nombre, segs, total: totalSegs(segs), enCurso: hasta >= D.hoy, desde, hasta, detalle: vista === 'semanal'});
+    }
+    return out;
+  },
+  mediana(vista){
+    const H = hechosX5();
+    const xs = vista === 'diaria' ? Object.keys(H).filter(f => f < D.hoy && infoDia(f).lab).map(f => totalSegs(H[f]))
+                                  : this.periodos(vista).filter(p => !p.enCurso).map(p => p.total);
+    return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
+  },
+  dibujar(){ if(D.x5) dibujarGraficaResumen(this); },
+};
+
 function tarjetaResumenOem(){
   const X = D.x5;
   if(!X) return '';
-  const tm = X.filas.reduce((s,f)=>s+f.matriceria,0), tc = X.filas.reduce((s,f)=>s+f.calidad,0);
-  const mayor = [...X.filas].sort((a,b) => (b.matriceria+b.calidad)-(a.matriceria+a.calidad))[0];
-  return `<article class="serv-largo" data-ir="aceros" data-sub-ir="oem" tabindex="0">
-    <div class="sl-head"><h3>Aceros OEM · BMW X5</h3><span class="ver">${t('ver_detalle')}</span></div>
-    <div class="sl-grid">
-      <div class="sl-bloque"><div class="lbl"><span>Inventario total</span></div><div class="val">${fmt(tm+tc)} <small>aceros</small></div>
-        <div class="desc">${X.filas.map(f => `${esc(f.pieza)} <b>${fmt(f.matriceria+f.calidad)}</b>`).join(' · ')}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>En matricería</span></div><div class="val">${fmt(tm)}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>En calidad (piso)</span></div><div class="val">${fmt(tc)}</div></div>
-      <div class="sl-bloque"><div class="lbl"><span>Pieza con más inventario</span></div><div class="val" style="font-size:16px;line-height:1.3">${mayor ? esc(mayor.pieza) : '—'}</div></div>
+  const H = hechosX5(), hoyH = totalSegs(H[D.hoy] || {});
+  // tabla: familias en el orden del Excel, cada una con sus piezas y su subtotal
+  const fams = {}; X.filas.forEach(r => { const p = piezaX5(r.pieza); (fams[p.familia] = fams[p.familia] || []).push({...r, ...p}); });
+  const op = BLOQUE_RESUMEN_X5.op, sum = (rs, k) => rs.reduce((a, r) => a + r[k], 0);
+  const tm = sum(X.filas, 'matriceria'), tc = sum(X.filas, 'calidad');
+  const fila = (cls, nombre, m, c) => `<tr class="${cls}"><td>${nombre}</td><td class="n">${fmt(m)}</td><td class="n">${fmt(c)}</td><td class="n"><b>${fmt(m + c)}</b></td></tr>`;
+  const cuerpo = Object.entries(fams).map(([f, rs]) =>
+    rs.length === 1 && rs[0].detalle === 'Única'
+      ? fila('fam', `<i class="x5-c" style="background:${op.colores[f]}"></i>${esc(f)}`, rs[0].matriceria, rs[0].calidad)
+      : fila('fam', `<i class="x5-c" style="background:${op.colores[f]}"></i>${esc(f)}`, sum(rs, 'matriceria'), sum(rs, 'calidad')) +
+        rs.map(r => fila('det', esc(r.detalle), r.matriceria, r.calidad)).join('')).join('');
+  return `<article class="serv-largo">
+    <div class="sl-head"><h3>Aceros OEM · BMW X5</h3><span class="ver" data-ir="aceros" data-sub-ir="oem" tabindex="0">${t('ver_detalle')}</span></div>
+    <div class="ra-grid inv">
+      ${htmlGraficaResumen(BLOQUE_RESUMEN_X5.id, BLOQUE_RESUMEN_X5.titulo)}
+      <div class="kpi ra-chart ra-tabla">
+        <div class="lbl"><span>Inventario por pieza</span><span class="chip neutral">Hoy van ${fmt(hoyH)} fabricados</span></div>
+        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad (piso)</th><th class="n">Total</th></tr></thead>
+          <tbody>${cuerpo}${fila('tot', 'Total', tm, tc)}</tbody></table></div>
+      </div>
     </div></article>`;
 }
 function cambiarSubAceros(sub, redibujar=true){
@@ -1926,6 +2013,7 @@ const BLOQUE_RESUMEN_MANT = {
   dibujar(){ if(D.mantenimiento) dibujarGraficaResumen(this); },
 };
 BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MANT);
+BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_X5);   // Aceros OEM · BMW X5 (definido junto a la tarjeta del Resumen)
 
 // Renglones "cantidad vs. media" con el mismo formato de "Producción por matricero" de Aceros.
 // filas: [{nombre, n, media, color}]; el total compara la suma contra la suma de las medias.
