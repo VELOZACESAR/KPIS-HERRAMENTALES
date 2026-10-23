@@ -2953,8 +2953,8 @@ let vistaMoldesSerie = 'semanal';
 
 // ---- Fabricación de moldes en el Resumen: histórico de herramentales fabricados (estatus OK por fecha de entrega)
 //      con Diario (semana actual) / Semanal (clic = sus días, con la serie diaria de 30 días) / Mensual y mediana.
-// Herramentales fabricados (estatus OK por fecha de entrega): una gráfica con dos barras por periodo, in house (matriceros de
-// la casa, lista IN_HOUSE del servidor) y outsourcing (los demás fabricantes), y la mediana de cada uno.
+// Herramentales fabricados (estatus OK por fecha de entrega): una barra apilada por periodo, in house (matriceros de la casa,
+// lista IN_HOUSE del servidor) y outsourcing (los demás fabricantes), con la mediana del total.
 const ORIGENES_MOLDES = [{id: 'inhouse'}, {id: 'outsourcing'}];
 const BLOQUE_RESUMEN_MOLDES = {
   id: 'rf', titulo: 'Herramentales fabricados', aria: 'Herramentales fabricados por periodo, in house y outsourcing',
@@ -2997,15 +2997,17 @@ const BLOQUE_RESUMEN_MOLDES = {
       `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana del total por ${unidad}</span></div>`;
     const MO = D.moldes, medTot = medianaDe(vistaMed === 'diaria' ? (MO.diaria || []).filter(d => !d.hoy && d.lab).map(d => d.total)
                                                                     : MO[vistaMed].filter(p => !p.en_curso).map(p => p.total));
-    barrasAgrupadas(cont, barras.map(x => {
+    // una barra por periodo: in house abajo y outsourcing arriba (número adentro); la mediana del total es congruente con su alto
+    barrasApiladas(cont, barras.map(x => {
       const d = o => (x.x && x.x[o]) || {segs: {}, total: 0}, seg = o => `Moldes ${fmt(d(o).segs.Molde || 0)} · Galgas ${fmt(d(o).segs.Galga || 0)}`;
-      return {etiqueta: x.etiqueta, valores: x.futuro ? {} : {inhouse: d('inhouse').total, outsourcing: d('outsourcing').total},
+      return {etiqueta: x.etiqueta, segs: x.futuro ? {} : {inhouse: d('inhouse').total, outsourcing: d('outsourcing').total},
+        total: x.futuro ? 0 : d('inhouse').total + d('outsourcing').total, etiquetaValor: x.futuro ? '' : undefined,
         sub: x.enCurso ? 'en curso' : (x.nota || ''), subColor: 'var(--muted)',
         tip: `<b>${esc(x.nombre)}${x.enCurso ? ' · en curso' : ''}</b>` +
           ORIGENES_MOLDES.map(o => `<div class="r" style="margin-top:6px"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${colores[o.id]}"></i>${nombres[o.id]}</span><span>${x.futuro ? '—' : fmt(d(o.id).total)}</span></div>` +
             (x.futuro ? '' : `<div style="opacity:.75;margin-left:15px">${seg(o.id)}</div>`)).join('') +
           (onClick ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : '')};
-    }), {orden: ['inhouse', 'outsourcing'], colores, alto: 300, aria: this.aria, onClick,
+    }), {orden: ['inhouse', 'outsourcing'], colores, sub: true, alto: 300, aria: this.aria, onClick, numSegmentos: true,
       referencias: medTot != null ? [{valor: medTot, color: 'var(--mediana)', etiqueta: `Mediana ${fmt(medTot, medTot % 1 ? 1 : 0)}`}] : []});
   },
   dibujar(){ if(D.moldes) this.pintar(); },
