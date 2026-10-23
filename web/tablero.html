@@ -1069,8 +1069,8 @@ function dibujarResumen(){
   const A = D && D.aceros, cont = $('#ch-res-prod'); if(!A || !cont || $('#v-resumen').hidden) return;
   const md = metaDiaria(), hist = A.historial || {};
   $('#res-volver').hidden = zoomRes === null;
-  const leyendaLineas = `<span><i class="linea punteada" style="color:${PALETA[0]}"></i>${zoomRes===null?'Capacidad semanal (suma de la capacidad de cada día)':'Capacidad del día'}</span>` +
-    `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>${retPisoPorDia() ? 'Piezas retenidas/refundidas en piso' : 'Piezas retenidas'}</span>`;
+  const leyendaLineas = `<span><i class="linea punteada" style="color:${COLOR_RETENIDAS}"></i>${zoomRes===null?'Capacidad semanal (suma de la capacidad de cada día)':'Capacidad del día'}</span>` +
+    `<span><i class="linea" style="background:${COLOR_META}"></i>${retPisoPorDia() ? 'Piezas retenidas/refundidas en piso' : 'Piezas retenidas'}</span>`;
 
   if(zoomRes !== null){ // ---- zoom: los 7 días de la semana elegida
     const s = A.semanal[zoomRes];
@@ -1098,10 +1098,10 @@ function dibujarResumen(){
           `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
     });
     $('#res-titulo').textContent = `Producción ${s.etiqueta} vs. capacidad`;
-    $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${COLOR_META}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
-    barrasApiladas(cont, filas.map(x => x.item), {sub:true, alto:280, aria:`Producción por día de la ${s.etiqueta}`, orden:['Aceros producidos'], colores:{'Aceros producidos': COLOR_META},
-      lineas:[{vals:filas.map(x=>x.cap), color:PALETA[0], etiquetas:'ultima', punteada:true},
-              {vals:filas.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
+    $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
+    barrasApiladas(cont, filas.map(x => x.item), {sub:true, alto:280, aria:`Producción por día de la ${s.etiqueta}`, orden:['Aceros producidos'], colores:{'Aceros producidos': PALETA[0]},
+      lineas:[{vals:filas.map(x=>x.cap), color:COLOR_RETENIDAS, etiquetas:'ultima', punteada:true},
+              {vals:filas.map(x=>x.ret), color:COLOR_META, etiquetas:'todas'}]});
     return;
   }
   $('#res-titulo').textContent = 'Producción semanal de aceros vs. capacidad';
@@ -1121,11 +1121,11 @@ function dibujarResumen(){
         `<div style="opacity:.75">suma de la capacidad de cada día · promedio ${fmt(capPromSemana(s), 0)}/día${ajustados?` · ${ajustados} día(s) con capacidad propia`:''}</div>` +
         `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
   });
-  $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${COLOR_META}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
-  barrasApiladas(cont, sem.map(x => x.item), {sub:true, alto:280, aria:'Producción semanal vs. capacidad y piezas retenidas', orden:['Aceros producidos'], colores:{'Aceros producidos': COLOR_META},
+  $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
+  barrasApiladas(cont, sem.map(x => x.item), {sub:true, alto:280, aria:'Producción semanal vs. capacidad y piezas retenidas', orden:['Aceros producidos'], colores:{'Aceros producidos': PALETA[0]},
     onClick:(it, i) => { zoomRes = i; dibujarResumen(); },
-    lineas:[{vals:sem.map(x=>x.cap), color:PALETA[0], etiquetas:'ultima', punteada:true},
-            {vals:sem.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
+    lineas:[{vals:sem.map(x=>x.cap), color:COLOR_RETENIDAS, etiquetas:'ultima', punteada:true},
+            {vals:sem.map(x=>x.ret), color:COLOR_META, etiquetas:'todas'}]});
   // fila de casillas: una por semana, alineada con su barra (mismo margen izquierdo/derecho que la gráfica)
   $('#res-cap-fila').innerHTML = `<span class="cap-tit">Cap./día</span>
     <div class="cap-celdas" style="grid-template-columns:repeat(${A.semanal.length},minmax(0,1fr))">${
