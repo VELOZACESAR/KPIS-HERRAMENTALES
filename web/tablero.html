@@ -241,16 +241,21 @@
   .ra-tabla th,.ra-tabla td{padding:6px 6px}
   .ra-tabla td{white-space:nowrap}
   .ra-tabla td.veh{max-width:170px;overflow:hidden;text-overflow:ellipsis}
-  .mc{display:flex;flex-direction:column}
-  .mc-veh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:10px 2px 4px;font-weight:700;font-size:12px;letter-spacing:.03em;color:var(--text);border-bottom:1px solid var(--border)}
-  .mc-veh:first-child{padding-top:2px}
-  .mc-n{font-size:11.5px;font-weight:600;color:var(--text-soft);white-space:nowrap}
-  .mc-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 2px 6px 14px;font-size:12.5px;color:var(--text);border-bottom:1px solid var(--grid)}
+  .mc{display:flex;flex-direction:column;gap:10px}
+  .mc-grupo{border:1px solid var(--grid);border-left:4px solid var(--c);border-radius:10px;background:var(--surface);overflow:hidden}
+  .mc-veh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;font-weight:700;font-size:12px;letter-spacing:.03em;color:var(--text);background:var(--bg)}
+  .mc-n{font-size:11px;font-weight:700;color:var(--text-soft);white-space:nowrap;padding:1px 9px;border-radius:999px;background:var(--grid)}
+  .mc-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 12px;font-size:12.5px;color:var(--text);border-top:1px solid var(--grid)}
+  .mc-cod{font-weight:600;letter-spacing:.02em}
+  .mc-der{display:flex;align-items:center;gap:10px}
+  .mc-dias{font-size:11.5px;color:var(--muted)}
+  .mc-dias.venc{color:var(--bad);font-weight:600}
+  .mc .mc-sec + .mc-fila, .mc .mc-fila.sin{border:1px dashed var(--border);border-radius:8px;margin-top:6px}
   .mc-f{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--grid);color:var(--text-soft);white-space:nowrap}
   .mc-f.hoy{background:var(--brand);color:var(--on-brand)}
   .mc-f.venc{background:var(--bad-bg);color:var(--bad)}
   .mc-sec{margin-top:14px;padding:6px 2px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft);border-bottom:1px solid var(--border)}
-  .mc-fila.sin{padding-left:2px;color:var(--text-soft)}
+  .mc-fila.sin{padding:8px 12px;color:var(--text-soft)}
   .mc-set{font-size:11.5px;font-weight:600;padding:2px 10px;border-radius:999px;border:1px dashed var(--border);white-space:nowrap}
   .ra-tabla tr.sep-fila td{background:var(--brand);color:var(--on-brand);font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center;font-size:11px}
   .ra-col{display:grid;gap:14px;align-content:start}
@@ -358,22 +363,34 @@
   table.tx5 td{padding:4px;color:var(--text)}
   table.tx5 tr.tot td{font-weight:700;border-top:1px solid var(--border);border-bottom:0}
   /* Resumen X5: inventario por pieza agrupado por familia */
-  table.tx5r{font-size:12.5px}
   /* Resumen Serigrafía: columnas de detalle bajo el número grande (2 o 3) */
   .seri-tres{grid-template-columns:repeat(auto-fit,minmax(0,1fr))}
-  .rs-tarjetas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-  .rs-tarjetas .kpi{background:var(--bg);border-color:var(--grid);display:flex;flex-direction:column;gap:10px}
-  .rs-tarjetas .seri-nota{margin-top:auto}
-  .rs-grafica{margin-top:14px}
-  @media (max-width:1000px){ .rs-tarjetas{grid-template-columns:1fr} }
   .seri-tres span{font-size:10.5px;letter-spacing:.04em;font-weight:600;line-height:1.25}
   .seri-nota{margin-top:10px;font-size:12px}
-  table.tx5r th{font-size:10.5px;letter-spacing:.04em}
-  table.tx5r td{padding:6px 6px}
-  table.tx5r tr.fam td{font-weight:700;color:var(--text);border-top:1px solid var(--grid)}
-  table.tx5r tr.det td{color:var(--text-soft);border:0;padding-top:3px;padding-bottom:3px}
-  table.tx5r tr.det td:first-child{padding-left:24px}
-  table.tx5r tr.tot td{font-weight:800;border-top:2px solid var(--border)}
+  .seri-k{padding:14px 18px;gap:8px}
+  .seri-k .num-hero{font-size:40px}
+  .seri-k .fila-tres{padding-top:8px}
+  .seri-k .fila-tres b{font-size:20px}
+  .seri-k .seri-nota{margin-top:4px;font-size:11.5px}
+  table.tx5r{font-size:12.5px;border-collapse:separate;border-spacing:0}
+  table.tx5r th{font-size:10.5px;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--border);padding:6px 8px}
+  table.tx5r td{padding:6px 8px;border:0}
+  table.tx5r tbody.x5-fam tr:first-child td{border-top:8px solid transparent}
+  table.tx5r tr.fam td{font-weight:700;color:var(--text);background:var(--bg)}
+  table.tx5r tr.fam td:first-child{border-left:4px solid var(--c);border-radius:8px 0 0 8px}
+  table.tx5r tr.fam td:last-child{border-radius:0 8px 8px 0}
+  table.tx5r tr.det td{color:var(--text-soft);padding-top:4px;padding-bottom:4px}
+  table.tx5r tr.det td:first-child{padding-left:26px;position:relative}
+  table.tx5r tr.det td:first-child::before{content:'';position:absolute;left:12px;top:50%;width:6px;height:6px;border-radius:50%;background:var(--c);opacity:.6;transform:translateY(-50%)}
+  table.tx5r td.tot-c{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+  .x5-barra{display:inline-block;width:70px;height:6px;border-radius:3px;background:var(--grid);overflow:hidden}
+  .x5-barra i{display:block;height:100%;border-radius:3px}
+  table.tx5r td.tot-c b{min-width:26px;text-align:right}
+  table.tx5r td.tot-c b.suave{font-weight:600;color:var(--text-soft)}
+  .x5-resumen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:4px 0 6px;border-bottom:1px solid var(--grid)}
+  .x5-resumen div{display:flex;flex-direction:column;gap:2px}
+  .x5-resumen b{font:700 24px/1.1 var(--font);font-variant-numeric:tabular-nums;color:var(--text)}
+  .x5-resumen span{font-size:11px;color:var(--text-soft);font-weight:600}
   .x5-c{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
   .grid-estado{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
   /* estado actual de aceros en una sola fila */
@@ -847,41 +864,6 @@ function lineaResumen(cont, pts, o={}){
   });
 }
 
-/* Línea de tiempo de entregas (moldes en cola): items [{codigo, vehiculo, entrega}], colores {vehiculo: color}.
-   Un punto por molde en su fecha de entrega (apilados si caen el mismo día); lo vencido a la izquierda en rojo. */
-function lineaTiempoEntregas(cont, items, colores){
-  cont.innerHTML = '';
-  if(!items.length){ cont.innerHTML = '<div class="vacio">Sin moldes con fecha de entrega</div>'; return; }
-  const porDia = {}; items.forEach(d => (porDia[d.entrega] = porDia[d.entrega] || []).push(d));
-  const fechas = Object.keys(porDia).sort(), desde = fechas[0] < D.hoy ? fechas[0] : D.hoy, hasta = fechas[fechas.length - 1] > D.hoy ? fechas[fechas.length - 1] : D.hoy;
-  const dias = diasRango(desde, hasta), pila = Math.max(...Object.values(porDia).map(a => a.length));
-  const r = 7, paso = 2 * r + 5, mL = 14, mR = 14, mB = 40, mT = 24, H = mT + pila * paso + mB + 6;
-  const W = Math.max(cont.clientWidth || 500, dias.length * 26 + mL + mR), ancho = (W - mL - mR) / dias.length;
-  const x = i => mL + ancho * i + ancho / 2, base = H - mB;
-  const svg = svgEl('svg', {width:W, height:H, viewBox:`0 0 ${W} ${H}`, role:'img', 'aria-label':'Moldes en cola por fecha de entrega'}, cont);
-  const iHoy = dias.findIndex(d => d.iso === D.hoy);
-  if(iHoy > 0){   // franja de vencidos
-    svgEl('rect', {x:mL, y:mT - 16, width:ancho * iHoy, height:base - mT + 16, fill:'var(--bad)', opacity:.07, rx:6}, svg);
-    svgEl('text', {x:mL + 6, y:mT - 4, style:'fill:var(--bad);font-size:10.5px;font-weight:700'}, svg).textContent = 'Vencidos';
-  }
-  svgEl('line', {x1:mL, x2:W-mR, y1:base, y2:base, stroke:'var(--border)'}, svg);
-  if(iHoy >= 0){
-    svgEl('line', {x1:x(iHoy), x2:x(iHoy), y1:mT, y2:base, stroke:'var(--text)', 'stroke-width':1.5, 'stroke-dasharray':'3 3'}, svg);
-    svgEl('text', {x:x(iHoy), y:mT - 4, 'text-anchor':'middle', style:'fill:var(--text);font-size:10.5px;font-weight:700'}, svg).textContent = 'Hoy';
-  }
-  dias.forEach((d, i) => {
-    const lista = porDia[d.iso] || [], f = fecha(d.iso);
-    if(lista.length || d.iso === D.hoy || f.getDay() === 1)   // etiqueta en días con entregas, hoy y cada lunes
-      svgEl('text', {x:x(i), y:base + 16, 'text-anchor':'middle', style:`font-weight:${lista.length ? 700 : 400}`}, svg).textContent = `${DIAS[f.getDay()]} ${f.getDate()}`;
-    if(lista.length) svgEl('text', {x:x(i), y:base + 30, 'text-anchor':'middle', style:'fill:var(--muted);font-size:10px'}, svg).textContent = MESES[f.getMonth()].slice(0, 3).toLowerCase();
-    lista.forEach((m, k) => {
-      const c = svgEl('circle', {cx:x(i), cy:base - r - 4 - k * paso, r, fill:colores[m.vehiculo] || PALETA[0], stroke: d.iso < D.hoy ? 'var(--bad)' : 'var(--surface)', 'stroke-width':2}, svg);
-      c.addEventListener('mousemove', ev => mostrarTip(ev, `<b>${esc(m.codigo)}</b><div>${esc(m.vehiculo)}</div><div>Entrega ${fLarga(d.iso)}${d.iso < D.hoy ? ' · vencido' : ''}</div>`));
-      c.addEventListener('mouseleave', ocultarTip);
-    });
-  });
-}
-
 /* Barras pareadas por periodo: [carga | hecho apilado]. items: [{etiqueta, carga|null, segs, total, sub, subColor, tip}]
    o: {orden, colores, alto, aria, onClick, lineas:[{vals, color, punteada, etiquetas}]}. Sin carga, solo va lo hecho. */
 function barrasCargaHecho(cont, items, o={}){
@@ -1298,7 +1280,7 @@ function vistaResumen(A){
   return `<section class="vista" id="v-resumen" hidden>
     ${frase ? `<div class="frase">${frase}</div>` : ''}
     <h2 class="sec">${t('servicios')}</h2>
-    <div class="lista-serv">${tarjAceros}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenOem()}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
+    <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
 }
 
 function kpi(lbl, val, unidad, desc, extra='', cls=''){
@@ -1605,35 +1587,34 @@ const BLOQUE_RESUMEN_X5 = {
                                   : this.periodos(vista).filter(p => !p.enCurso).map(p => p.total);
     return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
   },
-  dibujar(){
-    if(!D.x5) return;
-    dibujarGraficaResumen(this);
-    const cont = $('#ch-x5-inv'); if(!cont) return;
-    const cM = COLOR_X5['Matricería'], cC = COLOR_X5['Calidad (piso)'];
-    barrasH(cont, D.x5.filas.map(r => { const p = piezaX5(r.pieza), nom = p.detalle === 'Única' ? p.familia : `${p.familia} · ${p.detalle}`;
-      return {etiqueta: nom, valor: r.matriceria + r.calidad, segs: [{v: r.matriceria, color: cM}, {v: r.calidad, color: cC}],
-        tip: `<b>${esc(nom)}</b><div class="r" style="margin-top:6px"><span>Matricería</span><span>${fmt(r.matriceria)}</span></div>` +
-             `<div class="r"><span>Calidad (piso)</span><span>${fmt(r.calidad)}</span></div><div class="r"><span>Total</span><span>${fmt(r.matriceria + r.calidad)}</span></div>`}; }),
-      {mL: 250, aria: 'Inventario BMW X5 por pieza'});
-  },
+  dibujar(){ if(D.x5) dibujarGraficaResumen(this); },
 };
 
 function tarjetaResumenOem(){
   const X = D.x5;
   if(!X) return '';
   const H = hechosX5(), hoyH = totalSegs(H[D.hoy] || {});
-  // tabla: familias en el orden del Excel, cada una con sus piezas y su subtotal
+  // tabla: familias en el orden del Excel, cada una con sus piezas y su subtotal; el total lleva una barra corta
   const fams = {}; X.filas.forEach(r => { const p = piezaX5(r.pieza); (fams[p.familia] = fams[p.familia] || []).push({...r, ...p}); });
   const op = BLOQUE_RESUMEN_X5.op, sum = (rs, k) => rs.reduce((a, r) => a + r[k], 0);
   const tm = sum(X.filas, 'matriceria'), tc = sum(X.filas, 'calidad');
+  const maxFam = Math.max(1, ...Object.values(fams).map(rs => sum(rs, 'matriceria') + sum(rs, 'calidad')));
+  const celdaTot = (v, color, fuerte) => `<td class="n tot-c"><span class="x5-barra"><i style="width:${Math.max(4, v / maxFam * 100)}%;background:${color}"></i></span><b class="${fuerte ? '' : 'suave'}">${fmt(v)}</b></td>`;
+  const cuerpo = Object.entries(fams).map(([f, rs]) => {
+    const color = op.colores[f], m = sum(rs, 'matriceria'), c = sum(rs, 'calidad'), unica = rs.length === 1 && rs[0].detalle === 'Única';
+    return `<tbody class="x5-fam" style="--c:${color}">
+      <tr class="fam"><td><span class="x5-nom">${esc(f)}</span></td><td class="n">${fmt(m)}</td><td class="n">${fmt(c)}</td>${celdaTot(m + c, color, true)}</tr>
+      ${unica ? '' : rs.map(r => `<tr class="det"><td>${esc(r.detalle)}</td><td class="n">${fmt(r.matriceria)}</td><td class="n">${fmt(r.calidad)}</td>${celdaTot(r.matriceria + r.calidad, color, false)}</tr>`).join('')}
+    </tbody>`; }).join('');
   return `<article class="serv-largo">
     <div class="sl-head"><h3>Aceros OEM · BMW X5</h3><span class="ver" data-ir="aceros" data-sub-ir="oem" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_X5.id, BLOQUE_RESUMEN_X5.titulo)}
       <div class="kpi ra-chart ra-tabla">
-        <div class="lbl"><span>Inventario por pieza</span><span class="chip neutral">Total ${fmt(tm + tc)} · hoy van ${fmt(hoyH)} fabricados</span></div>
-        <div class="legend"><span><i style="background:${COLOR_X5['Matricería']}"></i>Matricería <b>${fmt(tm)}</b></span><span><i style="background:${COLOR_X5['Calidad (piso)']}"></i>Calidad (piso) <b>${fmt(tc)}</b></span></div>
-        <div class="chart" id="ch-x5-inv"></div>
+        <div class="lbl"><span>Inventario por pieza</span><span class="chip neutral">Hoy van ${fmt(hoyH)} fabricados</span></div>
+        <div class="x5-resumen"><div><b>${fmt(tm + tc)}</b><span>aceros en inventario</span></div><div><b>${fmt(tm)}</b><span>en matricería</span></div><div><b>${fmt(tc)}</b><span>en calidad (piso)</span></div></div>
+        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad</th><th class="n">Total</th></tr></thead>
+          ${cuerpo}</table></div>
       </div>
     </div></article>`;
 }
@@ -2523,19 +2504,19 @@ function tarjetaResumenSeri(S){
     <div class="sl-head"><h3>${t('serigrafia')}</h3><span class="ver" data-ir="serigrafia" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid">
       <div class="ra-col">
-        <div class="kpi fila-res">
+        <div class="kpi fila-res seri-k">
           <div class="lbl"><span>Archivos vitro por hacer</span><span class="chip ok">● ${t('en_vivo')}</span></div>
           <div class="fila-hero"><span class="num-hero">${fmt(totVit)}</span><span>archivos<br>vitro</span></div>
           ${tres([[vl, 'VITRO LOGO'], [ve, 'VITRO ESTÁNDAR'], [vp, 'VITRO PASTA DE PLATA']])}
           ${l1 != null ? `<div class="desc seri-nota">Vitro logo: <b>${fmt(l1)}</b> con plan de corte · <b>${fmt(l2)}</b> en planeación</div>` : ''}
         </div>
-        <div class="kpi fila-res">
+        <div class="kpi fila-res seri-k">
           <div class="lbl"><span>Piezas retenidas ${cuando(fRet || r.fecha_mallas)}</span>${totRet ? '<span class="chip bad">▼ Hay retenidas</span>' : '<span class="chip ok">▲ Sin retenidas</span>'}</div>
           <div class="fila-hero"><span class="num-hero" style="color:${totRet ? 'var(--bad)' : 'var(--text)'}">${fmt(totRet)}</span><span>piezas<br>retenidas</span></div>
           ${tres([[archivo, 'POR FALTA DE ARCHIVO', archivo ? 'var(--bad)' : ''], [malla, 'POR FALTA DE MALLA', malla ? 'var(--bad)' : '']])}
           ${rt ? `<div class="desc seri-nota">Falta de archivo: Vitro logo <b>${fmt(rt.logos)}</b> · Estándar <b>${fmt(rt.estandar)}</b> · Pasta de plata <b>${fmt(rt.pp)}</b></div>` : ''}
         </div>
-        <div class="kpi fila-res">
+        <div class="kpi fila-res seri-k">
           <div class="lbl"><span>Screens pedidos ${cuando(fSc)}</span></div>
           <div class="fila-hero"><span class="num-hero">${num(r.screens_total)}</span><span>screens</span></div>
           ${tres([[sc.trazabilidades, 'TRAZABILIDADES'], [sc.mallas, 'MALLAS'], [sc.logos, 'LOGOS']])}
@@ -2865,7 +2846,7 @@ const BLOQUE_RESUMEN_SERI = {
       `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>Piezas retenidas</span></div>`;
     // la gráfica toma el alto de las tarjetas de al lado (así no queda espacio en blanco)
     const col = cont.closest('.ra-grid') && cont.closest('.ra-grid').querySelector('.ra-col'), caja = cont.closest('.ra-chart');
-    const alto = col && caja ? Math.max(280, col.offsetHeight - (cont.getBoundingClientRect().top - caja.getBoundingClientRect().top) - 22) : 300;
+    const alto = col && caja ? Math.min(380, Math.max(280, col.offsetHeight - (cont.getBoundingClientRect().top - caja.getBoundingClientRect().top) - 22)) : 300;
     const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; this.pintar(); } : null;
     barrasApiladas(cont, items, {...op, sub: true, alto, aria: this.aria, onClick,
       lineas: [{vals: barras.map(x => x.cap), color: COLOR_META, etiquetas: 'ultima', punteada: true, sinPuntos: true},
@@ -2982,7 +2963,6 @@ let vistaMoldesSerie = 'semanal';
 //      con Diario (semana actual) / Semanal (clic = sus días, con la serie diaria de 30 días) / Mensual y mediana.
 const BLOQUE_RESUMEN_MOLDES = {
   id: 'rf', titulo: 'Histórico de herramentales fabricados', aria: 'Herramentales fabricados por periodo',
-  tipo: 'linea', nombreLinea: 'Herramentales fabricados (moldes + galgas)', get colorLinea(){ return PALETA[1]; },
   estado: {vista: 'semanal', zoom: null},
   get op(){ return {orden: ['Molde', 'Galga'], colores: COLOR_HERR, nombres: {Molde: 'Moldes', Galga: 'Galgas'}}; },
   dias(desde, hasta){
@@ -3005,23 +2985,13 @@ const BLOQUE_RESUMEN_MOLDES = {
               detalle: !mensual && p.desde >= primero};   // el detalle por día existe para los últimos 30 días
     });
   },
-  xs(vista){
+  mediana(vista){
     const MO = D.moldes;
-    return vista === 'diaria' ? (MO.diaria || []).filter(d => !d.hoy && d.lab).map(d => d.total)
-                              : MO[vista].filter(p => !p.en_curso).map(p => p.total);
+    const xs = vista === 'diaria' ? (MO.diaria || []).filter(d => !d.hoy && d.lab).map(d => d.total)
+                                  : MO[vista].filter(p => !p.en_curso).map(p => p.total);
+    return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
   },
-  mediana(vista){ return {valor: medianaDe(this.xs(vista)), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'}; },
-  banda(vista){ return bandaDe(this.xs(vista)); },
-  dibujar(){
-    if(!D.moldes) return;
-    dibujarGraficaResumen(this);
-    const cont = $('#ch-mc-tl'); if(!cont) return;
-    const m = colaMoldes(D.moldes), vehs = [...new Set(m.conFecha.map(d => d.vehiculo))];
-    const colores = Object.fromEntries(vehs.map((v, i) => [v, PALETA[i % PALETA.length]]));
-    lineaTiempoEntregas(cont, m.conFecha.map(d => ({codigo: piezaMolde(d), vehiculo: String(d.vehiculo || '').trim(), entrega: d.entrega})),
-      Object.fromEntries(Object.entries(colores).map(([v, c]) => [String(v).trim(), c])));
-    $('#mc-tl-ley').innerHTML = `<div class="legend">${vehs.map(v => `<span><i style="background:${colores[v]}"></i>${esc(String(v).trim())}</span>`).join('')}</div>`;
-  },
+  dibujar(){ if(D.moldes) dibujarGraficaResumen(this); },
 };
 BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 
@@ -3030,26 +3000,34 @@ BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 const limboMolde = d => !!d.entrega && d.entrega.slice(5, 7) === '12' && (fecha(d.entrega) - fecha(D.hoy)) / 864e5 > 30;
 const sinFechaMolde = d => !d.entrega;
 const piezaMolde = d => (d.rep || d.codigo || '').replace(/\s*#\d+\s*$/, '').trim() || '—';
-function colaMoldes(MO){ // moldes en cola con fecha (sin fechas limbo) y, aparte, los sin fecha agrupados por vehículo
+function tarjetaResumenMoldes(MO){
+  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
   const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde' && !limboMolde(d));
   const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
   const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
   (MO.sin_fecha || []).forEach(x => { if(x.moldes) sinFecha[x.vehiculo] = Math.max(sinFecha[x.vehiculo] || 0, x.moldes); });
-  return {conFecha, sinFecha};
-}
-function tarjetaResumenMoldes(MO){
-  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
-  const {conFecha, sinFecha} = colaMoldes(MO);
-  const vencidos = conFecha.filter(d => d.entrega < D.hoy).length;
-  const sinF = Object.entries(sinFecha).map(([v, n]) => `<div class="mc-fila sin"><span>${esc(String(v || '').trim())}</span><span class="mc-set">Set · ${fmt(n)} ${n === 1 ? 'molde' : 'moldes'}</span></div>`).join('');
+  const titulo = s => String(s || '').trim();   // el vehículo tal como viene en el Excel
+  const chipFecha = iso => { const f = fecha(iso), txt = `${DIAS[f.getDay()]} ${f.getDate()} ${MESES[f.getMonth()].slice(0,3).toLowerCase()}`;
+    return iso < D.hoy ? `<span class="mc-f venc">▼ ${txt}</span>` : iso === D.hoy ? `<span class="mc-f hoy">Hoy</span>` : `<span class="mc-f">${txt}</span>`; };
+  // agrupados por vehículo, en orden de la entrega más próxima
+  const grupos = {}; conFecha.forEach(d => (grupos[d.vehiculo] = grupos[d.vehiculo] || []).push(d));
+  const orden = Object.entries(grupos).sort((a, b) => a[1][0].entrega < b[1][0].entrega ? -1 : 1);
+  const faltan = iso => { const n = Math.round((fecha(iso) - fecha(D.hoy)) / 864e5);
+    return n < 0 ? `hace ${fmt(-n)} ${-n === 1 ? 'día' : 'días'}` : n === 0 ? '' : n === 1 ? 'mañana' : `en ${fmt(n)} días`; };
+  const cuerpo = orden.map(([v, ds], k) => `
+      <div class="mc-grupo" style="--c:${PALETA[k % PALETA.length]}">
+        <div class="mc-veh"><span>${esc(titulo(v))}</span><span class="mc-n">${fmt(ds.length)} ${ds.length === 1 ? 'molde' : 'moldes'}</span></div>
+        ${ds.map(d => `<div class="mc-fila"><span class="mc-cod num">${esc(piezaMolde(d))}</span><span class="mc-der"><span class="mc-dias ${d.entrega < D.hoy ? 'venc' : ''}">${faltan(d.entrega)}</span>${chipFecha(d.entrega)}</span></div>`).join('')}
+      </div>`).join('');
+  const sinF = Object.entries(sinFecha).map(([v, n]) => `<div class="mc-fila sin"><span>${esc(titulo(v))}</span><span class="mc-set">Set · ${fmt(n)} ${n === 1 ? 'molde' : 'moldes'}</span></div>`).join('');
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
       <div class="kpi ra-chart ra-tabla">
-        <div class="lbl"><span>Moldes en cola · fecha de entrega</span><span class="chip ${vencidos ? 'bad' : 'neutral'}">${fmt(conFecha.length)} con fecha${vencidos ? ` · ${fmt(vencidos)} vencidos` : ''}</span></div>
-        <div id="mc-tl-ley"></div><div class="chart" id="ch-mc-tl"></div>
-        ${sinF ? `<div class="mc"><div class="mc-sec">Desarrollos pendientes por diseño · sin fecha establecida</div>${sinF}</div>` : ''}
+        <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(conFecha.length)} con fecha${Object.keys(sinFecha).length ? ` · ${fmt(Object.keys(sinFecha).length)} sin fecha` : ''}</span></div>
+        <div class="mc">${cuerpo || '<div class="vacio">Sin moldes con fecha de entrega</div>'}
+          ${sinF ? `<div class="mc-sec">Desarrollos pendientes por diseño · sin fecha establecida</div>${sinF}` : ''}</div>
       </div>
     </div></article>`;
 }
