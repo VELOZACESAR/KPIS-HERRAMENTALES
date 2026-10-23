@@ -20,6 +20,7 @@
     --sombra:0 6px 24px rgba(0,0,0,.35);
     --radius:12px;
     --meta:#F08A7E; --meta-borde:#6b3a36; --meta-bg:#2a1719;
+    --mediana:#C3A6F0;  /* línea de mediana: morado, distinto de metas (rojo), semáforo y barras */
     --font:'Segoe UI',system-ui,sans-serif;
     --mono:var(--font);  /* una sola tipografía: los números usan cifras de ancho fijo (tabular-nums) */
     color-scheme:dark;
@@ -36,6 +37,7 @@
     --pend:#E4E8EA; --tip-bg:#07234f; --tip-text:#ffffff;
     --sombra:0 4px 18px rgba(7,35,79,.08);
     --meta:#C0392B; --meta-borde:#F2C9C4; --meta-bg:#FDF3F2;
+    --mediana:#6A3FB5;
     color-scheme:light;
   }
   *{box-sizing:border-box}
@@ -242,9 +244,6 @@
   .ra-tabla td{white-space:nowrap}
   .ra-tabla td.veh{max-width:170px;overflow:hidden;text-overflow:ellipsis}
   .mc{display:flex;flex-direction:column;gap:10px}
-  .mo-sub{font-size:12px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.05em;margin-top:8px}
-  .mo-sub b{font-size:14px;color:var(--text);margin-left:6px}
-  .mo-sub + .chart{margin-top:2px}
   .mc-grupo{border:1px solid var(--grid);border-left:4px solid var(--c);border-radius:10px;background:var(--surface);overflow:hidden}
   .mc-veh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;font-weight:700;font-size:12px;letter-spacing:.03em;color:var(--text);background:var(--bg)}
   .mc-n{font-size:11px;font-weight:700;color:var(--text-soft);white-space:nowrap;padding:1px 9px;border-radius:999px;background:var(--grid)}
@@ -773,7 +772,7 @@ function barrasApiladas(cont, items, o={}){
   });
   refs.forEach(r => { // de lado a lado, punteada, con su etiqueta arriba a la derecha
     const yy = y(r.valor);
-    svgEl('line', {x1:mL, x2:W-mR, y1:yy, y2:yy, stroke:r.color, 'stroke-width':1.8, 'stroke-dasharray':'6 4', 'pointer-events':'none'}, svg);
+    svgEl('line', {x1:mL, x2:W-mR, y1:yy, y2:yy, stroke:r.color, 'stroke-width':2.2, 'stroke-dasharray':'6 4', 'pointer-events':'none'}, svg);
     svgEl('text', {x:W-mR, y:yy-6, 'text-anchor':'end', class:'linea-num', style:`fill:${r.color}`, 'pointer-events':'none'}, svg).textContent = r.etiqueta;
   });
   if(lineas.length || refs.length) svg.querySelectorAll('text.v').forEach(t => { t.classList.add('halo'); svg.appendChild(t); }); // totales por encima de las líneas
@@ -815,7 +814,7 @@ function barrasAgrupadas(cont, items, o={}){
   });
   refs.forEach(r => {
     const yy = y(r.valor);
-    svgEl('line', {x1:mL, x2:W-mR, y1:yy, y2:yy, stroke:r.color, 'stroke-width':1.8, 'stroke-dasharray':'6 4', 'pointer-events':'none'}, svg);
+    svgEl('line', {x1:mL, x2:W-mR, y1:yy, y2:yy, stroke:r.color, 'stroke-width':2.2, 'stroke-dasharray':'6 4', 'pointer-events':'none'}, svg);
     svgEl('text', {x:W-mR, y:yy-6, 'text-anchor':'end', class:'linea-num', style:`fill:${r.color}`, 'pointer-events':'none'}, svg).textContent = r.etiqueta;
   });
 }
@@ -840,8 +839,8 @@ function lineaResumen(cont, pts, o={}){
     svgEl('text', {x:W - mR - 4, y:y(o.banda.lo) + 13, 'text-anchor':'end', style:'fill:var(--muted);font-size:10.5px;font-weight:600'}, svg).textContent = `Rango normal ${fmt(o.banda.lo, o.banda.lo % 1 ? 1 : 0)}–${fmt(o.banda.hi, o.banda.hi % 1 ? 1 : 0)}`;
   }
   if(o.mediana != null){
-    svgEl('line', {x1:mL, x2:W-mR, y1:y(o.mediana), y2:y(o.mediana), stroke:'var(--muted)', 'stroke-width':1.6, 'stroke-dasharray':'5 4'}, svg);
-    svgEl('text', {x:mL + 4, y:y(o.mediana) - 5, style:'fill:var(--muted);font-size:10.5px;font-weight:700'}, svg).textContent = `Mediana ${fmt(o.mediana, o.mediana % 1 ? 1 : 0)}`;
+    svgEl('line', {x1:mL, x2:W-mR, y1:y(o.mediana), y2:y(o.mediana), stroke:'var(--mediana)', 'stroke-width':2.2, 'stroke-dasharray':'6 4'}, svg);
+    svgEl('text', {x:mL + 4, y:y(o.mediana) - 5, style:'fill:var(--mediana);font-size:11px;font-weight:700'}, svg).textContent = `Mediana ${fmt(o.mediana, o.mediana % 1 ? 1 : 0)}`;
   }
   const idx = pts.map((q, i) => !q.futuro && q.valor != null ? i : -1).filter(i => i >= 0);
   if(idx.length > 1){
@@ -2082,7 +2081,7 @@ function dibujarGraficaResumen(b){
     const banda = b.banda ? b.banda(zoom ? 'diaria' : e.vista) : null;
     $(`#${b.id}-leyenda`).innerHTML = `<div class="legend"><span><i style="background:${b.colorLinea || PALETA[0]}"></i>${esc(b.nombreLinea || t('total'))}</span>` +
       (banda ? `<span><i style="background:${b.colorLinea || PALETA[0]};opacity:.25"></i>Rango normal</span>` : '') +
-      (med.valor != null ? `<span><i class="linea punteada" style="color:var(--muted)"></i>Mediana</span>` : '') + '</div>';
+      (med.valor != null ? `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana</span>` : '') + '</div>';
     const clic = e.vista === 'semanal' && !zoom ? (q, i) => { const x = barras[i]; if(!x.detalle) return;
         e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; dibujarGraficaResumen(b); } : null;
     lineaResumen(cont, barras.map((x, i) => ({etiqueta: x.etiqueta, valor: x.futuro ? null : x.total, futuro: x.futuro, enCurso: x.enCurso,
@@ -2090,10 +2089,10 @@ function dibujarGraficaResumen(b){
     return;
   }
   $(`#${b.id}-leyenda`).innerHTML = `<div class="legend">${b.op.orden.map(c => `<span><i style="background:${b.op.colores[c]}"></i>${esc((b.op.nombres || {})[c] || c)}</span>`).join('')}` +
-    (med.valor != null ? `<span><i class="linea punteada" style="color:var(--muted)"></i>Mediana ${b.agrupada ? 'del total ' : ''}por ${med.unidad}</span>` : '') + '</div>';
+    (med.valor != null ? `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana ${b.agrupada ? 'del total ' : ''}por ${med.unidad}</span>` : '') + '</div>';
   const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; if(!x.detalle) return;
       e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; dibujarGraficaResumen(b); } : null;
-  const referencias = med.valor != null ? [{valor: med.valor, color: 'var(--muted)', etiqueta: `Mediana ${b.agrupada ? 'del total ' : ''}${fmt(med.valor, med.valor % 1 ? 1 : 0)}`}] : [];
+  const referencias = med.valor != null ? [{valor: med.valor, color: 'var(--mediana)', etiqueta: `Mediana ${b.agrupada ? 'del total ' : ''}${fmt(med.valor, med.valor % 1 ? 1 : 0)}`}] : [];
   if(b.agrupada){ // una barra por serie (vehículo) con su número; debajo, el total del periodo
     barrasAgrupadas(cont, barras.map((x, i) => ({etiqueta: x.etiqueta, valores: x.segs, tip: items[i].tip,
       sub: x.futuro ? (x.nota || '') : `Total ${fmt(x.total)}${x.enCurso ? ' · en curso' : ''}`, subCorto: x.futuro ? '' : fmt(x.total), subColor: x.enCurso || x.futuro ? 'var(--muted)' : 'var(--text-soft)'})),
@@ -2123,9 +2122,6 @@ function diasMant(M){ // fecha → segs por vehículo (sin ocultos)
   cacheDiasMant = {ref: M, dias};
   return dias;
 }
-const cuartilDe = (xs, q) => { if(!xs.length) return null; const s = [...xs].sort((a, b) => a - b), k = (s.length - 1) * q, i = Math.floor(k);
-  return s[i] + (s[Math.min(i + 1, s.length - 1)] - s[i]) * (k - i); };
-const bandaDe = xs => xs.length >= 4 ? {lo: cuartilDe(xs, .25), hi: cuartilDe(xs, .75)} : null;
 const medianaDe = xs => { if(!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const BLOQUE_RESUMEN_MANT = {
   id: 'rm', titulo: 'Histórico de mantenimientos finalizados', aria: 'Mantenimientos finalizados por periodo y vehículo', numSegmentos: true,
@@ -2158,7 +2154,6 @@ const BLOQUE_RESUMEN_MANT = {
                               : M[vista].filter(p => !p.en_curso).map(p => totalSegs(segsSinOcultos(p.segs)));
   },
   mediana(vista){ return {valor: medianaDe(this.xs(vista)), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'}; },
-  banda(vista){ return bandaDe(this.xs(vista)); },
   dibujar(){ if(D.mantenimiento) dibujarGraficaResumen(this); },
 };
 BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MANT);
@@ -2466,9 +2461,9 @@ function dibujarMantenimiento(){
   const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
   $('#mant-serie-sub').innerHTML = catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '';
   $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
-    (mediana != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana por ${unidad}</span>` : '') + `</div>`;
+    (mediana != null ? `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana por ${unidad}</span>` : '') + `</div>`;
   barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
-    referencias: mediana != null ? [{valor: mediana, color:'var(--text)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
+    referencias: mediana != null ? [{valor: mediana, color:'var(--mediana)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
 
   dibujarAnalisisMant(M);
 }
@@ -2753,7 +2748,8 @@ const RAMAS_SERI = [
   {id: 'pasta_plata', nombre: 'Vitro pasta de plata', capacidad: 'capacidad_pp', ret: 'pp'},
 ];
 RAMAS_SERI.forEach((r, i) => Object.defineProperty(r, 'color', {get: () => PALETA[i]}));
-const LOGO_PL = 'Vitro logo · planeación';   // lo hecho de logos que estaba en planeación (sin plan de corte)
+const LOGO_PL = 'Vitro logo · planeación';
+const COLOR_CARGA_SERI = '#2F80D1';   // la carga del día en azul (retenidas en rojo)   // lo hecho de logos que estaba en planeación (sin plan de corte)
 const hechoPlaneacion = (S, iso) => { const d = ((S.logos && S.logos.serie_pl) || {}).diaria; const x = (d || []).find(q => q.fecha === iso); return x ? x.total : 0; };
 function capSeriDia(S, r, iso){
   const R = S.retenidas || {};
@@ -2836,15 +2832,15 @@ const BLOQUE_RESUMEN_SERI = {
     $(`#${this.id}-sub`).textContent = '';
     const presentes = op.orden.filter(n => barras.some(x => x.segs[n])), hayCarga = barras.some(x => !x.futuro && x.carga != null);
     $(`#${this.id}-leyenda`).innerHTML = `<div class="legend">${presentes.map(n => `<span><i style="background:${op.colores[n]}"></i>${esc(n)}</span>`).join('')}` +
-      (hayCarga ? `<span><i class="linea" style="background:var(--text)"></i>Carga del día</span>` : '') +
-      `<span><i class="linea puntos" style="color:var(--muted)"></i>Piezas retenidas</span></div>`;
+      (hayCarga ? `<span><i class="linea" style="background:${COLOR_CARGA_SERI}"></i>Carga del día</span>` : '') +
+      `<span><i class="linea" style="background:var(--bad)"></i>Piezas retenidas</span></div>`;
     // la gráfica toma el alto de las tarjetas de al lado, con tope (sin estirarse de más)
     const col = cont.closest('.ra-grid') && cont.closest('.ra-grid').querySelector('.ra-col'), caja = cont.closest('.ra-chart');
     const alto = col && caja ? Math.min(380, Math.max(280, col.offsetHeight - (cont.getBoundingClientRect().top - caja.getBoundingClientRect().top) - 22)) : 300;
     const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; this.pintar(); } : null;
     barrasApiladas(cont, items, {...op, sub: true, alto, aria: this.aria, onClick,
-      lineas: [{vals: barras.map(x => x.futuro ? null : x.carga), color: 'var(--text)', etiquetas: 'todas'},
-               {vals: barras.map(x => x.futuro ? null : x.ret), color: 'var(--muted)', etiquetas: 'todas', punteada: 'puntos', sinPuntos: true}]});
+      lineas: [{vals: barras.map(x => x.futuro ? null : x.carga), color: COLOR_CARGA_SERI, etiquetas: 'todas'},
+               {vals: barras.map(x => x.futuro ? null : x.ret), color: 'var(--bad)', etiquetas: 'todas'}]});
   },
   dibujar(){ if(D.serigrafia) this.pintar(); },
 };
@@ -2955,9 +2951,9 @@ let vistaMoldesSerie = 'semanal';
 
 // ---- Fabricación de moldes en el Resumen: histórico de herramentales fabricados (estatus OK por fecha de entrega)
 //      con Diario (semana actual) / Semanal (clic = sus días, con la serie diaria de 30 días) / Mensual y mediana.
-// Herramentales fabricados (estatus OK por fecha de entrega) en dos gráficas con su mediana: in house (matriceros de la
-// casa, lista IN_HOUSE del servidor) y outsourcing (los demás fabricantes). Comparten Diario / Semanal (clic = días) / Mensual.
-const ORIGENES_MOLDES = [{id: 'inhouse', titulo: 'Fabricados in house'}, {id: 'outsourcing', titulo: 'Fabricados por outsourcing'}];
+// Herramentales fabricados (estatus OK por fecha de entrega): una gráfica con dos barras por periodo, in house (matriceros de
+// la casa, lista IN_HOUSE del servidor) y outsourcing (los demás fabricantes), y la mediana de cada uno.
+const ORIGENES_MOLDES = [{id: 'inhouse'}, {id: 'outsourcing'}];
 const BLOQUE_RESUMEN_MOLDES = {
   id: 'rf', titulo: 'Herramentales fabricados', aria: 'Herramentales fabricados por periodo, in house y outsourcing',
   estado: {vista: 'semanal', zoom: null},
@@ -2996,24 +2992,23 @@ const BLOQUE_RESUMEN_MOLDES = {
     const unidad = vistaMed === 'diaria' ? 'día laboral' : vistaMed === 'semanal' ? 'semana' : 'mes';
     $(`#${this.id}-titulo`).textContent = zoom ? `${this.titulo} · ${e.zoom.titulo}` : this.titulo;
     $(`#${this.id}-sub`).textContent = '';
-    $(`#${this.id}-leyenda`).innerHTML = `<div class="legend">${op.orden.map(c => `<span><i style="background:${op.colores[c]}"></i>${esc(op.nombres[c])}</span>`).join('')}` +
-      `<span><i class="linea punteada" style="color:var(--muted)"></i>Mediana por ${unidad}</span></div>`;
     const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; if(!x.detalle) return;
       e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; this.pintar(); } : null;
-    ORIGENES_MOLDES.forEach((o, k) => {
-      const c = k ? $(`#ch-${this.id}-${o.id}`) : cont; if(!c) return;
-      const tot = barras.reduce((a, x) => a + (x.futuro || !x.x ? 0 : ((x.x[o.id] || {}).total || 0)), 0);
-      $(`#tit-${this.id}-${o.id}`).innerHTML = `${o.titulo} <b>${fmt(tot)}</b>`;
-      const med = this.mediana(vistaMed, o.id);
-      const items = barras.map(x => { const d = (x.x && x.x[o.id]) || {segs: {}, total: 0};
-        return {etiqueta: x.etiqueta, segs: d.segs, total: d.total, etiquetaValor: x.futuro ? '' : undefined,
-          sub: x.enCurso ? 'en curso' : (x.nota || ''), subColor: 'var(--muted)',
-          tip: tipSegs(`${x.nombre}${x.enCurso ? ' · en curso' : ''} · ${o.titulo.toLowerCase()}`, d.segs,
-            `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>${t('total')}</span><span>${x.futuro ? '—' : fmt(d.total)}</span></div>` +
-            (onClick ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}; });
-      barrasApiladas(c, items, {...op, sub: true, alto: 200, aria: `${o.titulo} por periodo`, onClick, numSegmentos: true,
-        referencias: med != null ? [{valor: med, color: 'var(--muted)', etiqueta: `Mediana ${fmt(med, med % 1 ? 1 : 0)}`}] : []});
-    });
+    const colores = {inhouse: PALETA[0], outsourcing: PALETA[1]}, nombres = {inhouse: 'In house', outsourcing: 'Outsourcing'};
+    const tot = o => barras.reduce((a, x) => a + (x.futuro || !x.x ? 0 : ((x.x[o] || {}).total || 0)), 0);
+    $(`#${this.id}-leyenda`).innerHTML = `<div class="legend">${ORIGENES_MOLDES.map(o => `<span><i style="background:${colores[o.id]}"></i>${nombres[o.id]} <b>${fmt(tot(o.id))}</b></span>`).join('')}` +
+      `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana por ${unidad}</span></div>`;
+    const meds = ORIGENES_MOLDES.map(o => ({o, v: this.mediana(vistaMed, o.id)})).filter(m => m.v != null);
+    barrasAgrupadas(cont, barras.map(x => {
+      const d = o => (x.x && x.x[o]) || {segs: {}, total: 0}, seg = o => `Moldes ${fmt(d(o).segs.Molde || 0)} · Galgas ${fmt(d(o).segs.Galga || 0)}`;
+      return {etiqueta: x.etiqueta, valores: x.futuro ? {} : {inhouse: d('inhouse').total, outsourcing: d('outsourcing').total},
+        sub: x.enCurso ? 'en curso' : (x.nota || ''), subColor: 'var(--muted)',
+        tip: `<b>${esc(x.nombre)}${x.enCurso ? ' · en curso' : ''}</b>` +
+          ORIGENES_MOLDES.map(o => `<div class="r" style="margin-top:6px"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${colores[o.id]}"></i>${nombres[o.id]}</span><span>${x.futuro ? '—' : fmt(d(o.id).total)}</span></div>` +
+            (x.futuro ? '' : `<div style="opacity:.75;margin-left:15px">${seg(o.id)}</div>`)).join('') +
+          (onClick ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : '')};
+    }), {orden: ['inhouse', 'outsourcing'], colores, alto: 300, aria: this.aria, onClick,
+      referencias: meds.map(m => ({valor: m.v, color: 'var(--mediana)', etiqueta: `Mediana ${nombres[m.o.id].toLowerCase()} ${fmt(m.v, m.v % 1 ? 1 : 0)}`}))});
   },
   dibujar(){ if(D.moldes) this.pintar(); },
 };
@@ -3047,9 +3042,7 @@ function tarjetaResumenMoldes(MO){
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
-      ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo).replace(`<div class="chart" id="ch-${BLOQUE_RESUMEN_MOLDES.id}"></div>`,
-        ORIGENES_MOLDES.map((o, k) => `<div class="mo-sub" id="tit-${BLOQUE_RESUMEN_MOLDES.id}-${o.id}">${o.titulo}</div>
-        <div class="chart" id="ch-${BLOQUE_RESUMEN_MOLDES.id}${k ? '-' + o.id : ''}"></div>`).join(''))}
+      ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
       <div class="kpi ra-chart ra-tabla">
         <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(conFecha.length)} con fecha${Object.keys(sinFecha).length ? ` · ${fmt(Object.keys(sinFecha).length)} sin fecha` : ''}</span></div>
         <div class="mc">${cuerpo || '<div class="vacio">Sin moldes con fecha de entrega</div>'}
@@ -3105,7 +3098,7 @@ function dibujarMoldes(){
   const base = serie.filter(p => vista === 'diaria' ? (!p.hoy && p.lab) : !p.en_curso).map(p => p.total);
   const med = medianaDe(base), unidad = vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes';
   $('#moldes-leyenda').innerHTML = `<div class="legend"><span><i style="background:${COLOR_HERR.Molde}"></i>Moldes</span><span><i style="background:${COLOR_HERR.Galga}"></i>Galgas</span>` +
-    (med != null ? `<span><i class="linea punteada" style="color:var(--text)"></i>Mediana por ${unidad}</span>` : '') + '</div>';
+    (med != null ? `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana por ${unidad}</span>` : '') + '</div>';
   barrasApiladas($('#ch-moldes-serie'), serie.map(p => ({
     etiqueta: vista === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vista === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3),
     segs:p.segs, total:p.total, sub: enCurso(p) ? 'en curso' : '', subColor:'var(--muted)',
@@ -3113,7 +3106,7 @@ function dibujarMoldes(){
       `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(p.total)}</span></div>` +
       (p.horas != null ? `<div class="r"><span>Horas</span><span>${fmt(p.horas)}</span></div>` : ''), op)})),
     {...op, sub:true, alto:260, aria:'Histórico de herramentales fabricados',
-     referencias: med != null ? [{valor: med, color:'var(--text)', etiqueta:`Mediana ${fmt(med)}`}] : []});
+     referencias: med != null ? [{valor: med, color:'var(--mediana)', etiqueta:`Mediana ${fmt(med)}`}] : []});
   barrasH($('#ch-moldes-fab'), MO.fabricantes_90.map(f => ({etiqueta:f.nombre, valor:f.n})), {mL:170, aria:'Quién fabricó'});
 }
 
