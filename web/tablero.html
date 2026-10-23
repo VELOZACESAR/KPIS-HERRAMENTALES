@@ -20,7 +20,7 @@
     --sombra:0 6px 24px rgba(0,0,0,.35);
     --radius:12px;
     --meta:#F08A7E; --meta-borde:#6b3a36; --meta-bg:#2a1719;
-    --mediana:#C3A6F0;  /* línea de mediana: morado, distinto de metas (rojo), semáforo y barras */
+    --mediana:var(--meta);  /* línea de mediana: roja, con su número a la derecha */
     --font:'Segoe UI',system-ui,sans-serif;
     --mono:var(--font);  /* una sola tipografía: los números usan cifras de ancho fijo (tabular-nums) */
     color-scheme:dark;
@@ -37,7 +37,7 @@
     --pend:#E4E8EA; --tip-bg:#07234f; --tip-text:#ffffff;
     --sombra:0 4px 18px rgba(7,35,79,.08);
     --meta:#C0392B; --meta-borde:#F2C9C4; --meta-bg:#FDF3F2;
-    --mediana:#6A3FB5;
+    --mediana:var(--meta);
     color-scheme:light;
   }
   *{box-sizing:border-box}
@@ -637,13 +637,16 @@ const fLarga = iso => { const f = fecha(iso); return `${DIAS_L[f.getDay()]} ${f.
 const fHora = iso => { const f = new Date(iso); return f.toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); };
 
 // Semáforo: desde 98 % (lo que se ve redondeado como 98 %, ≥ 97,5 %) cumple en verde; >=90 % cerca; <90 % bajo meta. "menos" invierte la lógica.
-function estado(real, meta, menosEsMejor=false){
+// Aceros: cumplir el 90 % ya es bueno (verde); "cerca" desde el 80 %
+const UMBRAL_ACEROS = {ok: .9, cerca: .8};
+const estadoAceros = (real, meta) => estado(real, meta, false, UMBRAL_ACEROS);
+function estado(real, meta, menosEsMejor=false, umbral={ok: .975, cerca: .9}){
   if(!meta) return {cls:'neutral', txt:'Sin meta', ico:'○', pct:null};
   const pct = real/meta;
   const r = menosEsMejor ? (real<=meta ? 1 : meta/real) : pct;
   const p = menosEsMejor ? null : pct; // en "menos es mejor" un % confunde: solo se muestra el estado
-  if(r>=.975) return {cls:'ok', txt: menosEsMejor?'Dentro del promedio':'Cumple', ico:'▲', pct:p};
-  if(r>=.9) return {cls:'near', txt:'Cerca', ico:'●', pct:p};
+  if(r>=umbral.ok) return {cls:'ok', txt: menosEsMejor?'Dentro del promedio':'Cumple', ico:'▲', pct:p};
+  if(r>=umbral.cerca) return {cls:'near', txt:'Cerca', ico:'●', pct:p};
   return {cls:'bad', txt: menosEsMejor?'Sobre el promedio':'Bajo meta', ico:'▼', pct:p};
 }
 const chip = e => `<span class="chip ${e.cls}" title="${e.txt}">${e.ico} ${e.txt}${e.pct!=null?` · ${fmt(e.pct*100)} %`:''}</span>`;
@@ -840,7 +843,7 @@ function lineaResumen(cont, pts, o={}){
   }
   if(o.mediana != null){
     svgEl('line', {x1:mL, x2:W-mR, y1:y(o.mediana), y2:y(o.mediana), stroke:'var(--mediana)', 'stroke-width':2.2, 'stroke-dasharray':'6 4'}, svg);
-    svgEl('text', {x:mL + 4, y:y(o.mediana) - 5, style:'fill:var(--mediana);font-size:11px;font-weight:700'}, svg).textContent = `Mediana ${fmt(o.mediana, o.mediana % 1 ? 1 : 0)}`;
+    svgEl('text', {x:W - mR, y:y(o.mediana) - 5, 'text-anchor':'end', style:'fill:var(--mediana);font-size:11px;font-weight:700'}, svg).textContent = `Mediana ${fmt(o.mediana, o.mediana % 1 ? 1 : 0)}`;
   }
   const idx = pts.map((q, i) => !q.futuro && q.valor != null ? i : -1).filter(i => i >= 0);
   if(idx.length > 1){
@@ -1066,7 +1069,7 @@ function dibujarResumen(){
   const A = D && D.aceros, cont = $('#ch-res-prod'); if(!A || !cont || $('#v-resumen').hidden) return;
   const md = metaDiaria(), hist = A.historial || {};
   $('#res-volver').hidden = zoomRes === null;
-  const leyendaLineas = `<span><i class="linea punteada" style="color:${COLOR_META}"></i>${zoomRes===null?'Capacidad semanal (suma de la capacidad de cada día)':'Capacidad del día'}</span>` +
+  const leyendaLineas = `<span><i class="linea punteada" style="color:${PALETA[0]}"></i>${zoomRes===null?'Capacidad semanal (suma de la capacidad de cada día)':'Capacidad del día'}</span>` +
     `<span><i class="linea" style="background:${COLOR_RETENIDAS}"></i>${retPisoPorDia() ? 'Piezas retenidas/refundidas en piso' : 'Piezas retenidas'}</span>`;
 
   if(zoomRes !== null){ // ---- zoom: los 7 días de la semana elegida
@@ -1086,7 +1089,7 @@ function dibujarResumen(){
         const propia = valorManual(claveCapDia(d.fecha), null) != null, resp = d.lab ? fmt(capDiaSemana(s)) : '0';
         return `<span class="${propia?'propia':''}" title="${fLarga(d.fecha)}: vacía = ${resp}">${inputManual(claveCapDia(d.fecha), null, resp)}</span>`; }).join('')}</div>`;
     const filas = dias.map(d => {
-      const c = capDeDia(s, d.info), cap = c ? c : null, ret = retPisoDia(d.fecha), e = estado(d.total, cap || 0);
+      const c = capDeDia(s, d.info), cap = c ? c : null, ret = retPisoDia(d.fecha), e = estadoAceros(d.total, cap || 0);
       return {cap, ret, item:{etiqueta: d.hoy ? 'Hoy' : fCorta(d.fecha), segs: d.total ? {'Aceros producidos': d.total} : {}, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
         sub: d.hoy ? 'en curso' : cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro && !d.hoy ? COLOR_EST[e.cls] : 'var(--muted)',
         tip: tipSegs(fLarga(d.fecha), d.segs,
@@ -1095,9 +1098,9 @@ function dibujarResumen(){
           `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
     });
     $('#res-titulo').textContent = `Producción ${s.etiqueta} vs. capacidad`;
-    $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
-    barrasApiladas(cont, filas.map(x => x.item), {sub:true, alto:280, aria:`Producción por día de la ${s.etiqueta}`, orden:['Aceros producidos'], colores:{'Aceros producidos': PALETA[0]},
-      lineas:[{vals:filas.map(x=>x.cap), color:COLOR_META, etiquetas:'ultima', punteada:true},
+    $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${COLOR_META}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
+    barrasApiladas(cont, filas.map(x => x.item), {sub:true, alto:280, aria:`Producción por día de la ${s.etiqueta}`, orden:['Aceros producidos'], colores:{'Aceros producidos': COLOR_META},
+      lineas:[{vals:filas.map(x=>x.cap), color:PALETA[0], etiquetas:'ultima', punteada:true},
               {vals:filas.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
     return;
   }
@@ -1108,7 +1111,7 @@ function dibujarResumen(){
     const cap = capSemana(s);
     const ret = retPisoRango(s.desde, s.hasta);   // piezas retenidas/refundidas en piso registradas en la semana
     const capHastaAyer = diasDeSemana(s).filter(d => d.iso < D.hoy).reduce((t, d) => t + capDeDia(s, d), 0);
-    const e = estado(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
+    const e = estadoAceros(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
     const ajustados = diasDeSemana(s).filter(d => valorManual(claveCapDia(d.iso), null) != null).length;
     return {s, cap, ret, item:{etiqueta:s.etiqueta.replace('Sem ','S'), segs: s.total ? {'Aceros producidos': s.total} : {}, total:s.total,
       sub: s.en_curso ? 'en curso' : `${fmt(e.pct*100)} %`, subColor: s.en_curso ? 'var(--muted)' : COLOR_EST[e.cls],
@@ -1118,10 +1121,10 @@ function dibujarResumen(){
         `<div style="opacity:.75">suma de la capacidad de cada día · promedio ${fmt(capPromSemana(s), 0)}/día${ajustados?` · ${ajustados} día(s) con capacidad propia`:''}</div>` +
         `<div class="r"><span style="color:#D6DEE6">Piezas retenidas</span><span>${ret==null?'sin dato':fmt(ret)}</span></div>`)}};
   });
-  $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${PALETA[0]}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
-  barrasApiladas(cont, sem.map(x => x.item), {sub:true, alto:280, aria:'Producción semanal vs. capacidad y piezas retenidas', orden:['Aceros producidos'], colores:{'Aceros producidos': PALETA[0]},
+  $('#res-leyenda').innerHTML = `<div class="legend"><span><i style="background:${COLOR_META}"></i>Aceros producidos</span>${leyendaLineas}</div>`;
+  barrasApiladas(cont, sem.map(x => x.item), {sub:true, alto:280, aria:'Producción semanal vs. capacidad y piezas retenidas', orden:['Aceros producidos'], colores:{'Aceros producidos': COLOR_META},
     onClick:(it, i) => { zoomRes = i; dibujarResumen(); },
-    lineas:[{vals:sem.map(x=>x.cap), color:COLOR_META, etiquetas:'ultima', punteada:true},
+    lineas:[{vals:sem.map(x=>x.cap), color:PALETA[0], etiquetas:'ultima', punteada:true},
             {vals:sem.map(x=>x.ret), color:COLOR_RETENIDAS, etiquetas:'todas'}]});
   // fila de casillas: una por semana, alineada con su barra (mismo margen izquierdo/derecho que la gráfica)
   $('#res-cap-fila').innerHTML = `<span class="cap-tit">Cap./día</span>
@@ -1180,7 +1183,7 @@ function render(){
 
   $('#tabs').innerHTML = SERVICIOS.map(s => {
     let color = 'var(--muted)';
-    if(s.id==='aceros' && A) color = COLOR_EST[estado(A.ayer.comprometidos_hechos, A.ayer.comprometidos).cls];
+    if(s.id==='aceros' && A) color = COLOR_EST[estadoAceros(A.ayer.comprometidos_hechos, A.ayer.comprometidos).cls];
     if(s.id==='mantenimiento' && D.mantenimiento) color = 'var(--teal)';
     if(s.id==='moldes' && D.moldes) color = D.moldes.kpis.vencidos ? 'var(--bad)' : 'var(--ok)';
     if(s.id==='serigrafia' && D.serigrafia) color = D.serigrafia.retenidas && D.serigrafia.retenidas.total ? 'var(--bad)' : 'var(--ok)';
@@ -1220,7 +1223,7 @@ function render(){
 function vistaResumen(A){
   let frase = '', tarjAceros = '';
   if(A){
-    const a = A.ayer, e = estado(a.comprometidos_hechos, a.comprometidos);
+    const a = A.ayer, e = estadoAceros(a.comprometidos_hechos, a.comprometidos);
     const verbo = e.cls==='ok' ? 'cumplió sus compromisos' : e.cls==='near' ? 'quedó cerca de sus compromisos' : e.cls==='bad' ? 'quedó por debajo de sus compromisos' : 'no tenía aceros comprometidos';
     frase = `<b>Resultados del ${fLarga(a.fecha)}</b>: Aceros ${verbo}: <b>${fmt(a.comprometidos_hechos)}</b> de <b>${fmt(a.comprometidos)}</b> aceros comprometidos cumplidos${e.pct!=null?` (${fmt(e.pct*100)} %)`:''}${a.comprometidos > a.comprometidos_hechos ? `, ${fmt(a.comprometidos - a.comprometidos_hechos)} no cumplidos` : ''}. ` +
             (D.mantenimiento ? ` Mantenimiento: <b>${fmt(D.mantenimiento.kpis.ayer)}</b> moldes/galgas finalizados el ${fLarga(D.mantenimiento.kpis.fecha_ayer)}.` : '') +
@@ -1231,7 +1234,7 @@ function vistaResumen(A){
     const hoyD = A.diaria.find(d => d.hoy), hoyN = hoyD ? hoyD.total : 0, semCompleta = semAct.total - (semAct.hoy_total || 0);
     const capProm = capPromSemana(semAct), eProd = estado(k.productividad, capProm);
     const capRef = capRango(semAct.desde, semAct.hasta < A.ayer.fecha ? semAct.hasta : A.ayer.fecha);
-    const eSem = estado(semCompleta, capRef), maxSem = Math.max(semCompleta, capRef) || 1;
+    const eSem = estadoAceros(semCompleta, capRef), maxSem = Math.max(semCompleta, capRef) || 1;
     // fila vs. meta de días de fila (menos es mejor): en meta / cerca (hasta 1,5×) / sobre la meta
     const metaDefecto = (D.parametros && D.parametros.meta_dias_fila) || 2;
     const metaFila = valorManual('meta-dias-fila', metaDefecto), sobra = k.dias_fila - metaFila;
@@ -1406,7 +1409,7 @@ function tarjetaMatriceros(lista, meta){
 function vistaAceros(A){
   if(!A) return `<section class="vista" id="v-aceros" hidden><div class="aviso err">No se pudo leer el consolidado de aceros.</div></section>`;
   const a = A.ayer, k = A.kpis;
-  const eProd = estado(a.comprometidos_hechos, a.comprometidos);
+  const eProd = estadoAceros(a.comprometidos_hechos, a.comprometidos);
   const eRech = estado(a.rechazos, a.rechazos_prom, true);
   const noCump = a.no_cumplidos || [];
   const pendientes = noCump.filter(x => !x.fab), porPuesto = {};
@@ -1688,7 +1691,7 @@ function dibujarProduccion(){
   const retDia = retPisoDia;
   $('#prod-volver').hidden = !enZoom;
   const barraDia = d => {
-    const cap = capDeDiaIso(d.fecha) || null, ret = retDia(d.fecha), e = estado(d.total, cap || 0);
+    const cap = capDeDiaIso(d.fecha) || null, ret = retDia(d.fecha), e = estadoAceros(d.total, cap || 0);
     return {cap, ret, item:{etiqueta: d.hoy ? 'Hoy' : fCorta(d.fecha), segs:d.segs, total:d.total, etiquetaValor: d.futuro ? '' : undefined,
       sub: d.hoy ? 'en curso' : cap && !d.futuro ? `${fmt(e.pct*100)} %` : (d.nota || ''), subColor: cap && !d.futuro && !d.hoy ? COLOR_EST[e.cls] : 'var(--muted)',
       tip: tipSegs(fLarga(d.fecha), d.segs, filasTip(d.total, cap, d.eq, ret))}};
@@ -1711,7 +1714,7 @@ function dibujarProduccion(){
     filas = A[vistaProd].map(s => {
       const cap = capRango(s.desde, s.hasta), ret = retPisoRango(s.desde, s.hasta);
       const capHastaAyer = capRango(s.desde, s.hasta < D.hoy ? s.hasta : isoDe(new Date(fecha(D.hoy).getTime() - 864e5)));
-      const e = estado(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
+      const e = estadoAceros(s.total - (s.en_curso ? (s.hoy_total || 0) : 0), s.en_curso ? capHastaAyer : cap);   // % con días completos
       const mensual = vistaProd === 'mensual';
       const nombre = mensual ? MESES[+s.etiqueta-1] : `${s.etiqueta} (${fCorta(s.desde)} – ${fCorta(s.hasta)})`;
       return {cap, ret, item:{etiqueta: mensual ? MESES[+s.etiqueta-1].slice(0,3) : s.etiqueta.replace('Sem ','S'), segs:s.segs, total:s.total,
@@ -1860,7 +1863,7 @@ function filasComp(c, futuro){
     `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - c.hechos - (c.tarde || 0))}</span></div>`;
 }
 function barraCompDia(c){
-  const e = estado(c.hechos, c.comprometidos), i = infoDia(c.fecha);
+  const e = estadoAceros(c.hechos, c.comprometidos), i = infoDia(c.fecha);
   const sub = c.futuro ? (c.comprometidos ? 'prog.' : '') : c.comprometidos ? `${fmt(e.pct*100)} %` : (i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : '');
   return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:conTarde(c), total:c.hechos + (c.tarde || 0), fondo:c.comprometidos,
     etiquetaValor: c.comprometidos ? `${fmt(c.hechos + (c.tarde || 0))}/${fmt(c.comprometidos)}` : '',
@@ -1889,7 +1892,7 @@ function dibujarCumplimiento(){
   } else {
     const mensual = vistaComp === 'mensual', anio = D.hoy.slice(0, 4);
     items = periodosComp(vistaComp).map(p => {
-      const e = estado(p.hechos, p.comprometidos), eA = estado(p.hastaAyer.hechos, p.hastaAyer.comprometidos);
+      const e = estadoAceros(p.hechos, p.comprometidos), eA = estadoAceros(p.hastaAyer.hechos, p.hastaAyer.comprometidos);
       const mes = MESES[+p.clave.slice(5)-1];
       const nombre = mensual ? `${mes} ${p.clave.slice(0,4)}` : `Sem ${semanaIso(p.desde)} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`;
       const extra = p.estado === 'curso'
@@ -2832,14 +2835,14 @@ const BLOQUE_RESUMEN_SERI = {
     $(`#${this.id}-sub`).textContent = '';
     const presentes = op.orden.filter(n => barras.some(x => x.segs[n])), hayCarga = barras.some(x => !x.futuro && x.carga != null);
     $(`#${this.id}-leyenda`).innerHTML = `<div class="legend">${presentes.map(n => `<span><i style="background:${op.colores[n]}"></i>${esc(n)}</span>`).join('')}` +
-      (hayCarga ? `<span><i class="linea" style="background:${COLOR_CARGA_SERI}"></i>Carga del día</span>` : '') +
+      (hayCarga ? `<span><i class="linea punteada" style="color:${COLOR_CARGA_SERI}"></i>Carga del día</span>` : '') +
       `<span><i class="linea" style="background:var(--bad)"></i>Piezas retenidas</span></div>`;
     // la gráfica toma el alto de las tarjetas de al lado, con tope (sin estirarse de más)
     const col = cont.closest('.ra-grid') && cont.closest('.ra-grid').querySelector('.ra-col'), caja = cont.closest('.ra-chart');
     const alto = col && caja ? Math.min(380, Math.max(280, col.offsetHeight - (cont.getBoundingClientRect().top - caja.getBoundingClientRect().top) - 22)) : 300;
     const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; this.pintar(); } : null;
     barrasApiladas(cont, items, {...op, sub: true, alto, aria: this.aria, onClick,
-      lineas: [{vals: barras.map(x => x.futuro ? null : x.carga), color: COLOR_CARGA_SERI, etiquetas: 'todas'},
+      lineas: [{vals: barras.map(x => x.futuro ? null : x.carga), color: COLOR_CARGA_SERI, etiquetas: 'todas', punteada: true},
                {vals: barras.map(x => x.futuro ? null : x.ret), color: 'var(--bad)', etiquetas: 'todas'}]});
   },
   dibujar(){ if(D.serigrafia) this.pintar(); },
@@ -2978,11 +2981,6 @@ const BLOQUE_RESUMEN_MOLDES = {
               detalle: !mensual && p.desde >= primero};   // el detalle por día existe para los últimos 30 días
     });
   },
-  mediana(vista, o){ // días laborales / semanas cerradas / meses cerrados de ese origen
-    const MO = D.moldes, val = x => (x[o] || {}).total || 0;
-    const xs = vista === 'diaria' ? (MO.diaria || []).filter(d => !d.hoy && d.lab).map(val) : MO[vista].filter(p => !p.en_curso).map(val);
-    return medianaDe(xs);
-  },
   pintar(){
     const cont = $('#ch-' + this.id); if(!cont || !D.moldes) return;
     const e = this.estado, zoom = e.vista === 'semanal' && e.zoom, op = this.op;
@@ -2997,8 +2995,9 @@ const BLOQUE_RESUMEN_MOLDES = {
     const colores = {inhouse: PALETA[0], outsourcing: PALETA[1]}, nombres = {inhouse: 'In house', outsourcing: 'Outsourcing'};
     const tot = o => barras.reduce((a, x) => a + (x.futuro || !x.x ? 0 : ((x.x[o] || {}).total || 0)), 0);
     $(`#${this.id}-leyenda`).innerHTML = `<div class="legend">${ORIGENES_MOLDES.map(o => `<span><i style="background:${colores[o.id]}"></i>${nombres[o.id]} <b>${fmt(tot(o.id))}</b></span>`).join('')}` +
-      `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana por ${unidad}</span></div>`;
-    const meds = ORIGENES_MOLDES.map(o => ({o, v: this.mediana(vistaMed, o.id)})).filter(m => m.v != null);
+      `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana del total por ${unidad}</span></div>`;
+    const MO = D.moldes, medTot = medianaDe(vistaMed === 'diaria' ? (MO.diaria || []).filter(d => !d.hoy && d.lab).map(d => d.total)
+                                                                    : MO[vistaMed].filter(p => !p.en_curso).map(p => p.total));
     barrasAgrupadas(cont, barras.map(x => {
       const d = o => (x.x && x.x[o]) || {segs: {}, total: 0}, seg = o => `Moldes ${fmt(d(o).segs.Molde || 0)} · Galgas ${fmt(d(o).segs.Galga || 0)}`;
       return {etiqueta: x.etiqueta, valores: x.futuro ? {} : {inhouse: d('inhouse').total, outsourcing: d('outsourcing').total},
@@ -3008,7 +3007,7 @@ const BLOQUE_RESUMEN_MOLDES = {
             (x.futuro ? '' : `<div style="opacity:.75;margin-left:15px">${seg(o.id)}</div>`)).join('') +
           (onClick ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : '')};
     }), {orden: ['inhouse', 'outsourcing'], colores, alto: 300, aria: this.aria, onClick,
-      referencias: meds.map(m => ({valor: m.v, color: 'var(--mediana)', etiqueta: `Mediana ${nombres[m.o.id].toLowerCase()} ${fmt(m.v, m.v % 1 ? 1 : 0)}`}))});
+      referencias: medTot != null ? [{valor: medTot, color: 'var(--mediana)', etiqueta: `Mediana ${fmt(medTot, medTot % 1 ? 1 : 0)}`}] : []});
   },
   dibujar(){ if(D.moldes) this.pintar(); },
 };
