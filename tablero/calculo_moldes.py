@@ -7,6 +7,22 @@ from . import db
 from .excel import norm
 
 
+# Fabricantes de la casa (in house); los demás (y los sin fabricante) son outsourcing. Se compara por nombre normalizado.
+IN_HOUSE = ["HERMES", "LUIS REYES", "OSWALDO", "OSCAR", "ALFONSO", "FELIPE", "JOSE AMAYA", "FERNEY", "FENEY", "STIF", "STIV",
+            "SEBASTIAN", "NILSON", "JUAN", "DILAN", "DYLAN"]
+
+
+def origen(fabricante):
+    n = norm(fabricante)
+    return "inhouse" if any(k in n for k in IN_HOUSE) else "outsourcing"
+
+
+def _por_origen(sel):
+    """{inhouse: {segs, total}, outsourcing: {segs, total}} de lo fabricado."""
+    return {o: {"segs": _segs([r for r in sel if origen(r["fabricante"]) == o]),
+                "total": sum(1 for r in sel if origen(r["fabricante"]) == o)} for o in ("inhouse", "outsourcing")}
+
+
 def calcular(hoy, R):
     filas = db.consultar("""SELECT fecha_solicitud, herramental, completo, zhal, vehiculo, fecha_entrega, fabricante,
                                    estatus, patron, tamano, tiempo_h FROM cesar.fila_moldes ORDER BY fila""")
@@ -76,7 +92,7 @@ def calcular(hoy, R):
         sel = [r for r in hechos if r["fecha_entrega"] and ini <= r["fecha_entrega"] <= fin]
         semanal.append({"etiqueta": f"Sem {ini.isocalendar()[1]}", "desde": ini.isoformat(), "hasta": fin.isoformat(),
                         "segs": _segs(sel), "total": len(sel), "horas": sum(r["tiempo_h"] or 0 for r in sel),
-                        "en_curso": fin >= hoy, **flujo(ini, fin)})
+                        "en_curso": fin >= hoy, **flujo(ini, fin), **_por_origen(sel)})
     mensual = []
     for k in range(11, -1, -1):
         a, m = hoy.year, hoy.month - k
@@ -87,7 +103,7 @@ def calcular(hoy, R):
         fin_m = (dt.date(a + (m == 12), m % 12 + 1, 1) - dt.timedelta(days=1))
         mensual.append({"etiqueta": f"{a}-{m:02d}", "segs": _segs(sel), "total": len(sel),
                         "horas": sum(r["tiempo_h"] or 0 for r in sel), "en_curso": (a, m) == (hoy.year, hoy.month),
-                        "desde": ini_m.isoformat(), "hasta": fin_m.isoformat(), **flujo(ini_m, fin_m)})
+                        "desde": ini_m.isoformat(), "hasta": fin_m.isoformat(), **flujo(ini_m, fin_m), **_por_origen(sel)})
 
     # Días de fila: días laborales desde hoy hasta la última "Fecha entrega" de lo pendiente (incluye hoy).
     ultima = max((r["fecha_entrega"] for r in pend if r["fecha_entrega"]), default=None)
@@ -101,7 +117,8 @@ def calcular(hoy, R):
     diaria = [{"fecha": (hoy - dt.timedelta(days=k)).isoformat(), "segs": _segs(por_dia.get(hoy - dt.timedelta(days=k), [])),
                "total": len(por_dia.get(hoy - dt.timedelta(days=k), [])), "hoy": k == 0,
                "lab": R.es_laboral(hoy - dt.timedelta(days=k)),
-               **flujo(hoy - dt.timedelta(days=k), hoy - dt.timedelta(days=k))} for k in range(29, -1, -1)]
+               **flujo(hoy - dt.timedelta(days=k), hoy - dt.timedelta(days=k)),
+               **_por_origen(por_dia.get(hoy - dt.timedelta(days=k), []))} for k in range(29, -1, -1)]
     esta_semana = [r for d in range(7) for r in por_dia.get(lunes + dt.timedelta(days=d), [])]   # misma cuenta que la serie semanal
     semana_pasada = [r for d in range(7) for r in por_dia.get(lunes - dt.timedelta(days=7 - d), [])]
 
