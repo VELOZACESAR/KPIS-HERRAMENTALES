@@ -60,6 +60,14 @@ def calcular(hoy, R):
                        "vencido": bool(r["fecha_entrega"] and r["fecha_entrega"] < hoy)} for r in pend),
                      key=lambda x: (x["entrega"] or "9", x["vehiculo"]))
 
+    # Entradas y cola (para "entradas vs. salidas"): entra a la cola en su fecha de solicitud y sale cuando se fabrica
+    # (estatus OK, por fecha de entrega). Cola al cierre de un periodo = solicitado hasta ese día y aún no fabricado.
+    vivos = [r for r in filas if r["est"] in ("OK", "PENDIENTE") and r["fecha_solicitud"]]
+    entradas = lambda ini, fin: sum(1 for r in vivos if ini <= r["fecha_solicitud"] <= fin)
+    # (un OK con fecha de entrega futura ya está fabricado: hoy no está en la cola)
+    cola = lambda dia: sum(1 for r in vivos if r["fecha_solicitud"] <= dia and not (r["est"] == "OK" and (r["fecha_entrega"] is None or r["fecha_entrega"] <= dia or dia >= hoy)))
+    flujo = lambda ini, fin: {"entradas": entradas(ini, fin), "cola": cola(min(fin, hoy))}
+
     lunes = hoy - dt.timedelta(days=hoy.weekday())
     semanal = []
     for k in range(11, -1, -1):
@@ -68,15 +76,18 @@ def calcular(hoy, R):
         sel = [r for r in hechos if r["fecha_entrega"] and ini <= r["fecha_entrega"] <= fin]
         semanal.append({"etiqueta": f"Sem {ini.isocalendar()[1]}", "desde": ini.isoformat(), "hasta": fin.isoformat(),
                         "segs": _segs(sel), "total": len(sel), "horas": sum(r["tiempo_h"] or 0 for r in sel),
-                        "en_curso": fin >= hoy})
+                        "en_curso": fin >= hoy, **flujo(ini, fin)})
     mensual = []
     for k in range(11, -1, -1):
         a, m = hoy.year, hoy.month - k
         while m < 1:
             a, m = a - 1, m + 12
         sel = [r for r in hechos if r["fecha_entrega"] and (r["fecha_entrega"].year, r["fecha_entrega"].month) == (a, m)]
+        ini_m = dt.date(a, m, 1)
+        fin_m = (dt.date(a + (m == 12), m % 12 + 1, 1) - dt.timedelta(days=1))
         mensual.append({"etiqueta": f"{a}-{m:02d}", "segs": _segs(sel), "total": len(sel),
-                        "horas": sum(r["tiempo_h"] or 0 for r in sel), "en_curso": (a, m) == (hoy.year, hoy.month)})
+                        "horas": sum(r["tiempo_h"] or 0 for r in sel), "en_curso": (a, m) == (hoy.year, hoy.month),
+                        "desde": ini_m.isoformat(), "hasta": fin_m.isoformat(), **flujo(ini_m, fin_m)})
 
     # Días de fila: días laborales desde hoy hasta la última "Fecha entrega" de lo pendiente (incluye hoy).
     ultima = max((r["fecha_entrega"] for r in pend if r["fecha_entrega"]), default=None)
@@ -89,7 +100,8 @@ def calcular(hoy, R):
             por_dia[r["fecha_entrega"]].append(r)
     diaria = [{"fecha": (hoy - dt.timedelta(days=k)).isoformat(), "segs": _segs(por_dia.get(hoy - dt.timedelta(days=k), [])),
                "total": len(por_dia.get(hoy - dt.timedelta(days=k), [])), "hoy": k == 0,
-               "lab": R.es_laboral(hoy - dt.timedelta(days=k))} for k in range(29, -1, -1)]
+               "lab": R.es_laboral(hoy - dt.timedelta(days=k)),
+               **flujo(hoy - dt.timedelta(days=k), hoy - dt.timedelta(days=k))} for k in range(29, -1, -1)]
     esta_semana = [r for d in range(7) for r in por_dia.get(lunes + dt.timedelta(days=d), [])]   # misma cuenta que la serie semanal
     semana_pasada = [r for d in range(7) for r in por_dia.get(lunes - dt.timedelta(days=7 - d), [])]
 

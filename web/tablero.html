@@ -2961,8 +2961,11 @@ let vistaMoldesSerie = 'semanal';
 
 // ---- Fabricación de moldes en el Resumen: histórico de herramentales fabricados (estatus OK por fecha de entrega)
 //      con Diario (semana actual) / Semanal (clic = sus días, con la serie diaria de 30 días) / Mensual y mediana.
+// Entradas vs. salidas: por periodo, lo que entró a la cola (fecha de solicitud, gris) al lado de lo fabricado (estatus OK
+// por fecha de entrega, moldes y galgas) y la línea de la cola al cierre del periodo (solicitado y aún sin fabricar,
+// incluye los desarrollos sin fecha establecida). Si la línea baja, la cola se está vaciando.
 const BLOQUE_RESUMEN_MOLDES = {
-  id: 'rf', titulo: 'Histórico de herramentales fabricados', aria: 'Herramentales fabricados por periodo',
+  id: 'rf', titulo: 'Entradas vs. fabricados · cola de herramentales', aria: 'Herramentales que entraron, fabricados y cola por periodo',
   estado: {vista: 'semanal', zoom: null},
   get op(){ return {orden: ['Molde', 'Galga'], colores: COLOR_HERR, nombres: {Molde: 'Moldes', Galga: 'Galgas'}}; },
   dias(desde, hasta){
@@ -2970,8 +2973,9 @@ const BLOQUE_RESUMEN_MOLDES = {
     return diasRango(desde, hasta).map(d => {
       const x = serie.find(s => s.fecha === d.iso), futuro = d.iso > D.hoy, segs = (x && x.segs) || {};
       return {etiqueta: d.iso === D.hoy ? t('hoy') : fCorta(d.iso), nombre: fLarga(d.iso), segs, total: x ? x.total : 0, futuro,
+              entradas: x ? x.entradas : null, cola: x ? x.cola : null,
               enCurso: d.iso === D.hoy, iso: d.iso, nota: futuro ? '' : d.iso < primero ? 'sin dato' : d.festivo ? 'Festivo' : d.domingo ? 'Domingo' : ''};
-    }).filter(x => diaVisible(x.iso, x.total));
+    }).filter(x => diaVisible(x.iso, x.total + (x.entradas || 0)));
   },
   periodos(vista){
     const MO = D.moldes;
@@ -2981,7 +2985,7 @@ const BLOQUE_RESUMEN_MOLDES = {
       const mensual = vista === 'mensual', mes = mensual ? MESES[+p.etiqueta.slice(5) - 1] : '';
       return {etiqueta: mensual ? mes.slice(0, 3) : p.etiqueta.replace('Sem ', 'S'),
               nombre: mensual ? `${mes} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`,
-              segs: p.segs, total: p.total, enCurso: p.en_curso, desde: p.desde, hasta: p.hasta,
+              segs: p.segs, total: p.total, enCurso: p.en_curso, desde: p.desde, hasta: p.hasta, entradas: p.entradas, cola: p.cola,
               detalle: !mensual && p.desde >= primero};   // el detalle por día existe para los últimos 30 días
     });
   },
@@ -2991,7 +2995,30 @@ const BLOQUE_RESUMEN_MOLDES = {
                                   : MO[vista].filter(p => !p.en_curso).map(p => p.total);
     return {valor: medianaDe(xs), unidad: vista === 'diaria' ? 'día laboral' : vista === 'semanal' ? 'semana' : 'mes'};
   },
-  dibujar(){ if(D.moldes) dibujarGraficaResumen(this); },
+  pintar(){
+    const cont = $('#ch-' + this.id); if(!cont || !D.moldes) return;
+    const e = this.estado, zoom = e.vista === 'semanal' && e.zoom, op = this.op;
+    document.querySelectorAll(`#${this.id}-vista button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
+    $(`#${this.id}-volver`).hidden = !zoom;
+    const barras = zoom ? this.dias(e.zoom.desde, e.zoom.hasta) : this.periodos(e.vista);
+    $(`#${this.id}-titulo`).textContent = zoom ? `${this.titulo} · ${e.zoom.titulo}` : this.titulo;
+    $(`#${this.id}-sub`).textContent = '';
+    $(`#${this.id}-leyenda`).innerHTML = `<div class="legend"><span><i style="background:var(--pend);outline:1px solid var(--border)"></i>Entraron a la cola</span>` +
+      op.orden.map(c => `<span><i style="background:${op.colores[c]}"></i>${esc(op.nombres[c])} fabricados</span>`).join('') +
+      `<span><i class="linea" style="background:var(--text)"></i>Herramentales en cola (al cierre)</span></div>`;
+    const items = barras.map(x => ({etiqueta: x.etiqueta, carga: x.futuro || x.entradas == null ? null : x.entradas, segs: x.segs, total: x.total, futuro: x.futuro,
+      sub: x.enCurso ? 'en curso' : (x.nota || ''), subColor: 'var(--muted)',
+      tip: tipSegs(x.nombre + (x.enCurso ? ' · en curso' : ''), x.segs,
+        `<div class="r" style="margin-top:6px;border-top:1px solid #ffffff33;padding-top:4px"><span>Entraron</span><span>${x.entradas != null ? fmt(x.entradas) : '—'}</span></div>` +
+        `<div class="r"><span>Fabricados</span><span>${x.futuro ? '—' : fmt(x.total)}</span></div>` +
+        `<div class="r"><span>Cola al cierre</span><span>${x.cola != null ? fmt(x.cola) : '—'}</span></div>` +
+        (e.vista === 'semanal' && !zoom ? '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>' : ''), op)}));
+    const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; if(!x.detalle) return;
+      e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; this.pintar(); } : null;
+    barrasCargaHecho(cont, items, {...op, alto: 280, aria: this.aria, onClick,
+      lineas: [{vals: barras.map(x => x.futuro ? null : x.cola), color: 'var(--text)', etiquetas: 'todas'}]});
+  },
+  dibujar(){ if(D.moldes) this.pintar(); },
 };
 BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 
