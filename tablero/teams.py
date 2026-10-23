@@ -57,13 +57,16 @@ def _recortar(png):
     return salida.getvalue()
 
 
-def capturar(seccion):
+VISTAS = {"diaria": "diario", "semanal": "semanal"}
+
+
+def capturar(seccion, vista="semanal"):
     edge = _edge()
     if not edge:
         raise RuntimeError("No encontré Microsoft Edge en este PC")
     perfil = tempfile.mkdtemp(prefix="tablero_teams_")
     destino = os.path.join(perfil, "captura.png")
-    url = f"http://127.0.0.1:{config.PUERTO}/?reporte={seccion}"
+    url = f"http://127.0.0.1:{config.PUERTO}/?reporte={seccion}&vista={vista}"
     try:
         subprocess.run([edge, "--headless=new", "--disable-gpu", "--no-first-run", "--hide-scrollbars",
                         f"--user-data-dir={perfil}", "--virtual-time-budget=25000",
@@ -83,9 +86,9 @@ def capturar(seccion):
         shutil.rmtree(perfil, ignore_errors=True)
 
 
-def _cuerpo_graph(imagenes, generado):
+def _cuerpo_graph(imagenes, generado, vista="semanal"):
     """Cuerpo listo para POST /chats/{id}/messages: el flujo no tiene que armar nada."""
-    partes = [f"<p><b>Indicadores del área · Herramentales</b><br>Actualizado {escape(generado)}</p>"]
+    partes = [f"<p><b>Indicadores del área · Herramentales · reporte {VISTAS.get(vista, vista)}</b><br>Actualizado {escape(generado)}</p>"]
     hosted = []
     for i, (titulo, jpg) in enumerate(imagenes, start=1):
         partes.append(f'<p><b>{escape(titulo)}</b><br><img src="../hostedContents/{i}/$value" style="width:900px"></p>')
@@ -103,7 +106,7 @@ def _registrar(estado, bytes_, detalle, usuario, ip):
         log.exception("No se pudo registrar el envío a Teams")
 
 
-def enviar(usuario=None, ip=None):
+def enviar(usuario=None, ip=None, vista="semanal"):
     """Devuelve (ok, mensaje). Nunca lanza excepción."""
     url = url_flujo()
     if not url:
@@ -113,13 +116,13 @@ def enviar(usuario=None, ip=None):
     try:
         try:
             with ThreadPoolExecutor(max_workers=3) as ex:
-                fotos = list(ex.map(lambda s: (s[1], capturar(s[0])), SECCIONES))
+                fotos = list(ex.map(lambda s: (s[1], capturar(s[0], vista)), SECCIONES))
         except Exception as e:
             _registrar("ERROR", None, f"No se pudieron generar las imágenes: {e}", usuario, ip)
             return False, f"No se pudieron generar las imágenes: {e}"
         generado = db.ahora().strftime("%d/%m/%Y %I:%M %p")
         cuerpo = json.dumps({"titulo": "Indicadores Herramentales", "fecha": generado,
-                             "graph": _cuerpo_graph(fotos, generado)}).encode("utf-8")
+                             "graph": _cuerpo_graph(fotos, generado, vista)}).encode("utf-8")
         peso = sum(len(j) for _, j in fotos)
         error = ""
         for intento, espera in enumerate(ESPERAS, start=1):
@@ -128,7 +131,7 @@ def enviar(usuario=None, ip=None):
                 req = urllib.request.Request(url, data=cuerpo, method="POST", headers={"Content-Type": "application/json"})
                 with urllib.request.urlopen(req, timeout=90) as r:
                     if 200 <= r.status < 300:
-                        msg = f"Enviado a Teams ({len(fotos)} imágenes, {peso // 1024} KB)"
+                        msg = f"Enviado a Teams · {VISTAS.get(vista, vista)} ({len(fotos)} imágenes, {peso // 1024} KB)"
                         _registrar("OK", peso, msg, usuario, ip)
                         return True, msg
                     error = f"El flujo respondió {r.status}"

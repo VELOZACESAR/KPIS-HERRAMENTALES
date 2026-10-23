@@ -112,7 +112,8 @@ def crear_app(ingestor):
         if seccion not in dict(teams.SECCIONES):
             return jsonify(error="Sección inválida"), 400
         try:
-            return Response(teams.capturar(seccion), mimetype="image/jpeg")
+            vista = request.args.get("vista", "semanal")
+            return Response(teams.capturar(seccion, vista if vista in teams.VISTAS else "semanal"), mimetype="image/jpeg")
         except Exception as e:
             return jsonify(error=str(e)), 500
 
@@ -121,7 +122,8 @@ def crear_app(ingestor):
         if not _puede_editar():
             return jsonify(error="Clave de edición incorrecta"), 403
         cuerpo = request.get_json(silent=True) or {}
-        ok, msg = teams.enviar(str(cuerpo.get("usuario") or "")[:80] or None, request.remote_addr)
+        vista = cuerpo.get("vista") if cuerpo.get("vista") in teams.VISTAS else "semanal"
+        ok, msg = teams.enviar(str(cuerpo.get("usuario") or "")[:80] or None, request.remote_addr, vista)
         return (jsonify(ok=True, mensaje=msg), 200) if ok else (jsonify(error=msg), 502)
 
     @app.post("/api/actualizar")

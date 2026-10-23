@@ -179,6 +179,11 @@
   .cat .fila3 b{display:block;font:700 15px var(--font);color:var(--text)}
   .sub-aceros{margin-bottom:6px}
   .sub-aceros button{font-size:13px;padding:8px 16px}
+  #menu-teams{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--sombra);padding:8px;width:230px;display:grid;gap:4px}
+  #menu-teams .mt-tit{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-soft);padding:4px 8px}
+  #menu-teams button{background:transparent;border:0;border-radius:8px;padding:9px 10px;text-align:left;color:var(--text);font:600 13px var(--font);cursor:pointer;display:grid}
+  #menu-teams button:hover{background:rgba(143,197,207,.14)}
+  #menu-teams button small{font-weight:400;color:var(--text-soft);font-size:11.5px}
   .etq{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;background:var(--pend);color:var(--text-soft)}
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
 
@@ -592,6 +597,7 @@ function aplicarTema(tema){
 // Modo reporte (?reporte=aceros|mantenimiento|oem|moldes|serigrafia): una sola sección en tema claro, sin menús,
 // para que el servidor la fotografíe con Edge y la mande a Teams.
 const REPORTE = new URLSearchParams(location.search).get('reporte');
+const REPORTE_VISTA = new URLSearchParams(location.search).get('vista');   // diaria | semanal
 if(REPORTE){ IDIOMA = 'es'; }
 aplicarTema(REPORTE ? 'claro' : leerPref('tablero-tema', 'oscuro'));
 aplicarIdioma();
@@ -3191,6 +3197,7 @@ document.getElementById('btn-tema').addEventListener('click', () => {
 const TITULOS_REPORTE = {aceros:'Aceros retrofit', mantenimiento:'Mantenimiento', oem:'Aceros OEM', moldes:'Fabricación de moldes', serigrafia:'Serigrafía'};
 function prepararReporte(){
   document.querySelectorAll('header, footer, .aviso, nav.tabs').forEach(el => el.style.display = 'none');
+  if(!document.getElementById('estilo-reporte')) document.head.insertAdjacentHTML('beforeend', '<style id="estilo-reporte">.btn-volver{display:none!important}</style>');
   document.querySelectorAll('.seg, .panel > details').forEach(el => (el.closest('.panel > details') ? el.parentElement : el).style.display = 'none');
   const main = $('#main');
   main.style.padding = '18px 24px 24px';
@@ -3204,37 +3211,66 @@ function prepararReporte(){
       a.style.display = h.trim().startsWith(buscado) ? '' : 'none';
       a.querySelectorAll('.ver').forEach(x => x.style.display = 'none');
     });
+    // reporte diario o semanal: se pulsan una sola vez los botones Diario/Semanal de las gráficas del Resumen
+    if(REPORTE_VISTA && !prepararReporte.vistaLista){
+      prepararReporte.vistaLista = true;
+      v.querySelectorAll(`.lista-serv > article .seg button[data-v="${REPORTE_VISTA}"]`).forEach(b => b.click());
+      if(REPORTE === 'aceros' && D.aceros) zoomRes = REPORTE_VISTA === 'diaria' ? D.aceros.semanal.length - 1 : null;
+    }
     dibujarResumen();
   }
   if($('#titulo-reporte')) return;
   const titulo = document.createElement('div');
   titulo.id = 'titulo-reporte';
   titulo.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;margin:0 0 12px;color:var(--text)';
-  titulo.innerHTML = `<b style="font-size:18px">Indicadores Herramentales · ${esc(TITULOS_REPORTE[REPORTE] || '')}</b><span style="font-size:12px;color:var(--text-soft)">${fHora(D.generado)}</span>`;
+  titulo.innerHTML = `<b style="font-size:18px">Indicadores Herramentales · ${esc(TITULOS_REPORTE[REPORTE] || '')}${REPORTE_VISTA ? ' · ' + (REPORTE_VISTA === 'diaria' ? 'Diario' : 'Semanal') : ''}</b><span style="font-size:12px;color:var(--text-soft)">${fHora(D.generado)}</span>`;
   main.prepend(titulo);
   document.body.dataset.listo = '1';
 }
 
-document.getElementById('btn-teams').addEventListener('click', async ev => {
+function menuTeams(b){
+  let m = $('#menu-teams');
+  if(m){ m.remove(); return null; }
+  m = document.createElement('div');
+  m.id = 'menu-teams';
+  m.innerHTML = `<div class="mt-tit">Enviar a Teams</div>
+    <button data-vista="diaria">📅 Reporte diario<small>gráficas por día</small></button>
+    <button data-vista="semanal">🗓️ Reporte semanal<small>gráficas por semana</small></button>`;
+  const r = b.getBoundingClientRect();
+  m.style.cssText = `position:fixed;top:${r.bottom + 6}px;left:${Math.max(8, r.right - 230)}px;z-index:60`;
+  document.body.appendChild(m);
+  return m;
+}
+document.addEventListener('click', ev => {
+  const m = $('#menu-teams');
+  if(m && !ev.target.closest('#menu-teams') && !ev.target.closest('#btn-teams')) m.remove();
+});
+document.getElementById('btn-teams').addEventListener('click', ev => {
   const b = ev.currentTarget;
-  if(b.disabled || !confirm('¿Enviar el resumen del área al chat de Teams?')) return;
+  if(b.disabled) return;
+  const m = menuTeams(b); if(!m) return;
+  m.querySelectorAll('button').forEach(x => x.onclick = () => { m.remove(); enviarTeams(b, x.dataset.vista); });
+});
+async function enviarTeams(b, vista){
+  if(!confirm(`¿Enviar el reporte ${vista === 'diaria' ? 'DIARIO' : 'SEMANAL'} del área al chat de Teams?`)) return;
   b.disabled = true; const antes = b.textContent; b.textContent = 'Enviando…';
   try {
     const headers = {'Content-Type':'application/json'};
     let clave = null; try { clave = sessionStorage.getItem('tablero-clave'); } catch(e){}
     if(clave) headers['X-Clave'] = clave;
-    let r = await fetch('/api/teams/enviar', {method:'POST', headers, body: JSON.stringify({usuario: leerPref('tablero-usuario', '') || null})});
+    const cuerpo = () => JSON.stringify({usuario: leerPref('tablero-usuario', '') || null, vista});
+    let r = await fetch('/api/teams/enviar', {method:'POST', headers, body: cuerpo()});
     if(r.status === 403){
       const c = prompt('Clave de edición del tablero:'); if(!c) throw new Error('se necesita la clave de edición');
       try { sessionStorage.setItem('tablero-clave', c); } catch(e){}
       headers['X-Clave'] = c;
-      r = await fetch('/api/teams/enviar', {method:'POST', headers, body: JSON.stringify({usuario: leerPref('tablero-usuario', '') || null})});
+      r = await fetch('/api/teams/enviar', {method:'POST', headers, body: cuerpo()});
     }
     const j = await r.json().catch(() => ({}));
     alert(r.ok ? '✓ ' + j.mensaje : '✖ No se envió: ' + (j.error || 'error ' + r.status));
   } catch(e){ alert('✖ No se envió: ' + e.message); }
   finally { b.disabled = false; b.textContent = antes; }
-});
+}
 
 cargar();
 </script>
