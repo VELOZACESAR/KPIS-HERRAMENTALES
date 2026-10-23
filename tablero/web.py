@@ -5,7 +5,7 @@ import threading
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import config, db, retenidas_piso, tablero
+from . import config, db, retenidas_piso, tablero, teams
 from .ingesta import estado_fuentes
 
 CLAVE_VALIDA = re.compile(r"^[a-z0-9_.\-]{1,80}$")
@@ -101,6 +101,28 @@ def crear_app(ingestor):
         ok = retenidas_piso.borrar(id_)
         tablero.invalidar()
         return (jsonify(ok=True), 200) if ok else (jsonify(error="No existe"), 404)
+
+    @app.get("/api/teams")
+    def api_teams_estado():
+        ultimos = db.consultar("SELECT TOP 5 fecha, estado, detalle, usuario FROM cesar.reporte_envio ORDER BY id DESC")
+        return _json({"configurado": bool(teams.url_flujo()), "ultimos": ultimos})
+
+    @app.get("/api/teams/vista-previa/<seccion>")
+    def api_teams_vista_previa(seccion):
+        if seccion not in dict(teams.SECCIONES):
+            return jsonify(error="Sección inválida"), 400
+        try:
+            return Response(teams.capturar(seccion), mimetype="image/jpeg")
+        except Exception as e:
+            return jsonify(error=str(e)), 500
+
+    @app.post("/api/teams/enviar")
+    def api_teams_enviar():
+        if not _puede_editar():
+            return jsonify(error="Clave de edición incorrecta"), 403
+        cuerpo = request.get_json(silent=True) or {}
+        ok, msg = teams.enviar(str(cuerpo.get("usuario") or "")[:80] or None, request.remote_addr)
+        return (jsonify(ok=True, mensaje=msg), 200) if ok else (jsonify(error=msg), 502)
 
     @app.post("/api/actualizar")
     def api_actualizar():

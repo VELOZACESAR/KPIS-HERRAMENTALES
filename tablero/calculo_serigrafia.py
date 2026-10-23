@@ -12,8 +12,18 @@ PUESTOS_PASTA_PLATA = {"PLANEACION", "01CORTE", "02CNC", "03SERIG", "04SER_VT"} 
 DIAS_MATRIZ = 14
 
 
+# Nombres mal escritos en los Excel (sobre todo la hoja Historico de logos) → el nombre correcto.
+ALIAS_PERSONAS = {
+    "C": "CAMILO", "CAMIO": "CAMILO", "CAMIILO": "CAMILO", "CQMILO": "CAMILO", "CAMNILO": "CAMILO", "CAMIULO": "CAMILO",
+    "J": "JUAN PABLO", "JUAN P": "JUAN PABLO",
+    "ASIGANDO": "ASIGNADO", "CASIGNADO": "ASIGNADO", "ASIGNADA": "ASIGNADO", "AIGNADA": "ASIGNADO", "ASA": "ASIGNADO",
+    "ASIGNADOO": "ASIGNADO",
+}
+
+
 def _persona(v):
     n = norm(v)
+    n = ALIAS_PERSONAS.get(n, n)
     return None if n in NO_PERSONAS else n.title()
 
 
@@ -289,10 +299,25 @@ def retenidas(hoy):
             serie[r["fecha"]].update(malla_quietas=r["piezas_quietas"] or 0, mallas=r["mallas"] or 0, logos=r["logos"] or 0,
                                      trazabilidades=r["trazabilidades"] or 0)
     v = lambda fila, campo: (fila or {}).get(campo) or 0
+    # Desde oct-2026 las retenidas por falta de archivo vienen por tipo de vitro (tabla de capacidades del Excel);
+    # "Piezas quietas" de la hoja Vitrojet queda solo para los días viejos que la traían.
+    ret_tipo, ret_dia = {}, {}
+    if db.consultar("SELECT OBJECT_ID('cesar.seri_ind_capacidad') AS n")[0]["n"]:
+        for r in db.consultar("""SELECT fecha, ret_logos, ret_estandar, ret_pp FROM cesar.seri_ind_capacidad
+                                 WHERE fecha IS NOT NULL AND fecha <= ? ORDER BY fecha""", hoy):
+            if any(r[k] is not None for k in ("ret_logos", "ret_estandar", "ret_pp")):
+                ret_dia[r["fecha"]] = sum(r[k] or 0 for k in ("ret_logos", "ret_estandar", "ret_pp"))
+                ret_tipo = {"Logos": r["ret_logos"] or 0, "Estándar": r["ret_estandar"] or 0, "Pasta de plata": r["ret_pp"] or 0}
+    for f, n in ret_dia.items():
+        if desde <= f <= hoy:
+            serie[f]["vitro_quietas"] = n
+    falta_archivo = v(uv, "piezas_quietas")
+    if ret_dia and (uv is None or uv.get("piezas_quietas") is None or max(ret_dia) >= uv["fecha"]):
+        falta_archivo = ret_dia[max(ret_dia)]
     return {
         "fecha_vitrojet": uv["fecha"].isoformat() if uv else None, "fecha_mallas": um["fecha"].isoformat() if um else None,
-        "falta_archivo": v(uv, "piezas_quietas"), "falta_malla": v(um, "piezas_quietas"),
-        "total": v(uv, "piezas_quietas") + v(um, "piezas_quietas"),
+        "falta_archivo": falta_archivo, "falta_archivo_tipo": ret_tipo or None, "falta_malla": v(um, "piezas_quietas"),
+        "total": falta_archivo + v(um, "piezas_quietas"),
         "screens": {"mallas": v(um, "mallas"), "logos": v(um, "logos"), "trazabilidades": v(um, "trazabilidades")},
         "screens_total": v(um, "mallas") + v(um, "logos") + v(um, "trazabilidades"),
         "vitros_nuevos": v(uv, "vitros_nuevos"), "capacidad_vitros": (uv or {}).get("capacidad"),

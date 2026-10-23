@@ -24,6 +24,7 @@ log = logging.getLogger("tablero.ingesta")
 SEGUNDOS_QUIETO = 8
 CAIDA_MAXIMA = 0.5
 SEGUNDOS_REDESCUBRIR = 600
+REVISIONES_AUSENTE = 3
 
 
 class Ingestor:
@@ -65,12 +66,21 @@ class Ingestor:
         e = self.estado[fuente]
         ruta = self._ruta(fuente)
         if ruta is None or not ruta.exists():
+            # OneDrive borra y vuelve a crear el archivo al sincronizar un cambio: se espera antes de dar la alarma.
+            e["ausente"] = e.get("ausente", 0) + 1
+            if ruta is not None and e["ausente"] < REVISIONES_AUSENTE:
+                return False
             self._registrar_error(fuente, ruta, None, "No encontré el archivo. Revisa que la carpeta de SharePoint "
                                                       "esté sincronizada con OneDrive en este PC o la ruta en .env.")
+            e["buscado"] = 0
             return False
+        e["ausente"] = 0
         st = ruta.stat()
         firma = (st.st_mtime, st.st_size)
         if not forzar and firma == e["visto"]:
+            if e["error"]:
+                e["error"] = None
+                self._cerrar_error(fuente, ruta, None, st.st_mtime, (self._ultimo_ok(fuente) or {}).get("filas"))
             return False
         if time.time() - st.st_mtime < SEGUNDOS_QUIETO:
             if not forzar:

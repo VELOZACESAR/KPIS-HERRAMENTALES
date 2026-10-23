@@ -238,16 +238,18 @@ def _leer_capacidades(ruta: Path):
 
 def leer_indicadores_diarios(ruta: Path):
     vitro, mallas = _leer(ruta, "VITROJET", "MALLAS")
-    h, c = _tabla(vitro, ["Fecha", "Vitros nuevos"], {
-        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos"], "piezas_quietas": ["Piezas quietas"], "capacidad": ["Capacidad"],
-        "vitros_pp": VITROS_PP,
-    }, obligatorias=["fecha", "vitros_nuevos", "piezas_quietas"], contiene={"capacidad": CAP_VITROS, "capacidad_pp": CAP_PP})
+    # Oct-2026: la hoja Vitrojet pasó a capacidad/retenidas por tipo (eso lo lee _leer_capacidades); "Vitros nuevos"
+    # y "Piezas quietas" ya no siempre vienen, por eso son opcionales.
+    h, c = _tabla(vitro, ["Fecha"], {
+        "fecha": ["Fecha"], "vitros_nuevos": ["Vitros nuevos", "Vitros Estandar"], "piezas_quietas": ["Piezas quietas"],
+        "capacidad": ["Capacidad Vitros Estandar", "Capacidad Vitros Estándar", "Capacidad"], "vitros_pp": VITROS_PP,
+    }, obligatorias=["fecha"], contiene={"capacidad": CAP_VITROS, "capacidad_pp": CAP_PP})
     salida_v = []
     for i, r in enumerate(vitro[h + 1:], start=h + 2):
         f = fecha(_celda(r, c["fecha"]))
         if f is None:
             continue
-        salida_v.append((i, f, numero(_celda(r, c["vitros_nuevos"])), numero(_celda(r, c["piezas_quietas"])),
+        salida_v.append((i, f, numero(_celda(r, c.get("vitros_nuevos"))), numero(_celda(r, c.get("piezas_quietas"))),
                          numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("vitros_pp"))),
                          numero(_celda(r, c.get("capacidad_pp")))))
     h, c = _tabla(mallas, ["Fecha", "Piezas quietas"], {

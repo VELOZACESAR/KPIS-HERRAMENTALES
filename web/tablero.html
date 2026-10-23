@@ -511,6 +511,7 @@
         <button data-idioma="es" aria-pressed="true">ES</button><button data-idioma="pt" aria-pressed="false">PT</button>
       </div>
       <button class="btn-ico" id="btn-tema" aria-label="Cambiar tema claro/oscuro" title="Tema claro / oscuro"></button>
+      <button class="btn-ico" id="btn-teams" title="Enviar el resumen al chat de Teams" aria-label="Enviar a Teams">➤ Teams</button>
       <button class="btn-act" id="btn-actualizar" data-t="actualizar">⟳ Actualizar ahora</button>
     </div>
   </div>
@@ -567,7 +568,11 @@ function aplicarTema(tema){
     ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
     : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
 }
-aplicarTema(leerPref('tablero-tema', 'oscuro'));
+// Modo reporte (?reporte=aceros|mantenimiento|oem|moldes|serigrafia): una sola sección en tema claro, sin menús,
+// para que el servidor la fotografíe con Edge y la mande a Teams.
+const REPORTE = new URLSearchParams(location.search).get('reporte');
+if(REPORTE){ IDIOMA = 'es'; }
+aplicarTema(REPORTE ? 'claro' : leerPref('tablero-tema', 'oscuro'));
 aplicarIdioma();
 
 // ---------------------------------------------------------------- utilidades
@@ -1087,7 +1092,8 @@ function render(){
     </div>
     <p style="margin-top:14px">Las casillas con ✎ se escriben a mano y quedan guardadas en la base de datos para todos. El tablero se actualiza solo cada minuto.</p>`;
   activarManuales();
-  irA(location.hash.slice(1) || 'resumen', true); // al redibujar (ej. tras guardar un valor manual) no salta al inicio
+  irA(REPORTE ? 'resumen' : (location.hash.slice(1) || 'resumen'), true); // al redibujar no salta al inicio
+  if(REPORTE) prepararReporte();
 }
 
 function vistaResumen(A){
@@ -2385,7 +2391,7 @@ function vistaSerigrafia(S){
   const ret = r ? `
   <h2 class="sec">Estado de serigrafía <small>${r.fecha_mallas ? fLarga(r.fecha_mallas) : ''}</small></h2>
   <div class="grid-kpi">
-    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Falta de archivo <b>${fmt(r.falta_archivo)}</b> · Falta de malla <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
+    ${kpi('Piezas retenidas', fmt(r.total), 'piezas', `Falta de archivo <b>${fmt(r.falta_archivo)}</b>${r.falta_archivo_tipo ? ' (' + Object.entries(r.falta_archivo_tipo).map(([k, n]) => `${k} ${fmt(n)}`).join(' · ') + ')' : ''} · Falta de malla <b>${fmt(r.falta_malla)}</b>`, r.total ? '<span class="chip bad">▼</span>' : '<span class="chip ok">▲</span>', 'hero')}
     ${kpi('Screens en fabricación', fmt(r.screens_total), '', `Trazabilidades <b>${fmt(r.screens.trazabilidades)}</b> · Mallas <b>${fmt(r.screens.mallas)}</b> · Logos <b>${fmt(r.screens.logos)}</b>`)}
     ${(() => { const l1 = S.logos ? S.logos.carga : 0, l2 = S.logos ? S.logos.carga_p2 || 0 : 0, vl = l1 + l2,
                    ve = S.vitros ? S.vitros.carga_vitros : 0, vp = S.pasta_plata ? S.pasta_plata.carga : 0;
@@ -2752,18 +2758,21 @@ function dibujarBloqueSeri(S, b){
   // carga: pasta de plata = "Vitros PP" de Indicadores diarios; los demás = foto diaria (hoy en vivo)
   const hist = S.historial || {}, indCarga = {logos:'seri_carga_logos', vitros:'seri_carga_vitros', pasta_plata:'seri_carga_pp_comp'}[b.id];
   const cargaPP = (S.retenidas && S.retenidas.carga_pp) || {};
-  const cargaDia = iso => b.id === 'pasta_plata' ? (cargaPP[iso] != null ? cargaPP[iso] : null)
+  const usaCargaPP = b.id === 'pasta_plata' && Object.keys(cargaPP).length > 0;
+  const cargaDia = iso => usaCargaPP ? (cargaPP[iso] != null ? cargaPP[iso] : null)
     : iso === D.hoy ? X.carga : (hist[iso] && hist[iso][indCarga] != null ? hist[iso][indCarga] : null);
   const cargaRango = (desde, hasta) => { let v = null; diasRango(desde, hasta < D.hoy ? hasta : D.hoy).forEach(d => { const c = cargaDia(d.iso); if(c != null) v = c; }); return v; };
-  const capRangoSeri = p => b.id === 'vitros' ? p.capacidad
+  // capacidad: la de Indicadores diarios (por tipo de vitro) y, si el Excel no la trae, la que se escribe a mano
+  const capRangoSeri = p => p.capacidad != null ? p.capacidad
     : capManual ? capManual * diasRango(p.desde, p.hasta).filter(d => esProductivo(d.iso)).length : null;
+  const hayCapExcel = [...(ser.diaria || [])].some(d => d.capacidad != null);
   let periodos;
   if(zoom) periodos = (ser.diaria || []).filter(d => d.fecha >= e.zoom.desde && d.fecha <= e.zoom.hasta && diaVisible(d.fecha, d.total));
   else if(e.vista === 'diaria') periodos = (ser.diaria || []).filter(d => diaVisible(d.fecha, d.total));
   else periodos = ser[e.vista] || [];
   const porDia = zoom || e.vista === 'diaria', mensual = e.vista === 'mensual' && !zoom;
   const filas = periodos.map(p => {
-    const cap = porDia ? (b.id === 'vitros' ? p.capacidad : capManual) : capRangoSeri(p);
+    const cap = porDia ? (p.capacidad != null ? p.capacidad : capManual) : capRangoSeri(p);
     const carga = porDia ? cargaDia(p.fecha) : cargaRango(p.desde, p.hasta);
     const etiqueta = porDia ? (p.fecha === D.hoy ? t('hoy') : fCorta(p.fecha)) : mensual ? MESES[+p.etiqueta.slice(5) - 1].slice(0, 3) : p.etiqueta.replace('Sem ', 'S');
     const nombre = porDia ? fLarga(p.fecha) : mensual ? `${MESES[+p.etiqueta.slice(5) - 1]} ${p.etiqueta.slice(0, 4)}` : `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`;
@@ -2777,8 +2786,8 @@ function dibujarBloqueSeri(S, b){
   });
   $('#tit-seri-' + b.id).textContent = zoom ? `Producción vs. capacidad · ${e.zoom.titulo}` : porDia ? 'Producción diaria vs. capacidad' : `Producción ${e.vista === 'semanal' ? 'semanal' : 'mensual'} vs. capacidad`;
   $('#ley-seri-' + b.id).innerHTML = `<div class="legend">${nombres.map(n => `<span><i style="background:${colores[n]}"></i>${esc(n)}</span>`).join('')}` +
-    `<span><i class="linea" style="background:var(--text)"></i>Carga${b.id === 'pasta_plata' ? ' (Indicadores diarios · Vitros PP)' : ''}</span>` +
-    (capManual || b.id === 'vitros' ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : '') + '</div>';
+    `<span><i class="linea" style="background:var(--text)"></i>Carga${usaCargaPP ? ' (Indicadores diarios · Vitros PP)' : ''}</span>` +
+    (capManual || hayCapExcel ? `<span><i style="background:${COLOR_META}"></i>Capacidad</span>` : '') + '</div>';
   barrasApiladas(cont, filas.map(x => x.item), {...op, sub: true, alto: 260, metaRoja: true, aria: 'Producción vs. capacidad',
     onClick: e.vista === 'semanal' && !zoom ? (it, i) => { const p = periodos[i]; e.zoom = {desde: p.desde, hasta: p.hasta, titulo: `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`}; dibujarBloqueSeri(S, b); } : null,
     lineas: [{vals: filas.map(x => x.carga), color: 'var(--text)', etiquetas: 'todas'}]});
@@ -2999,6 +3008,54 @@ document.querySelectorAll('[data-idioma]').forEach(b => b.addEventListener('clic
 document.getElementById('btn-tema').addEventListener('click', () => {
   const tema = document.documentElement.dataset.tema === 'claro' ? 'oscuro' : 'claro';
   guardarPref('tablero-tema', tema); aplicarTema(tema); if(D) render();
+});
+
+const TITULOS_REPORTE = {aceros:'Aceros retrofit', mantenimiento:'Mantenimiento', oem:'Aceros OEM', moldes:'Fabricación de moldes', serigrafia:'Serigrafía'};
+function prepararReporte(){
+  document.querySelectorAll('header, footer, .aviso, nav.tabs').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.seg, .panel > details').forEach(el => (el.closest('.panel > details') ? el.parentElement : el).style.display = 'none');
+  const main = $('#main');
+  main.style.padding = '18px 24px 24px';
+  {
+    const v = $('#v-resumen');
+    v.querySelectorAll('h2.sec').forEach(el => el.style.display = 'none');
+    const frase = v.querySelector('.frase'); if(frase && REPORTE !== 'aceros') frase.style.display = 'none';
+    const buscado = TITULOS_REPORTE[REPORTE] || '';
+    v.querySelectorAll('.lista-serv > article').forEach(a => {
+      const h = (a.querySelector('h3') || {}).textContent || '';
+      a.style.display = h.trim().startsWith(buscado) ? '' : 'none';
+      a.querySelectorAll('.ver').forEach(x => x.style.display = 'none');
+    });
+    dibujarResumen();
+  }
+  if($('#titulo-reporte')) return;
+  const titulo = document.createElement('div');
+  titulo.id = 'titulo-reporte';
+  titulo.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;margin:0 0 12px;color:var(--text)';
+  titulo.innerHTML = `<b style="font-size:18px">Indicadores Herramentales · ${esc(TITULOS_REPORTE[REPORTE] || '')}</b><span style="font-size:12px;color:var(--text-soft)">${fHora(D.generado)}</span>`;
+  main.prepend(titulo);
+  document.body.dataset.listo = '1';
+}
+
+document.getElementById('btn-teams').addEventListener('click', async ev => {
+  const b = ev.currentTarget;
+  if(b.disabled || !confirm('¿Enviar el resumen del área al chat de Teams?')) return;
+  b.disabled = true; const antes = b.textContent; b.textContent = 'Enviando…';
+  try {
+    const headers = {'Content-Type':'application/json'};
+    let clave = null; try { clave = sessionStorage.getItem('tablero-clave'); } catch(e){}
+    if(clave) headers['X-Clave'] = clave;
+    let r = await fetch('/api/teams/enviar', {method:'POST', headers, body: JSON.stringify({usuario: leerPref('tablero-usuario', '') || null})});
+    if(r.status === 403){
+      const c = prompt('Clave de edición del tablero:'); if(!c) throw new Error('se necesita la clave de edición');
+      try { sessionStorage.setItem('tablero-clave', c); } catch(e){}
+      headers['X-Clave'] = c;
+      r = await fetch('/api/teams/enviar', {method:'POST', headers, body: JSON.stringify({usuario: leerPref('tablero-usuario', '') || null})});
+    }
+    const j = await r.json().catch(() => ({}));
+    alert(r.ok ? '✓ ' + j.mensaje : '✖ No se envió: ' + (j.error || 'error ' + r.status));
+  } catch(e){ alert('✖ No se envió: ' + e.message); }
+  finally { b.disabled = false; b.textContent = antes; }
 });
 
 cargar();
