@@ -2181,20 +2181,22 @@ function vsMediaHTML(filas, tituloTotal, ref='media'){
 function tarjetaResumenMant(M){
   if(!M) return `<article class="serv-largo"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
   const cats = catsVisibles(M), porCat = c => M.por_categoria.find(p => p.categoria === c) || {};
-  // semana pasada (cerrada) de cada vehículo contra su mediana semanal (semanas cerradas anteriores): en un solo día los
-  // vehículos de poco volumen daban medias de 0,5 o 1,6 que no dicen nada; por semana son números completos
-  const cerradas = M.semanal.filter(s => !s.en_curso), pasada = cerradas[cerradas.length - 1] || {segs: {}}, previas = cerradas.slice(0, -1);
-  const filasAyer = cats.map(c => ({nombre: nomCat(c), n: (pasada.segs || {})[c] || 0, media: medianaDe(previas.map(s => (s.segs || {})[c] || 0)) || 0, color: colorCat(c)}));
-  const totAyer = filasAyer.reduce((a, f) => a + f.n, 0), medAyer = medianaDe(previas.map(s => cats.reduce((a, c) => a + ((s.segs || {})[c] || 0), 0))) || 0, eAyer = estado(totAyer, medAyer);
+  // el último día (el de "ayer" del servidor) de cada vehículo contra su mediana diaria: días del mismo tipo (laboral vs.
+  // domingo/festivo) de los últimos 30 días, sin hoy (los mismos días que la mediana de la gráfica). Mediana y no media:
+  // no da decimales como 0,5 o 1,6.
+  const k = M.kpis, ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer), labAyer = ayerD ? !!ayerD.lab : true;
+  const previos = M.diaria.filter(d => !d.hoy && !!d.lab === labAyer);
+  const filasAyer = cats.map(c => ({nombre: nomCat(c), n: porCat(c).ayer || 0, media: medianaDe(previos.map(d => (d.segs || {})[c] || 0)) || 0, color: colorCat(c)}));
+  const totAyer = filasAyer.reduce((a, f) => a + f.n, 0), medAyer = medianaDe(previos.map(d => cats.reduce((a, c) => a + ((d.segs || {})[c] || 0), 0))) || 0, eAyer = estado(totAyer, medAyer);
   const hoyCats = cats.map(c => ({c, n: porCat(c).hoy || 0})).filter(x => x.n), totHoy = hoyCats.reduce((a, x) => a + x.n, 0);
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver" data-ir="mantenimiento" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid">
       <div class="ra-col">
         <div class="kpi">
-          <div class="lbl"><span>${pasada.etiqueta ? `${esc(pasada.etiqueta.replace('Sem', 'Semana'))} · ${fCorta(pasada.desde)}–${fCorta(pasada.hasta)}` : 'Semana pasada'}</span>${chip(eAyer)}</div>
-          ${vsMediaHTML(filasAyer, 'Total', 'mediana')}
-          <div class="desc">Mediana por semana de las ${fmt(previas.length)} semanas anteriores</div>
+          <div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span>${chip(eAyer)}</div>
+          ${vsMediaHTML(filasAyer, 'Total del día', 'mediana')}
+          <div class="desc">Mediana de ${labAyer ? 'días laborales' : 'domingos/festivos'} · últimos 30 días</div>
         </div>
         <div class="kpi">
           <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
