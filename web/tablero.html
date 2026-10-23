@@ -2164,40 +2164,37 @@ BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_X5);   // Aceros OEM · BMW X5 (definido jun
 
 // Renglones "cantidad vs. media" con el mismo formato de "Producción por matricero" de Aceros.
 // filas: [{nombre, n, media, color}]; el total compara la suma contra la suma de las medias.
-function vsMediaHTML(filas, tituloTotal){
+function vsMediaHTML(filas, tituloTotal, ref='media'){
   const max = Math.max(1, ...filas.map(f => Math.max(f.n, f.media)));
   const tot = filas.reduce((a, f) => a + f.n, 0), medTot = filas.reduce((a, f) => a + f.media, 0), eT = estado(tot, medTot);
   return `<div class="matr">${filas.map(f => { const e = estado(f.n, f.media);
-    return `<div class="matr-fila" title="${esc(f.nombre)}: ${fmt(f.n)} · media ${fmt(f.media, 1)}">
+    return `<div class="matr-fila" title="${esc(f.nombre)}: ${fmt(f.n)} · ${ref} ${fmt(f.media, f.media % 1 ? 1 : 0)}">
       <span class="matr-nom">${esc(f.nombre)}</span>
       <span class="matr-bar">${f.n ? `<i style="width:${f.n / max * 100}%;background:${f.color}"><em class="num" style="color:${tintaSobre(f.color)}">${fmt(f.n)}</em></i>` : `<em class="num cero">0</em>`}${f.media ? `<b style="left:${f.media / max * 100}%"></b>` : ''}</span>
-      <span class="matr-meta">media <b class="num">${fmt(f.media, 1)}</b></span>
+      <span class="matr-meta">${ref} <b class="num">${fmt(f.media, ref === 'media' || f.media % 1 ? 1 : 0)}</b></span>
       <span class="matr-e" style="color:${COLOR_EST[e.cls]}">${e.pct != null ? `${e.ico} ${fmt(e.pct * 100)} %` : '—'}</span></div>`; }).join('')}
     <div class="matr-fila matr-tot"><span class="matr-nom">${tituloTotal}</span><span class="num" style="font-size:15px">${fmt(tot)}</span>
-      <span class="matr-meta">media <b class="num">${fmt(medTot, 1)}</b></span>
+      <span class="matr-meta">${ref} <b class="num">${fmt(medTot, ref === 'media' || medTot % 1 ? 1 : 0)}</b></span>
       <span class="matr-e" style="color:${COLOR_EST[eT.cls]}">${eT.pct != null ? `${eT.ico} ${fmt(eT.pct * 100)} %` : ''}</span></div></div>`;
-}
-// media de un vehículo en los días del mismo tipo (laboral vs. domingo/festivo) de los últimos 30 días, sin hoy
-function mediaMant(M, cat, laboral){
-  const dias = M.diaria.filter(d => !d.hoy && !!d.lab === laboral);
-  return dias.length ? dias.reduce((a, d) => a + ((d.segs || {})[cat] || 0), 0) / dias.length : 0;
 }
 
 function tarjetaResumenMant(M){
   if(!M) return `<article class="serv-largo"><div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="chip bad">✖ Sin conexión</span></div></article>`;
-  const k = M.kpis, ayerD = M.diaria.find(d => d.fecha === k.fecha_ayer), labAyer = ayerD ? !!ayerD.lab : true;
   const cats = catsVisibles(M), porCat = c => M.por_categoria.find(p => p.categoria === c) || {};
-  const filasAyer = cats.map(c => ({nombre: nomCat(c), n: porCat(c).ayer || 0, media: mediaMant(M, c, labAyer), color: colorCat(c)}));
-  const totAyer = filasAyer.reduce((a, f) => a + f.n, 0), medAyer = filasAyer.reduce((a, f) => a + f.media, 0), eAyer = estado(totAyer, medAyer);
+  // semana pasada (cerrada) de cada vehículo contra su mediana semanal (semanas cerradas anteriores): en un solo día los
+  // vehículos de poco volumen daban medias de 0,5 o 1,6 que no dicen nada; por semana son números completos
+  const cerradas = M.semanal.filter(s => !s.en_curso), pasada = cerradas[cerradas.length - 1] || {segs: {}}, previas = cerradas.slice(0, -1);
+  const filasAyer = cats.map(c => ({nombre: nomCat(c), n: (pasada.segs || {})[c] || 0, media: medianaDe(previas.map(s => (s.segs || {})[c] || 0)) || 0, color: colorCat(c)}));
+  const totAyer = filasAyer.reduce((a, f) => a + f.n, 0), medAyer = medianaDe(previas.map(s => cats.reduce((a, c) => a + ((s.segs || {})[c] || 0), 0))) || 0, eAyer = estado(totAyer, medAyer);
   const hoyCats = cats.map(c => ({c, n: porCat(c).hoy || 0})).filter(x => x.n), totHoy = hoyCats.reduce((a, x) => a + x.n, 0);
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('mantenimiento')}</h3><span class="ver" data-ir="mantenimiento" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid">
       <div class="ra-col">
         <div class="kpi">
-          <div class="lbl"><span>${t('mant_ayer')} ${fCorta(k.fecha_ayer)}</span>${chip(eAyer)}</div>
-          ${vsMediaHTML(filasAyer, 'Total del día')}
-          <div class="desc">Media de ${labAyer ? 'días laborales' : 'domingos/festivos'} · 30 días</div>
+          <div class="lbl"><span>${pasada.etiqueta ? `${esc(pasada.etiqueta.replace('Sem', 'Semana'))} · ${fCorta(pasada.desde)}–${fCorta(pasada.hasta)}` : 'Semana pasada'}</span>${chip(eAyer)}</div>
+          ${vsMediaHTML(filasAyer, 'Total', 'mediana')}
+          <div class="desc">Mediana por semana de las ${fmt(previas.length)} semanas anteriores</div>
         </div>
         <div class="kpi">
           <div class="lbl"><span>${t('mant_hoy')}</span><span class="chip ok">● ${t('en_vivo')}</span></div>
@@ -2778,7 +2775,7 @@ const BLOQUE_RESUMEN_SERI = {
   id: 'rs', titulo: 'Procesamiento de archivos vitro', aria: 'Archivos vitro de las 3 ramas: hechos, carga, capacidad y piezas retenidas',
   estado: {vista: 'semanal', zoom: null},
   get op(){ return {orden: [RAMAS_SERI[0].nombre, LOGO_PL, ...RAMAS_SERI.slice(1).map(r => r.nombre)],
-                    colores: {...Object.fromEntries(RAMAS_SERI.map(r => [r.nombre, r.color])), [LOGO_PL]: PALETA[3]}}; },
+                    colores: {...Object.fromEntries(RAMAS_SERI.map(r => [r.nombre, r.color])), [LOGO_PL]: `color-mix(in srgb, ${PALETA[0]} 40%, var(--surface))`}}; },
   dias(desde, hasta){
     const S = D.serigrafia;
     return diasRango(desde, hasta).map(d => {
@@ -2841,9 +2838,9 @@ const BLOQUE_RESUMEN_SERI = {
     const col = cont.closest('.ra-grid') && cont.closest('.ra-grid').querySelector('.ra-col'), caja = cont.closest('.ra-chart');
     const alto = col && caja ? Math.min(380, Math.max(280, col.offsetHeight - (cont.getBoundingClientRect().top - caja.getBoundingClientRect().top) - 22)) : 300;
     const onClick = e.vista === 'semanal' && !zoom ? (it, i) => { const x = barras[i]; e.zoom = {desde: x.desde, hasta: x.hasta, titulo: x.nombre}; this.pintar(); } : null;
-    barrasApiladas(cont, items, {...op, sub: true, alto, aria: this.aria, onClick,
+    barrasApiladas(cont, items, {...op, sub: true, alto, aria: this.aria, onClick, numSegmentos: true,
       lineas: [{vals: barras.map(x => x.futuro ? null : x.carga), color: COLOR_CARGA_SERI, etiquetas: 'todas', punteada: true},
-               {vals: barras.map(x => x.futuro ? null : x.ret), color: 'var(--bad)', etiquetas: 'todas'}]});
+               {vals: barras.map(x => x.futuro ? null : x.ret), color: 'var(--bad)', etiquetas: 'ultima'}]});
   },
   dibujar(){ if(D.serigrafia) this.pintar(); },
 };
