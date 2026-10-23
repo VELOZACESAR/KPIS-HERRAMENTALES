@@ -2487,9 +2487,9 @@ function tarjetaResumenSeri(S){
   const l1 = S.logos ? S.logos.carga : null, l2 = S.logos ? S.logos.carga_p2 || 0 : null;
   const vl = l1 == null ? null : l1 + l2, ve = S.vitros ? S.vitros.carga : null, vp = S.pasta_plata ? S.pasta_plata.carga : null;
   const totVit = (vl || 0) + (ve || 0) + (vp || 0);
-  // piezas retenidas: por falta de archivo (por tipo de vitro, Indicadores diarios) y por falta de malla
-  const fRet = retSeriDia(S, D.hoy) ? D.hoy : ultimoRetSeri(S), rt = fRet ? retSeriDia(S, fRet) : null;
-  const archivo = rt ? rt.total : (r.falta_archivo || 0), malla = r.falta_malla || 0, totRet = archivo + malla;
+  // piezas retenidas: solo las de HOY (falta de archivo por tipo de vitro + falta de malla); si hoy aún no se registró la
+  // falta de archivo en Indicadores diarios, se dice en vez de traer la de ayer
+  const rt = retSeriDia(S, D.hoy), archivo = rt ? rt.archivo : null, malla = rt ? rt.malla : null, totRet = rt ? rt.total : 0;
   // screens pedidos (hoja MALLAS de Indicadores diarios)
   const sc = r.screens || {}, fSc = r.fecha_mallas;
   const cuando = f => !f || f === D.hoy ? 'hoy' : fCorta(f);
@@ -2506,10 +2506,11 @@ function tarjetaResumenSeri(S){
           ${l1 != null ? `<div class="desc seri-nota">Vitro logo: <b>${fmt(l1)}</b> con plan de corte · <b>${fmt(l2)}</b> en planeación</div>` : ''}
         </div>
         <div class="kpi fila-res seri-k">
-          <div class="lbl"><span>Piezas retenidas ${cuando(fRet || r.fecha_mallas)}</span>${totRet ? '<span class="chip bad">▼ Hay retenidas</span>' : '<span class="chip ok">▲ Sin retenidas</span>'}</div>
+          <div class="lbl"><span>Piezas retenidas hoy</span>${totRet ? '<span class="chip bad">▼ Hay retenidas</span>' : '<span class="chip ok">▲ Sin retenidas</span>'}</div>
           <div class="fila-hero"><span class="num-hero" style="color:${totRet ? 'var(--bad)' : 'var(--text)'}">${fmt(totRet)}</span><span>piezas<br>retenidas</span></div>
           ${tres([[archivo, 'POR FALTA DE ARCHIVO', archivo ? 'var(--bad)' : ''], [malla, 'POR FALTA DE MALLA', malla ? 'var(--bad)' : '']])}
-          ${rt ? `<div class="desc seri-nota">Falta de archivo: Vitro logo <b>${fmt(rt.logos)}</b> · Estándar <b>${fmt(rt.estandar)}</b> · Pasta de plata <b>${fmt(rt.pp)}</b></div>` : ''}
+          <div class="desc seri-nota">${archivo != null ? `Falta de archivo: Vitro logo <b>${fmt(rt.logos)}</b> · Estándar <b>${fmt(rt.estandar)}</b> · Pasta de plata <b>${fmt(rt.pp)}</b>`
+            : 'La falta de archivo de hoy aún no está registrada en Indicadores diarios'}${malla == null ? ' · falta de malla sin registrar hoy' : ''}</div>
         </div>
         <div class="kpi fila-res seri-k">
           <div class="lbl"><span>Screens pedidos ${cuando(fSc)}</span></div>
@@ -2767,12 +2768,19 @@ function seriDia(S, r, iso){ // {hechos, carga, cap} de una rama en un día, con
   const carga = dia != null ? Math.max(dia, hechos) : pend == null ? null : pend + hechos;
   return {hechos, carga, cap: capSeriDia(S, r, iso)};
 }
+// piezas retenidas de UN día (nunca se mezclan días): por falta de archivo por tipo de vitro (tabla de capacidades de
+// Indicadores diarios) + por falta de malla (hoja MALLAS). archivo = null si ese día aún no está registrado.
 function retSeriDia(S, iso){
-  const x = ((S.retenidas || {}).retenidas_vitros || {})[iso]; if(!x) return null;
-  return {logos: x.logos || 0, estandar: x.estandar || 0, pp: x.pp || 0, total: (x.logos || 0) + (x.estandar || 0) + (x.pp || 0)};
+  const R = S.retenidas || {}, x = (R.retenidas_vitros || {})[iso], m = (R.serie || []).find(d => d.fecha === iso);
+  const malla = m && m.malla_quietas != null ? m.malla_quietas : null;
+  if(!x && malla == null) return null;
+  const archivo = x ? (x.logos || 0) + (x.estandar || 0) + (x.pp || 0) : null;
+  return {logos: x ? x.logos || 0 : null, estandar: x ? x.estandar || 0 : null, pp: x ? x.pp || 0 : null,
+          archivo, malla, total: (archivo || 0) + (malla || 0)};
 }
-const ultimoRetSeri = (S, hasta = D.hoy, desde = '0000') =>
-  Object.keys((S.retenidas || {}).retenidas_vitros || {}).filter(f => f >= desde && f <= hasta).sort().pop() || null;
+const ultimoRetSeri = (S, hasta = D.hoy, desde = '0000') => { const R = S.retenidas || {};
+  return [...Object.keys(R.retenidas_vitros || {}), ...(R.serie || []).filter(d => d.malla_quietas != null).map(d => d.fecha)]
+    .filter(f => f >= desde && f <= hasta).sort().pop() || null; };
 const BLOQUE_RESUMEN_SERI = {
   id: 'rs', titulo: 'Procesamiento de archivos vitro', aria: 'Archivos vitro de las 3 ramas: hechos, carga, capacidad y piezas retenidas',
   estado: {vista: 'semanal', zoom: null},
