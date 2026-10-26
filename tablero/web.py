@@ -1,3 +1,4 @@
+import datetime as dt
 import hashlib
 import json
 import re
@@ -30,7 +31,15 @@ def crear_app(ingestor):
 
     @app.get("/api/tablero")
     def api_tablero():
-        datos = tablero.obtener(ingestor.version)
+        fecha = None
+        if request.args.get("fecha"):
+            try:
+                fecha = dt.date.fromisoformat(request.args["fecha"])
+            except ValueError:
+                return jsonify(error="Fecha inválida (AAAA-MM-DD)"), 400
+            if fecha >= dt.date.today():
+                fecha = None
+        datos = tablero.obtener(ingestor.version, fecha=fecha)
         sin_hora = {k: v for k, v in datos.items() if k != "generado"}
         firma = hashlib.md5(json.dumps(sin_hora, sort_keys=True, default=str).encode()).hexdigest()
         return _json({**datos, "firma": firma, "edicion_con_clave": bool(config.CLAVE_EDICION)})

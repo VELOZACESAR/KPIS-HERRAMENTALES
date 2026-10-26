@@ -75,9 +75,22 @@ def construir(hoy=None):
     return datos
 
 
-def obtener(version, forzar=False):
+_cache_fecha = {}
+
+
+def obtener(version, forzar=False, fecha=None):
     """Cachea el cálculo: se rehace si cambió algún Excel, si cambió un valor manual o cada minuto
-    (mantenimiento se lee en vivo de la app)."""
+    (mantenimiento se lee en vivo de la app). Con `fecha` se calcula como si hoy fuera ese día (reporte de la
+    semana anterior); esos cálculos van en su propia caché para no pisar la del tablero en vivo."""
+    if fecha:
+        clave = (version, fecha)
+        guardado = _cache_fecha.get(clave)
+        if guardado and time.time() - guardado[0] < SEGUNDOS_CACHE:
+            return guardado[1]
+        datos = construir(fecha)
+        _cache_fecha.clear()
+        _cache_fecha[clave] = (time.time(), datos)
+        return datos
     clave = (version, dt.date.today())
     with _lock:
         if not forzar and _cache["datos"] and _cache["clave"] == clave and time.time() - _cache["t"] < SEGUNDOS_CACHE:

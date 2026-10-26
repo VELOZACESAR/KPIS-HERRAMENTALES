@@ -57,7 +57,14 @@ def _recortar(png):
     return salida.getvalue()
 
 
-VISTAS = {"diaria": "diario", "semanal": "semanal"}
+VISTAS = {"diaria": "diario", "semanal": "semanal", "semana_anterior": "de la semana anterior"}
+
+
+def domingo_anterior(hoy=None):
+    """Último domingo antes de hoy: el reporte de la semana anterior se calcula como si hoy fuera ese día."""
+    import datetime as dt
+    hoy = hoy or dt.date.today()
+    return hoy - dt.timedelta(days=hoy.weekday() + 1)
 
 
 def capturar(seccion, vista="semanal"):
@@ -66,7 +73,9 @@ def capturar(seccion, vista="semanal"):
         raise RuntimeError("No encontré Microsoft Edge en este PC")
     perfil = tempfile.mkdtemp(prefix="tablero_teams_")
     destino = os.path.join(perfil, "captura.png")
-    url = f"http://127.0.0.1:{config.PUERTO}/?reporte={seccion}&vista={vista}"
+    url = f"http://127.0.0.1:{config.PUERTO}/?reporte={seccion}&vista={'semanal' if vista == 'semana_anterior' else vista}"
+    if vista == "semana_anterior":
+        url += f"&fecha={domingo_anterior().isoformat()}"
     try:
         subprocess.run([edge, "--headless=new", "--disable-gpu", "--no-first-run", "--hide-scrollbars",
                         f"--user-data-dir={perfil}", "--virtual-time-budget=25000",
@@ -88,7 +97,12 @@ def capturar(seccion, vista="semanal"):
 
 def _cuerpo_graph(imagenes, generado, vista="semanal"):
     """Cuerpo listo para POST /chats/{id}/messages: el flujo no tiene que armar nada."""
-    partes = [f"<p><b>Indicadores del área · Herramentales · reporte {VISTAS.get(vista, vista)}</b><br>Actualizado {escape(generado)}</p>"]
+    rango = ""
+    if vista == "semana_anterior":
+        import datetime as dt
+        dom = domingo_anterior()
+        rango = f" ({(dom - dt.timedelta(days=6)).strftime('%d/%m')} al {dom.strftime('%d/%m/%Y')})"
+    partes = [f"<p><b>Indicadores del área · Herramentales · reporte {VISTAS.get(vista, vista)}{rango}</b><br>Actualizado {escape(generado)}</p>"]
     hosted = []
     for i, (titulo, jpg) in enumerate(imagenes, start=1):
         partes.append(f'<p><b>{escape(titulo)}</b><br><img src="../hostedContents/{i}/$value" style="width:900px"></p>')

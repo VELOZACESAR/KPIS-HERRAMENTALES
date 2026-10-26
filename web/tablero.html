@@ -598,6 +598,7 @@ function aplicarTema(tema){
 // para que el servidor la fotografíe con Edge y la mande a Teams.
 const REPORTE = new URLSearchParams(location.search).get('reporte');
 const REPORTE_VISTA = new URLSearchParams(location.search).get('vista');   // diaria | semanal
+const REPORTE_FECHA = REPORTE ? new URLSearchParams(location.search).get('fecha') : null;   // semana anterior: "hoy" = ese domingo
 if(REPORTE){ IDIOMA = 'es'; }
 aplicarTema(REPORTE ? 'claro' : leerPref('tablero-tema', 'oscuro'));
 aplicarIdioma();
@@ -3164,7 +3165,7 @@ const enEdicion = () => { const a = document.activeElement; return a && a.tagNam
 function conectado(ok){ document.querySelectorAll('.vivo').forEach(v => v.classList.toggle('caido', !ok)); }
 async function cargar(forzar=false){
   try {
-    const r = await fetch('/api/tablero', {cache:'no-store'});
+    const r = await fetch('/api/tablero' + (REPORTE_FECHA ? '?fecha=' + encodeURIComponent(REPORTE_FECHA) : ''), {cache:'no-store'});
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const nuevo = await r.json();
     if(D && !forzar && nuevo.firma === D.firma){
@@ -3226,12 +3227,14 @@ function prepararReporte(){
       if(REPORTE === 'aceros' && D.aceros) zoomRes = REPORTE_VISTA === 'diaria' ? D.aceros.semanal.length - 1 : null;
     }
     dibujarResumen();
+    // semana anterior: esa semana ya cerró, no va "en curso"
+    if(REPORTE_FECHA) document.querySelectorAll('#v-resumen svg text').forEach(x => { if(x.textContent.trim() === 'en curso') x.textContent = ''; });
   }
   if($('#titulo-reporte')) return;
   const titulo = document.createElement('div');
   titulo.id = 'titulo-reporte';
   titulo.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;margin:0 0 12px;color:var(--text)';
-  titulo.innerHTML = `<b style="font-size:18px">Indicadores Herramentales · ${esc(TITULOS_REPORTE[REPORTE] || '')}${REPORTE_VISTA ? ' · ' + (REPORTE_VISTA === 'diaria' ? 'Diario' : 'Semanal') : ''}</b><span style="font-size:12px;color:var(--text-soft)">${fHora(D.generado)}</span>`;
+  titulo.innerHTML = `<b style="font-size:18px">Indicadores Herramentales · ${esc(TITULOS_REPORTE[REPORTE] || '')}${REPORTE_FECHA ? ' · Semana anterior (' + fCorta(isoDe(new Date(fecha(REPORTE_FECHA).getTime() - 6 * 864e5))) + ' – ' + fCorta(REPORTE_FECHA) + ')' : REPORTE_VISTA ? ' · ' + (REPORTE_VISTA === 'diaria' ? 'Diario' : 'Semanal') : ''}</b><span style="font-size:12px;color:var(--text-soft)">${fHora(D.generado)}</span>`;
   main.prepend(titulo);
   document.body.dataset.listo = '1';
 }
@@ -3243,7 +3246,8 @@ function menuTeams(b){
   m.id = 'menu-teams';
   m.innerHTML = `<div class="mt-tit">Enviar a Teams</div>
     <button data-vista="diaria">📅 Reporte diario<small>gráficas por día</small></button>
-    <button data-vista="semanal">🗓️ Reporte semanal<small>gráficas por semana</small></button>`;
+    <button data-vista="semanal">🗓️ Reporte semanal<small>gráficas por semana</small></button>
+    <button data-vista="semana_anterior">📊 Semana anterior<small>cómo nos fue ${(() => { const h = fecha(D.hoy), dom = new Date(h); dom.setDate(h.getDate() - ((h.getDay() + 6) % 7) - 1); const lun = new Date(dom); lun.setDate(dom.getDate() - 6); return `del ${fCorta(isoDe(lun))} al ${fCorta(isoDe(dom))}`; })()} · ideal los lunes</small></button>`;
   const r = b.getBoundingClientRect();
   m.style.cssText = `position:fixed;top:${r.bottom + 6}px;left:${Math.max(8, r.right - 230)}px;z-index:60`;
   document.body.appendChild(m);
@@ -3260,7 +3264,7 @@ document.getElementById('btn-teams').addEventListener('click', ev => {
   m.querySelectorAll('button').forEach(x => x.onclick = () => { m.remove(); enviarTeams(b, x.dataset.vista); });
 });
 async function enviarTeams(b, vista){
-  if(!confirm(`¿Enviar el reporte ${vista === 'diaria' ? 'DIARIO' : 'SEMANAL'} del área al chat de Teams?`)) return;
+  if(!confirm(`¿Enviar el reporte ${{diaria:'DIARIO', semanal:'SEMANAL', semana_anterior:'DE LA SEMANA ANTERIOR'}[vista]} del área al chat de Teams?`)) return;
   b.disabled = true; const antes = b.textContent; b.textContent = 'Enviando…';
   try {
     const headers = {'Content-Type':'application/json'};
