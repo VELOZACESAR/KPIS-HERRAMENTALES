@@ -63,6 +63,8 @@ class Ingestor:
         return cargadas
 
     def _revisar_fuente(self, fuente, forzar):
+        if fuente in config.FUENTES_BD:
+            return self._revisar_bd(fuente, forzar)
         e = self.estado[fuente]
         ruta = self._ruta(fuente)
         if ruta is None or not ruta.exists():
@@ -109,7 +111,8 @@ class Ingestor:
                                       f"El archivo trae {total} filas y el último cargue bueno tenía {previas}. "
                                       "No se cargó para no perder información (¿sincronización incompleta?).", st.st_mtime)
                 return False
-            self._cargar(fuente, ruta, huella, st.st_mtime, inicio, tablas, extra, total)
+            self._cargar(fuente, ruta, huella, dt.datetime.fromtimestamp(st.st_mtime).replace(microsecond=0),
+                         inicio, tablas, extra, total)
             e["visto"], e["error"] = firma, None
             log.info("%s cargado: %s filas en %.1fs", fuente, total, (dt.datetime.now() - inicio).total_seconds())
             return True
@@ -118,6 +121,39 @@ class Ingestor:
                 os.remove(copia)
             except OSError:
                 pass
+
+    def _revisar_bd(self, fuente, forzar):
+        """Fuente que no es un Excel: se lee de otra app/base con su lector (hoy: Logos desde la app Herramienta Logos).
+        No hay archivo ni ruta: el lector devuelve la huella de los datos en extra['huella'] y el origen para el registro."""
+        e = self.estado[fuente]
+        origen = config.FUENTES_BD[fuente]
+        inicio = dt.datetime.now()
+        try:
+            tablas, extra = LECTORES[fuente](None)
+        except Exception as ex:
+            self._registrar_error(fuente, origen, None,
+                                  f"No se pudo leer {origen}: {type(ex).__name__}: {ex}")
+            return False
+        huella = extra.get("huella")
+        ultimo = self._ultimo_ok(fuente)
+        if ultimo and huella and ultimo["sha256"] == huella and not forzar:
+            e["error"] = None
+            return False
+        total = sum(len(f) for _, f in tablas.values())
+        previas = ultimo["filas"] if ultimo else 0
+        if previas > 50 and total < previas * CAIDA_MAXIMA and not forzar:
+            self._registrar_error(fuente, origen, huella,
+                                  f"{origen} trae {total} filas y el último cargue bueno tenía {previas}. "
+                                  "No se cargó para no perder información.")
+            return False
+        modificado = extra.get("modificado") or inicio
+        if isinstance(modificado, dt.datetime):
+            modificado = modificado.replace(microsecond=0)
+        self._cargar(fuente, origen, huella, modificado, inicio, tablas, extra, total)
+        e["error"] = None
+        log.info("%s cargado desde %s: %s filas en %.1fs", fuente, origen, total,
+                 (dt.datetime.now() - inicio).total_seconds())
+        return True
 
     def _ultimo_ok(self, fuente):
         r = db.consultar("SELECT TOP 1 sha256, filas FROM cesar.cargue WHERE fuente = ? AND estado = 'ok' ORDER BY id DESC", fuente)
@@ -133,11 +169,11 @@ class Ingestor:
                            VALUES (?, ?, ?, ?, ?, ?, ?, 'ok', N'Archivo encontrado de nuevo, sin cambios')""",
                         fuente, str(ruta), huella, dt.datetime.fromtimestamp(mtime).replace(microsecond=0), ahora_, ahora_, filas)
 
-    def _cargar(self, fuente, ruta, huella, mtime, inicio, tablas, extra, total):
+    def _cargar(self, fuente, ruta, huella, modificado, inicio, tablas, extra, total):
         with db.transaccion() as cur:
             cur.execute("""INSERT INTO cesar.cargue (fuente, archivo, sha256, modificado, inicio, fin, filas, estado)
                            OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')""",
-                        fuente, str(ruta), huella, dt.datetime.fromtimestamp(mtime).replace(microsecond=0),
+                        fuente, str(ruta), huella, modificado,
                         inicio.replace(microsecond=0), ahora(), total)
             id_cargue = cur.fetchone()[0]
             for tabla, (columnas, filas) in tablas.items():

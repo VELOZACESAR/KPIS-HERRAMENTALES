@@ -62,11 +62,6 @@ FUENTES = {
         "archivo": "Fila de moldes.xlsx",
         "pistas": ["Full kit", "Herramentales"],
     },
-    "logos": {
-        "variable": "RUTA_LOGOS",
-        "archivo": "Herramienta Logos Actual.xlsx",
-        "pistas": ["Herramienta_Logos", "Logos Vitrojet"],
-    },
     "vitrojet": {
         "variable": "RUTA_VITROJET",
         "archivo": "INVENTARIO VITROJET.xlsx",
@@ -83,6 +78,10 @@ FUENTES = {
         "pistas": ["Indicadores Generales Herramentales"],
     },
 }
+
+# Fuentes que ya no son un Excel: se leen de otra app/base con un lector propio (sin archivo ni ruta en OneDrive).
+# Los indicadores de Logos los publica la app Herramienta Logos (herramienta_logos) en el esquema HRRM de esta base.
+FUENTES_BD = {"logos": "Herramienta Logos (app)"}
 
 CARPETAS_IGNORADAS = {"archivos de chat de microsoft teams", "papelera", "$recycle.bin"}
 

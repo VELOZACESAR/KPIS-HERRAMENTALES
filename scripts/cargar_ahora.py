@@ -14,6 +14,8 @@ from tablero.ingesta import Ingestor, estado_fuentes  # noqa: E402
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 for clave in config.FUENTES:
     print(f"{clave:12} -> {config.ruta_fuente(clave)}")
+for clave, origen in config.FUENTES_BD.items():
+    print(f"{clave:12} -> {origen}")
 cargadas = Ingestor().revisar(forzar="--forzar" in sys.argv)
 print("Cargadas:", cargadas or "ninguna (sin cambios)")
 tablero.guardar_foto()

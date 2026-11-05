@@ -12,7 +12,7 @@ PUESTOS_PASTA_PLATA = {"PLANEACION", "01CORTE", "02CNC", "03SERIG", "04SER_VT"} 
 DIAS_MATRIZ = 14
 
 
-# Nombres mal escritos en los Excel (sobre todo la hoja Historico de logos) → el nombre correcto.
+# Nombres mal escritos en las fuentes (sobre todo el histórico de logos) → el nombre correcto.
 ALIAS_PERSONAS = {
     "C": "CAMILO", "CAMIO": "CAMILO", "CAMIILO": "CAMILO", "CQMILO": "CAMILO", "CAMNILO": "CAMILO", "CAMIULO": "CAMILO",
     "J": "JUAN PABLO", "JUAN P": "JUAN PABLO",
@@ -25,6 +25,12 @@ def _persona(v):
     n = norm(v)
     n = ALIAS_PERSONAS.get(n, n)
     return None if n in NO_PERSONAS else n.title()
+
+
+def _responsable_historico(v):
+    if norm(v) == "ASIGNADO":
+        return "Asignado"
+    return _persona(v) or "Sin responsable"
 
 
 def _matriz(hechos, hoy):
@@ -77,7 +83,7 @@ def _series(hechos, hoy, capacidad=None):
 
 
 def _grafica_logos(hoy):
-    """Hoja "Gráfica" de logos: {fecha: {carga, capacidad, faltantes}} (vacío si la tabla aún no existe)."""
+    """Gráfica diaria de logos copiada de la app (HRRM.VW_GRAFICA): {fecha: {carga, capacidad, faltantes}}."""
     if not db.consultar("SELECT OBJECT_ID('cesar.seri_logos_grafica') AS id")[0]["id"]:
         return {}
     filas = db.consultar("SELECT fecha, carga, capacidad, faltantes FROM cesar.seri_logos_grafica WHERE fecha IS NOT NULL AND fecha >= ?",
@@ -90,20 +96,25 @@ def _ultimo(filas, hoy):
     return max(previas, key=lambda r: (r["fecha"], r["fila"])) if previas else None
 
 
+def _logos_listos(filas):
+    return [r for r in filas if norm(r["inv_status"]) == "DISPONIBLE"
+            and not (r["nombre_archivo"] or "").strip() and norm(r["situacion"]) == "LISTO PARA CARGAR"]
+
+
 def logos(hoy):
     filas = db.consultar("""SELECT orden, logo, tipo_logo, inv_status, vehiculo, cliente, puesto_trabajo, fecha_lib_toc,
-                                   nombre_archivo, prioridad, estado, responsable, plan_corte FROM cesar.seri_logos""")
+                                   nombre_archivo, prioridad, estado, responsable, plan_corte, situacion FROM cesar.seri_logos""")
     if not filas:
         return None
     disponibles = [r for r in filas if norm(r["inv_status"]) == "DISPONIBLE" and not (r["nombre_archivo"] or "").strip()]
-    # carga = INV_LOGO.STATUS (col. G) DISPONIBLE, NOMBRE_ARCHIVO (col. T) vacío y con Plan de corte (col. X) (regla del área, 2026-10-21)
-    carga = [r for r in disponibles if (r["plan_corte"] or "").strip()]
-    # prioridad 2 = disponibles sin archivo y SIN plan de corte: también son carga, pero no lo urgente (no entran al %)
-    sin_plan = [r for r in disponibles if not (r["plan_corte"] or "").strip()]
+    # La app marca "Listo para cargar" solo lo disponible con vitro SAP; excluye cargados y sin vitro.
+    listos = _logos_listos(filas)
+    carga = [r for r in listos if (r["plan_corte"] or "").strip()]
+    sin_plan = [r for r in listos if not (r["plan_corte"] or "").strip()]
     hechos = Counter(_persona(r["responsable"]) for r in filas if (r["nombre_archivo"] or "").strip())
     hechos.pop(None, None)
     # lo hecho se separa por la orden: con plan de corte (prioridades), sin plan (planeación) o sin clasificar
-    # (la orden ya no está en Herramienta_Logos). Se usa el plan de corte que la orden tiene hoy.
+    # (la orden ya no está en la herramienta de logos). Se usa el plan de corte que la orden tiene hoy.
     con_plan = defaultdict(bool)
     for r in filas:
         con_plan[(r["orden"] or "").strip()] |= bool((r["plan_corte"] or "").strip())
@@ -144,18 +155,24 @@ def _orden_plan(plan):
     return (int(m[1]) if m else 10 ** 9, plan or "")
 
 
+_cache_hechos_logos = {"cargue": None, "hoy": None, "datos": []}
+
+
 def _hechos_logos(hoy):
-    """[(fecha, persona, orden)] de logos hechos: hoja "Historico" del Excel (FechaCreacion, ESTADO OK) por responsable, leída
-    directo del archivo. Si el Excel no está en este equipo, respaldo con la diferencia entre fotos diarias por persona."""
-    from .fuentes_serigrafia import historico_logos
-    try:
-        conteo = historico_logos()
-    except Exception:
-        conteo = None
-    if conteo:
-        desde = hoy - dt.timedelta(days=400)
+    """[(fecha, persona, orden)] de logos hechos: copia local de HRRM.VW_HISTORICO que publica la app Herramienta Logos
+    (la última carga de cada orden con ESTADO = CARGADO). Si la tabla todavía no tiene datos, respaldo con la diferencia
+    entre fotos diarias por persona."""
+    filas = []
+    if db.consultar("SELECT OBJECT_ID('cesar.seri_logos_historico') AS n")[0]["n"]:
+        cargue = db.consultar("SELECT ISNULL(MAX(id_cargue), 0) AS n FROM cesar.seri_logos_historico")[0]["n"]
+        if _cache_hechos_logos["cargue"] != cargue or _cache_hechos_logos["hoy"] != hoy:
+            _cache_hechos_logos.update(cargue=cargue, hoy=hoy, datos=db.consultar(
+                "SELECT fecha, orden, responsable FROM cesar.seri_logos_historico WHERE fecha IS NOT NULL AND fecha >= ?",
+                hoy - dt.timedelta(days=400)))
+        filas = _cache_hechos_logos["datos"]
+    if filas:
         # "ASIGNADO" u otro estado en vez de nombre: el logo sí está hecho, va como "Sin responsable"
-        return [(f, _persona(p) or "Sin responsable", o) for (f, p, o), n in conteo.items() if f >= desde for _ in range(n)]
+        return [(r["fecha"], _responsable_historico(r["responsable"]), r["orden"]) for r in filas]
     fotos = db.consultar("SELECT fecha, indicador, valor FROM cesar.foto_diaria WHERE indicador LIKE 'logos_hechos:%' AND fecha >= ?",
                          hoy - dt.timedelta(days=DIAS_MATRIZ + 1))
     por_dia = defaultdict(dict)
@@ -171,12 +188,12 @@ def _hechos_logos(hoy):
 
 
 def _capacidad_logos(hoy):
-    """{fecha: capacidad diaria de vitros logos}: Indicadores diarios, columna "Capacidad Vitros Logo" (tabla
-    cesar.seri_ind_capacidad); los días sin ese dato, la CAPACIDAD de la hoja "Gráfica" del Excel de logos."""
+    """{fecha: capacidad diaria de vitros logos}: prevalece la CAPACIDAD de la app (HRRM.VW_GRAFICA);
+    Indicadores diarios (cesar.seri_ind_capacidad) queda como respaldo para fechas sin dato en la app."""
     salida = {dt.date.fromisoformat(f): g["capacidad"] for f, g in _grafica_logos(hoy).items() if g["capacidad"] is not None}
     if db.consultar("SELECT OBJECT_ID('cesar.seri_ind_capacidad') AS n")[0]["n"]:
-        salida.update({r["fecha"]: r["cap_logos"] for r in
-                       db.consultar("SELECT fecha, cap_logos FROM cesar.seri_ind_capacidad WHERE fecha IS NOT NULL AND cap_logos IS NOT NULL")})
+        for r in db.consultar("SELECT fecha, cap_logos FROM cesar.seri_ind_capacidad WHERE fecha IS NOT NULL AND cap_logos IS NOT NULL"):
+            salida.setdefault(r["fecha"], r["cap_logos"])
     return salida
 
 

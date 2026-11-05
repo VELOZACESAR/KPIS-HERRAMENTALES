@@ -175,7 +175,7 @@ def guardar_foto(hoy=None):
             # (disponibles, sin archivo y con plan de corte)
             valores.update(seri_carga_logos=s["logos"]["disponibles_sin_archivo"], seri_carga_logos_plan=s["logos"]["carga"],
                            seri_carga_logos_p2=s["logos"]["carga_p2"])
-            # El Excel de logos no dice cuándo se hizo cada logo: con la foto diaria de lo hecho por persona
+            # El tablero de logos no dice cuándo se hizo cada logo: con la foto diaria de lo hecho por persona
             # se saca la productividad por día (diferencia contra la foto del día anterior).
             for persona, n in s["logos"]["hechos_por_persona"].items():
                 valores[f"logos_hechos:{persona}"[:60]] = n

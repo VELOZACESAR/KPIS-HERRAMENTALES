@@ -1,5 +1,5 @@
--- Herramienta Logos Actual.xlsx, hoja "Gráfica": tabla diaria Fecha | CARGA | CAPACIDAD | FALTANTES PCP.
--- Alimenta la gráfica de Vitros logos (lo hecho por día y la capacidad del día).
+-- Copia de HRRM.VW_GRAFICA de Herramienta Logos: Fecha | CARGA | CAPACIDAD | FALTANTES PCP.
+-- Alimenta la gráfica de producción y capacidad diaria de Vitros logos.
 IF OBJECT_ID('cesar.seri_logos_grafica') IS NULL
 CREATE TABLE cesar.seri_logos_grafica (
     fila        INT    NOT NULL PRIMARY KEY,

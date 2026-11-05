@@ -62,3 +62,44 @@ class Operarios(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PedidosMantenimiento(unittest.TestCase):
+    """Alertas nuevas por día y finalizados que atendieron una alerta, con la BD simulada."""
+
+    def _calcular(self, alertas, dias_foto, fin):
+        from unittest import mock
+        from tablero import calculo_mantenimiento as cm
+
+        def consultar(sql, *params):
+            if "cesar.mant_alerta" in sql:
+                return [{"fecha": f, "cod_her": c, "version": v, "pieza": p, "repeticion": r, "desde": t}
+                        for f, c, v, p, r, t in alertas]
+            if "foto_diaria" in sql:
+                return [{"fecha": d} for d in dias_foto]
+            return [{"cod_molde": "1244", "categoria": "BMW X5"}]
+        with mock.patch.object(cm.db, "consultar", side_effect=consultar):
+            return cm._pedidos_atendidos(fin, dt.date(2026, 10, 1), ["BMW X5", "Retrofit"])
+
+    def test_nuevas_y_atendidas(self):
+        d1, d2 = dt.date(2026, 10, 26), dt.date(2026, 10, 27)
+        h = lambda d, hora: dt.datetime.combine(d, dt.time(hora))
+        alertas = [(d1, "1244", "000", "000", "1", h(d1, 8)),          # venía de ayer
+                   (d2, "1244", "000", "000", "1", h(d2, 0)),
+                   (d2, "0606", "170", "000", "4", h(d2, 9))]           # nueva hoy
+        fin = [{"tipo": "M", "cod_her": "1244", "version": "00", "pieza": "0", "repeticion": "01",
+                "fin": h(d2, 7), "inicio": h(d2, 6), "categoria": "BMW X5"},    # atendió la de ayer
+               {"tipo": "M", "cod_her": "606", "version": "170", "pieza": "000", "repeticion": "4",
+                "fin": h(d2, 8), "inicio": h(d2, 7), "categoria": "Retrofit"},  # antes de la alerta: no cuenta
+               {"tipo": "M", "cod_her": "1500", "version": "000", "pieza": "000", "repeticion": "1",
+                "fin": h(d2, 10), "inicio": h(d2, 9), "categoria": "Retrofit"}]  # sin alerta
+        pedidos, atendidos = self._calcular(alertas, [d1, d2], fin)
+        self.assertNotIn(d1, pedidos)                      # primer día de fotos: sin dato
+        self.assertEqual(pedidos[d2], {"Retrofit": 1})
+        self.assertEqual(atendidos[d2], {"BMW X5": 1})
+
+    def test_dia_sin_foto_queda_sin_dato(self):
+        d1, d3 = dt.date(2026, 10, 26), dt.date(2026, 10, 28)
+        pedidos, atendidos = self._calcular([], [d1, d3], [])
+        self.assertEqual(pedidos, {})
+        self.assertEqual(atendidos, {})

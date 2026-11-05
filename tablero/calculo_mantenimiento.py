@@ -1,16 +1,114 @@
 """Mantenimiento y ajuste de moldes/galgas, en vivo desde la app Control Inventarios (cesar.vw_mantenimiento).
 Un mantenimiento cuenta el día en que se finalizó; la persona es quien lo entrega."""
 import datetime as dt
+import logging
 import statistics
 from collections import Counter, defaultdict
 
 from . import db
+
+log = logging.getLogger("tablero.mantenimiento")
 
 CATEGORIAS_BASE = ["BMW X5", "Land Rover Sentinel", "Express Van", "BMW Serie 7", "Retrofit"]
 
 
 def _dia(r):
     return (r["fin"] or r["inicio"]).date()
+
+
+def _pad(valor, n):
+    t = str(valor or "").strip().upper()
+    return t.zfill(n) if t.isdigit() and len(t) < n else t
+
+
+def _llave(cod, version, pieza, repeticion):
+    """Misma repetición aunque una tabla guarde '606'/'00' y la otra '0606'/'000'."""
+    rep = str(repeticion or "").strip().upper()
+    return _pad(cod, 4), _pad(version, 3), _pad(pieza, 3), str(int(rep)) if rep.isdigit() else rep
+
+
+def guardar_alertas(momento=None):
+    """Foto de los moldes POR MANTENIMIENTO en este momento. INV.MANTENIMIENTO_MOLDES_GRUPO solo guarda el
+    estado actual; con esta foto (cada pocos minutos) queda qué estuvo en alerta cada día. Devuelve cuántas hay."""
+    momento = momento or db.ahora()
+    hoy = momento.date()
+    alertas = {}
+    for r in db.consultar("""SELECT CodHer, Version, Pieza, Repeticion, PuntajeTotalCalculado
+                             FROM INV.MANTENIMIENTO_MOLDES_GRUPO
+                             WHERE Estado = 'POR MANTENIMIENTO' AND NULLIF(LTRIM(RTRIM(Repeticion)), '') IS NOT NULL"""):
+        puntaje = r["PuntajeTotalCalculado"]
+        alertas[_llave(r["CodHer"], r["Version"], r["Pieza"], r["Repeticion"])] = float(puntaje) if puntaje is not None else None
+    with db.transaccion() as cur:
+        if alertas:
+            cur.execute("""CREATE TABLE #alerta (cod_her NVARCHAR(20), version NVARCHAR(10), pieza NVARCHAR(10),
+                                                 repeticion NVARCHAR(20), puntaje FLOAT)""")
+            cur.fast_executemany = True
+            cur.executemany("INSERT INTO #alerta VALUES (?, ?, ?, ?, ?)", [k + (p,) for k, p in alertas.items()])
+            cur.fast_executemany = False
+            cur.execute("""MERGE cesar.mant_alerta AS t
+                           USING #alerta AS s
+                              ON t.fecha = ? AND t.cod_her = s.cod_her AND t.version = s.version
+                             AND t.pieza = s.pieza AND t.repeticion = s.repeticion
+                           WHEN MATCHED THEN UPDATE SET hasta = ?, puntaje = s.puntaje
+                           WHEN NOT MATCHED THEN INSERT (fecha, cod_her, version, pieza, repeticion, puntaje, desde, hasta)
+                                VALUES (?, s.cod_her, s.version, s.pieza, s.repeticion, s.puntaje, ?, ?);""",
+                        hoy, momento, hoy, momento, momento)
+        # Marca que ese día sí se fotografió (aunque no haya alertas): sin ella el día queda sin dato, no en 0.
+        cur.execute("UPDATE cesar.foto_diaria SET valor = ?, actualizado = ? WHERE fecha = ? AND indicador = 'mant_alertas'",
+                    len(alertas), momento, hoy)
+        if cur.rowcount == 0:
+            cur.execute("INSERT INTO cesar.foto_diaria (fecha, indicador, valor, actualizado) VALUES (?, 'mant_alertas', ?, ?)",
+                        hoy, len(alertas), momento)
+    return len(alertas)
+
+
+def _pedidos_atendidos(fin, desde, categorias):
+    """Por día fotografiado: alertas nuevas (lo que se pidió) y finalizados que atendieron una alerta, por categoría.
+    Nueva = no estaba en alerta el día anterior. Atendido = el molde estaba en alerta antes de finalizar ese día, o
+    seguía en alerta el día anterior (la alerta se quita al finalizar). Un día cuenta solo si él y el anterior se
+    fotografiaron (servidor encendido): el primer día de fotos no sabe qué alertas ya venían de antes."""
+    un_dia = dt.timedelta(days=1)
+    vistas = defaultdict(dict)
+    for a in db.consultar("SELECT fecha, cod_her, version, pieza, repeticion, desde FROM cesar.mant_alerta WHERE fecha >= ?",
+                          desde - un_dia):
+        vistas[a["fecha"]][_llave(a["cod_her"], a["version"], a["pieza"], a["repeticion"])] = a["desde"]
+    fotografiados = set(vistas) | {r["fecha"] for r in db.consultar(
+        "SELECT fecha FROM cesar.foto_diaria WHERE indicador = 'mant_alertas' AND fecha >= ?", desde - un_dia)}
+    cat_molde = {}
+    for r in db.consultar("SELECT cod_molde, categoria FROM cesar.vw_molde_categoria WHERE tipo = 'M'"):
+        cat_molde.setdefault(_pad(r["cod_molde"], 4), r["categoria"])
+
+    pedidos, atendidos = {}, {}
+    for d in fotografiados:
+        if d - un_dia not in fotografiados:
+            continue
+        antes = vistas.get(d - un_dia, {})
+        nuevas = [k for k in vistas.get(d, {}) if k not in antes]
+        pedidos[d] = Counter(cat_molde.get(k[0], "Retrofit") for k in nuevas)
+        atendidos[d] = Counter()
+    for r in fin:
+        d = _dia(r)
+        if r["tipo"] != "M" or d not in atendidos:
+            continue
+        k = _llave(r["cod_her"], r["version"], r["pieza"], r["repeticion"])
+        visto = vistas.get(d, {}).get(k)
+        if (visto is not None and visto <= (r["fin"] or r["inicio"])) or k in vistas.get(d - un_dia, {}):
+            atendidos[d][r["categoria"]] += 1
+
+    def por_cat(c):
+        return {k: c[k] for k in categorias if c[k]}
+    return {d: por_cat(c) for d, c in pedidos.items()}, {d: por_cat(c) for d, c in atendidos.items()}
+
+
+def _sumar(dias, por_dia):
+    """Suma de los días fotografiados del periodo (None si no se fotografió ninguno) y cuántos días tienen dato."""
+    con_dato = [por_dia[d] for d in dias if d in por_dia]
+    if not con_dato:
+        return None, 0
+    total = Counter()
+    for x in con_dato:
+        total.update(x)
+    return dict(total), len(con_dato)
 
 
 def calcular(hoy, R):
@@ -50,27 +148,44 @@ def calcular(hoy, R):
     ult30 = [r for r in fin if hace30 <= _dia(r) < hoy]
     dias_con = len({_dia(r) for r in ult30}) or 1
 
+    # Lo pedido (alertas nuevas) y lo atendido de lo pedido. Si falla, la gráfica sale como antes, sin esas líneas.
+    try:
+        pedidos, atendidos = _pedidos_atendidos([r for r in fin if _dia(r) >= desde], desde, categorias)
+    except Exception:
+        log.exception("Pedidos de mantenimiento (cesar.mant_alerta)")
+        pedidos, atendidos = {}, {}
+
+    def lo_pedido(dias):
+        dias = [d for d in dias if d <= hoy]
+        ped, n = _sumar(dias, pedidos)
+        ate, _ = _sumar(dias, atendidos)
+        return {"ped": ped, "ate": ate, "dias_ped": n, "dias": len(dias)}
+
     diaria = []
     for k in range(29, -1, -1):
         d = hoy - dt.timedelta(days=k)
         lista = por_dia.get(d, [])
         diaria.append({"fecha": d.isoformat(), "segs": segs(lista), "total": len(lista), "hoy": d == hoy,
-                       "lab": R.es_laboral(d)})
+                       "lab": R.es_laboral(d), **lo_pedido([d])})
     lunes = hoy - dt.timedelta(days=hoy.weekday())
     semanal = []
     for k in range(11, -1, -1):
         ini = lunes - dt.timedelta(weeks=k)
-        lista = [r for d in range(7) for r in por_dia.get(ini + dt.timedelta(days=d), [])]
+        dias = [ini + dt.timedelta(days=d) for d in range(7)]
+        lista = [r for d in dias for r in por_dia.get(d, [])]
         semanal.append({"etiqueta": f"Sem {ini.isocalendar()[1]}", "desde": ini.isoformat(),
                         "hasta": (ini + dt.timedelta(days=6)).isoformat(), "segs": segs(lista), "total": len(lista),
-                        "en_curso": k == 0})
+                        "en_curso": k == 0, **lo_pedido(dias)})
     mensual = []
     for k in range(11, -1, -1):
         a, m = hoy.year, hoy.month - k
         while m < 1:
             a, m = a - 1, m + 12
         lista = [r for r in fin if (_dia(r).year, _dia(r).month) == (a, m)]
-        mensual.append({"etiqueta": f"{a}-{m:02d}", "segs": segs(lista), "total": len(lista), "en_curso": k == 0})
+        ini = dt.date(a, m, 1)
+        dias = [ini + dt.timedelta(days=d) for d in range(31) if (ini + dt.timedelta(days=d)).month == m]
+        mensual.append({"etiqueta": f"{a}-{m:02d}", "segs": segs(lista), "total": len(lista), "en_curso": k == 0,
+                        **lo_pedido(dias)})
 
     # Matriz persona x día (últimos 14 días, incluye hoy en vivo)
     dias14 = [hoy - dt.timedelta(days=k) for k in range(13, -1, -1)]

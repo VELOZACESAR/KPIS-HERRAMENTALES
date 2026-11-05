@@ -20,8 +20,13 @@ CREATE TABLE cesar.seri_logos (
     estado           NVARCHAR(40)   NULL,
     responsable      NVARCHAR(80)   NULL,
     plan_corte       NVARCHAR(80)   NULL,
+    situacion        NVARCHAR(40)   NULL,
     fullkit          NVARCHAR(60)   NULL
 );
+GO
+
+IF COL_LENGTH('cesar.seri_logos', 'situacion') IS NULL
+    ALTER TABLE cesar.seri_logos ADD situacion NVARCHAR(40) NULL;
 GO
 
 IF OBJECT_ID('cesar.seri_vitro_cal') IS NULL

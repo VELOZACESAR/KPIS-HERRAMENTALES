@@ -1,4 +1,4 @@
-"""Servidor del tablero de Herramentales: web + vigilancia de los Excel + foto diaria.
+"""Servidor del tablero de Herramentales: web + vigilancia de los Excel + foto diaria + foto de alertas de mantenimiento.
 
     python servidor.py            -> sirve en http://<este-pc>:8050
     python servidor.py --una-vez  -> solo revisa/carga los Excel y guarda la foto del día (sin web)
@@ -10,8 +10,10 @@ import threading
 import time
 from logging.handlers import RotatingFileHandler
 
-from tablero import config, tablero
+from tablero import calculo_mantenimiento, config, tablero
 from tablero.ingesta import Ingestor
+
+SEGUNDOS_ALERTAS = 300
 
 
 def configurar_logs():
@@ -43,6 +45,16 @@ def foto_periodica():
             logging.exception("Foto periódica")
 
 
+def alertas_periodicas():
+    """Foto de los moldes POR MANTENIMIENTO cada 5 minutos: la tabla de alertas no guarda historia."""
+    while True:
+        try:
+            calculo_mantenimiento.guardar_alertas()
+        except Exception:
+            logging.exception("Foto de alertas de mantenimiento")
+        time.sleep(SEGUNDOS_ALERTAS)
+
+
 def main():
     configurar_logs()
     log = logging.getLogger("servidor")
@@ -50,6 +62,7 @@ def main():
     if "--una-vez" in sys.argv:
         ingestor.revisar()
         tablero.guardar_foto()
+        calculo_mantenimiento.guardar_alertas()
         return 0
 
     from waitress import serve
@@ -57,6 +70,7 @@ def main():
 
     ingestor.iniciar(config.SEGUNDOS_REVISION)
     threading.Thread(target=foto_periodica, name="foto", daemon=True).start()
+    threading.Thread(target=alertas_periodicas, name="alertas", daemon=True).start()
     threading.Thread(target=lambda: tablero.obtener(ingestor.version), name="precalentar", daemon=True).start()
     nombre = socket.gethostname()
     log.info("Tablero en http://%s:%s (y http://localhost:%s)", nombre, config.PUERTO, config.PUERTO)

@@ -1174,7 +1174,7 @@ function irA(id, mantenerScroll=false){
 
 // ---------------------------------------------------------------- render
 const NOMBRE_FUENTE = {consolidado:'Consolidado inventario de aceros', pedidos:'Control de pedidos', x5:'Inventario Aceros X5', fila_moldes:'Fila de moldes',
-  logos:'Herramienta Logos Actual', vitrojet:'INVENTARIO VITROJET', pasta_plata:'Archivos Pasta de Plata', indicadores_diarios:'Indicadores diarios'};
+  logos:'Herramienta Logos (app)', vitrojet:'INVENTARIO VITROJET', pasta_plata:'Archivos Pasta de Plata', indicadores_diarios:'Indicadores diarios'};
 function render(){
   const main = $('#main');
   if(!D) return;
@@ -1217,7 +1217,7 @@ function render(){
   $('#pie').innerHTML = `<h2 class="sec">${t('fuentes')}</h2>
     <div class="fuentes">${Object.keys(NOMBRE_FUENTE).map(k => { const f = F[k] || {};
       return `<div class="fuente"><b>${esc(NOMBRE_FUENTE[k])} <span class="chip ${f.estado==='ok'?'ok':f.ultimo_ok?'near':'bad'}">${f.estado==='ok'?'✓ OK':f.ultimo_ok?'● Con aviso':'✖ Sin datos'}</span></b>
-        ${f.modificado ? `Guardado en SharePoint: ${fHora(f.modificado)}<br>` : ''}${f.ultimo_ok ? `Cargado a la base: ${fHora(f.ultimo_ok)} · ${fmt(f.filas)} filas` : ''}
+        ${f.modificado ? `${k === 'logos' ? 'Publicado por la app' : 'Guardado en SharePoint'}: ${fHora(f.modificado)}<br>` : ''}${f.ultimo_ok ? `Cargado a la base: ${fHora(f.ultimo_ok)} · ${fmt(f.filas)} filas` : ''}
         ${f.mensaje ? `<div class="err">${esc(f.mensaje)}</div>` : ''}</div>`; }).join('')}
       <div class="fuente"><b>Control Inventarios (mantenimiento) <span class="chip ${D.mantenimiento?'ok':'bad'}">${D.mantenimiento?'✓ En vivo':'✖ Sin conexión'}</span></b>AGP_Ingenieria · AppControlInventarios_ManttoHead</div>
     </div>
@@ -2456,22 +2456,38 @@ function dibujarMantenimiento(){
   document.querySelectorAll('#mant-cats .cat').forEach(x => x.classList.toggle('sel', x.dataset.cat === catMant));
   const op = {orden: catsVisibles(M), colores: COLOR_CAT, nombres: NOMBRE_CAT};
   const fuenteMant = vistaMant === 'diaria' ? M.diaria.filter(p => diaVisible(p.fecha, totalSegs(segsFiltrados(p.segs)))) : M[vistaMant];
-  const serie = fuenteMant.map(p => {
+  // lo pedido = alertas POR MANTENIMIENTO nuevas; atendido = finalizados de moldes que estaban en alerta.
+  // null = el servidor no tenía foto de alertas ese día (la línea se corta ahí)
+  const sumaPed = x => x == null ? null : totalSegs(segsFiltrados(x));
+  const pedidos = fuenteMant.map(p => sumaPed(p.ped)), atendidos = fuenteMant.map(p => sumaPed(p.ate));
+  const hayPedidos = pedidos.some(v => v != null);
+  const serie = fuenteMant.map((p, i) => {
     const segs = segsFiltrados(p.segs), total = totalSegs(segs);
     const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
     const nombre = vistaMant === 'diaria' ? fLarga(p.fecha) : vistaMant === 'semanal' ? `${p.etiqueta} (${fCorta(p.desde)} – ${fCorta(p.hasta)})` : `${MESES[+p.etiqueta.slice(5)-1]} ${p.etiqueta.slice(0,4)}`;
+    const tipPedidos = !hayPedidos ? '' : pedidos[i] == null
+      ? `<div class="r" style="opacity:.75"><span>Pedidos</span><span>sin registro</span></div>`
+      : `<div class="r" style="color:var(--near)"><span>Pedidos (alertas nuevas)</span><span>${fmt(pedidos[i])}</span></div>
+         <div class="r" style="color:var(--ok)"><span>Atendidos de lo pedido</span><span>${fmt(atendidos[i])}</span></div>` +
+        (p.dias_ped < p.dias ? `<div class="r" style="opacity:.75"><span>Con registro</span><span>${fmt(p.dias_ped)} de ${fmt(p.dias)} días</span></div>` : '');
     return {etiqueta, segs, total, sub: p.hoy || p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
-      tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>`, op)};
+      tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>` + tipPedidos, op)};
   });
   // mediana de referencia: diario = días laborales; semanal/mensual = periodos ya cerrados (sin el que va en curso)
   const base = fuenteMant.map((p, i) => ({...p, total: serie[i].total}))
     .filter(p => vistaMant === 'diaria' ? (!p.hoy && p.lab) : !p.en_curso).map(p => p.total).sort((a, b) => a - b);
   const mediana = base.length ? (base.length % 2 ? base[(base.length - 1) / 2] : (base[base.length / 2 - 1] + base[base.length / 2]) / 2) : null;
   const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
-  $('#mant-serie-sub').innerHTML = catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '';
+  $('#mant-serie-sub').innerHTML = (catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '') +
+    (M.diaria.some(d => d.ped !== undefined) && !hayPedidos
+      ? `${catMant ? ' · ' : ''}Pedidos y atendidos se ven desde el día siguiente a que el servidor empieza a registrar las alertas` : '');
   $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
+    (hayPedidos ? `<span title="Moldes que el sistema de puntaje marcó POR MANTENIMIENTO ese periodo y no venían marcados de antes"><i class="linea" style="background:var(--near)"></i>Pedidos (alertas nuevas)</span>` +
+                  `<span title="Finalizados de moldes que estaban POR MANTENIMIENTO"><i class="linea" style="background:var(--ok)"></i>Atendidos de lo pedido</span>` : '') +
     (mediana != null ? `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana por ${unidad}</span>` : '') + `</div>`;
   barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
+    lineas: hayPedidos ? [{vals: pedidos, color:'var(--near)', etiquetas:'ultima'},
+                          {vals: atendidos, color:'var(--ok)', etiquetas:'ultima', abajo:true}] : [],
     referencias: mediana != null ? [{valor: mediana, color:'var(--mediana)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
 
   dibujarAnalisisMant(M);
@@ -2479,8 +2495,8 @@ function dibujarMantenimiento(){
 
 // ================================================================ Serigrafía
 const BLOQUES_SERI = [
-  {id:'logos', titulo:'Vitros logos', fuente:'Herramienta Logos Actual.xlsx', unidad:'logos',
-   reglaCarga:'Logo DISPONIBLE, sin NOMBRE_ARCHIVO y con Plan de corte. La capacidad sale de Indicadores diarios.'},
+  {id:'logos', titulo:'Vitros logos', fuente:'app Herramienta Logos', unidad:'logos',
+   reglaCarga:'Logo DISPONIBLE, sin NOMBRE_ARCHIVO, en "Listo para cargar" (app) y con Plan de corte. La capacidad sale de la app.'},
   {id:'vitros', titulo:'Vitros estándar', fuente:'INVENTARIO VITROJET.xlsx', unidad:'vitros',
    reglaCarga:'Calendario sin Ingeniería y STATUS VITROJET = NO EXISTE. La capacidad sale de Indicadores diarios.'},
   {id:'pasta_plata', titulo:'Vitros pasta de plata', fuente:'Archivos Pasta de PLata.xlsx', unidad:'vitros',
@@ -2557,7 +2573,7 @@ function vistaSerigrafia(S){
 
 function bloqueSeri(b, X){
   if(!X) return `<h2 class="sec">${esc(b.titulo)}</h2><div class="aviso warn">⚠ <span>No hay datos de <b>${esc(b.fuente)}</b>. ${
-    b.id === 'logos' ? 'Falta agregar la carpeta <b>Herramienta_Logos</b> (sitio GRP-HERRAMENTALES229) como acceso directo en OneDrive.' : 'Revisa el estado de las fuentes al final de la página.'}</span></div>`;
+    b.id === 'logos' ? 'Revisa que la app <b>Herramienta Logos</b> esté publicando en la base (y el estado de las fuentes al final de la página).' : 'Revisa el estado de las fuentes al final de la página.'}</span></div>`;
   return `<h2 class="sec">${esc(b.titulo)}</h2>
   <div class="panel">
     <div class="panel-head"><div><h3 id="tit-seri-${b.id}">${SERI_FORMATO[b.id] ? SERI_FORMATO[b.id].titulo : 'Producción diaria vs. capacidad'}</h3></div>
@@ -2687,7 +2703,7 @@ function dibujarVitrosCarga(S, b, e, cont){
   const C = CARGA_SERI[b.id], X = S[b.id], zoom = e.vista === 'semanal' && e.zoom, hist = S.historial || {};
   document.querySelectorAll(`[data-seri-vista="${b.id}"] button`).forEach(x => x.setAttribute('aria-pressed', x.dataset.v === e.vista));
   $('#vol-seri-' + b.id).hidden = !zoom;
-  const capIndic = {};   // capacidad solo de Indicadores diarios (sin casilla manual)
+  const capIndic = {};   // capacidad publicada para cada rama (sin casilla manual)
   ((S.retenidas && S.retenidas.serie) || []).forEach(d => { if(d[C.capacidad] != null) capIndic[d.fecha] = d[C.capacidad]; });
   Object.assign(capIndic, ((S.retenidas && S.retenidas.capacidades) || {})[C.capacidad] || {});
   const capDia = iso => capIndic[iso] != null ? capIndic[iso] : null;
@@ -2749,7 +2765,7 @@ function dibujarVitrosCarga(S, b, e, cont){
 // ---- Serigrafía en el Resumen: archivos vitro de las 3 ramas en una sola gráfica.
 //   barra transparente = carga del día sumada (logos: prioridades con plan de corte; estándar; pasta de plata), con la
 //   misma regla de cada gráfica del módulo; relleno = lo hecho, apilado por rama; línea roja punteada = capacidad sumada
-//   de las 3 (Indicadores diarios); línea oscura = piezas retenidas sumadas (Retenidas Vitros Logos + Estándar + Pasta de plata).
+//   de las ramas (logos: app; estándar y pasta de plata: Indicadores diarios); línea oscura = piezas retenidas sumadas.
 //   Diario = semana actual (como Mantenimiento y Moldes); Semanal (clic = sus días) / Mensual: hechos vs. capacidad,
 //   piezas retenidas = el último día con dato del periodo.
 const RAMAS_SERI = [

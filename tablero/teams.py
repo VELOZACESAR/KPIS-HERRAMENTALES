@@ -67,22 +67,61 @@ def domingo_anterior(hoy=None):
     return hoy - dt.timedelta(days=hoy.weekday() + 1)
 
 
-def capturar(seccion, vista="semanal"):
+SEGUNDOS_EDGE = 75
+
+
+def _fecha_param(vista):
+    return f"&fecha={domingo_anterior().isoformat()}" if vista == "semana_anterior" else ""
+
+
+def calentar(vista):
+    """Deja el cálculo del tablero en caché antes de abrir Edge: si la página tiene que esperar el cálculo
+    (sobre todo mientras se carga un Excel) Edge se puede quedar pegado."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{config.PUERTO}/api/tablero?x=1{_fecha_param(vista)}", timeout=180) as r:
+            r.read()
+    except Exception:
+        log.warning("No se pudo precalentar el tablero para Teams", exc_info=True)
+
+
+def _correr_edge(comando):
+    # Edge headless a veces no cierra después de la foto: al vencerse el tiempo se mata todo el árbol de procesos
+    # (subprocess.run solo mata el proceso padre y los hijos quedan vivos).
+    p = subprocess.Popen(comando, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        p.wait(timeout=SEGUNDOS_EDGE)
+    except subprocess.TimeoutExpired:
+        subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        p.wait(timeout=15)
+
+
+def capturar(seccion, vista="semanal", intentos=2):
+    for intento in range(1, intentos + 1):
+        try:
+            return _capturar(seccion, vista)
+        except Exception:
+            if intento == intentos:
+                raise
+            log.warning("Captura de %s falló (intento %s), se reintenta", seccion, intento, exc_info=True)
+
+
+def _capturar(seccion, vista):
     edge = _edge()
     if not edge:
         raise RuntimeError("No encontré Microsoft Edge en este PC")
     perfil = tempfile.mkdtemp(prefix="tablero_teams_")
     destino = os.path.join(perfil, "captura.png")
-    url = f"http://127.0.0.1:{config.PUERTO}/?reporte={seccion}&vista={'semanal' if vista == 'semana_anterior' else vista}"
-    if vista == "semana_anterior":
-        url += f"&fecha={domingo_anterior().isoformat()}"
+    url = (f"http://127.0.0.1:{config.PUERTO}/?reporte={seccion}&vista={'semanal' if vista == 'semana_anterior' else vista}"
+           + _fecha_param(vista))
     try:
-        subprocess.run([edge, "--headless=new", "--disable-gpu", "--no-first-run", "--hide-scrollbars",
-                        f"--user-data-dir={perfil}", "--virtual-time-budget=25000",
-                        f"--window-size=1400,{1500}", "--force-device-scale-factor=1.5",
-                        f"--screenshot={destino}", url],
-                       timeout=120, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        _correr_edge([edge, "--headless=new", "--disable-gpu", "--no-first-run", "--hide-scrollbars",
+                      "--disable-extensions", "--disable-component-update", "--disable-background-networking",
+                      "--no-default-browser-check", "--disable-sync",
+                      f"--user-data-dir={perfil}", "--virtual-time-budget=25000",
+                      f"--window-size=1400,{1500}", "--force-device-scale-factor=1.5",
+                      f"--screenshot={destino}", url])
         for _ in range(20):
             if os.path.exists(destino) and os.path.getsize(destino) > 0:
                 break
@@ -128,6 +167,7 @@ def enviar(usuario=None, ip=None, vista="semanal"):
     if not _enviando.acquire(blocking=False):
         return False, "Ya hay un envío en curso"
     try:
+        calentar(vista)
         try:
             with ThreadPoolExecutor(max_workers=3) as ex:
                 fotos = list(ex.map(lambda s: (s[1], capturar(s[0], vista)), SECCIONES))

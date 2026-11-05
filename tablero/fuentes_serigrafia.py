@@ -1,9 +1,11 @@
-"""Lectores de los Excel de Serigrafía. Mismo contrato que fuentes.py: {tabla: (columnas, filas)}, extra."""
-from collections import Counter
+"""Lectores de Serigrafía. Mismo contrato que fuentes.py: {tabla: (columnas, filas)}, extra.
+Los logos ya no salen de un Excel: se leen de la app Herramienta Logos (vistas HRRM.VW_* de esta misma base)."""
+import hashlib
 from pathlib import Path
 
 import openpyxl
 
+from . import config, db
 from .excel import buscar_encabezado, fecha, norm, numero, texto, ubicar_columnas
 from .fuentes import _celda, _filas, _hoja
 
@@ -32,90 +34,71 @@ def _tabla(filas, requeridos, mapa, obligatorias, contiene=None):
 
 COLUMNAS_LOGOS = ["fila", "pedido_genesis", "orden", "trazabilidad", "logo", "tipo_logo", "inv_status", "zfer", "vehiculo",
                   "cliente", "puesto_trabajo", "fecha_lib_toc", "nombre_archivo", "prioridad", "estado", "responsable",
-                  "plan_corte", "fullkit"]
+                  "plan_corte", "situacion", "fullkit"]
+
+# Los nombres de las vistas son los del Excel viejo (las publica herramienta_logos en app/sql/hrrm_esquema.sql),
+# así el tablero no tiene que cambiar el resto del cálculo.
+SQL_LOGOS = """
+SELECT PedidoGenesis, Orden, TRAZABILIDAD, Logo, TIPO_DE_LOGO, STATUS_LOGO, ZFER, Vehiculo, Puestodetrabajo,
+       FechaLiberacionTOC, NOMBRE_ARCHIVO, PRIORIDAD, ESTADO, RESPONSABLE, PLAN_DE_CORTE, Cliente, SITUACION
+FROM HRRM.VW_HERRAMIENTA_LOGOS
+ORDER BY Orden"""
+SQL_LOGOS_GRAFICA = """
+SELECT Fecha, CARGA, CAPACIDAD, [FALTANTES PCP] AS faltantes
+FROM HRRM.VW_GRAFICA
+WHERE Fecha IS NOT NULL
+ORDER BY Fecha"""
+SQL_LOGOS_HISTORICO = """
+SELECT FechaGrafica, ORDEN, RESPONSABLE
+FROM HRRM.VW_HISTORICO
+WHERE ESTADO = 'CARGADO' AND FechaGrafica IS NOT NULL
+ORDER BY FechaCreacion, ORDEN"""
 
 
-def leer_logos(ruta: Path):
-    (filas,) = _leer(ruta, "HERRAMIENTA_LOGOS")
-    h, c = _tabla(filas, ["INV_LOGO.STATUS", "NOMBRE_ARCHIVO"], {
-        "pedido_genesis": ["PedidoGenesis"], "orden": ["Orden"], "trazabilidad": ["TRAZABILIDAD"], "logo": ["Logo"],
-        "tipo_logo": ["TIPO_DE_LOGO"], "inv_status": ["INV_LOGO.STATUS"], "zfer": ["ZFER"], "vehiculo": ["Vehiculo"],
-        "cliente": ["Cliente"], "puesto_trabajo": ["Puestodetrabajo"], "fecha_lib_toc": ["FechaLiberacionTOC"],
-        "nombre_archivo": ["NOMBRE_ARCHIVO"], "prioridad": ["PRIORIDAD"], "estado": ["ESTADO"], "responsable": ["RESPONSABLE"],
-        "plan_corte": ["Plan de corte.Dia turno", "Plan de corte"], "fullkit": ["FullKit Interna"],
-    }, obligatorias=["inv_status", "nombre_archivo", "responsable", "plan_corte"])
+_cache_logos = {"marca": None, "tablas": None, "extra": None}   # la app publica en bloque: se relee solo si cambió
+
+
+def leer_logos(_ruta=None):
+    """Tablero, gráfica e histórico de logos desde la app Herramienta Logos (vistas HRRM.VW_*).
+    Devuelve las mismas tablas cesar.* que antes se armaban con el Excel; el resto del tablero no cambia.
+    `_ruta` queda por compatibilidad con el contrato de los lectores de Excel: esta fuente no es un archivo.
+    La app reescribe HRRM.TABLERO completa al publicar (y de ahí salen las tres vistas): si MAX(ACTUALIZADO) no
+    cambió, se devuelve lo leído antes sin volver a bajar las 26 mil filas cada minuto."""
+    publicado = db.consultar("SELECT MAX(ACTUALIZADO) AS ultimo FROM HRRM.VW_HERRAMIENTA_LOGOS")
+    marca = publicado[0]["ultimo"] if publicado else None
+    if _cache_logos["tablas"] is not None and _cache_logos["marca"] == marca:
+        return _cache_logos["tablas"], _cache_logos["extra"]
     salida = []
-    for i, r in enumerate(filas[h + 1:], start=h + 2):
-        g = lambda campo, largo=None: texto(_celda(r, c.get(campo)), largo)
-        if g("orden") is None and g("logo") is None:
+    for i, r in enumerate(db.consultar(SQL_LOGOS), start=2):
+        orden, logo = texto(r["Orden"], 40), texto(r["Logo"], 60)
+        if orden is None and logo is None:
             continue
-        salida.append((i, g("pedido_genesis", 40), g("orden", 40), g("trazabilidad", 80), g("logo", 60), g("tipo_logo", 60),
-                       g("inv_status", 40), g("zfer", 40), g("vehiculo", 200), g("cliente", 200), g("puesto_trabajo", 40),
-                       fecha(_celda(r, c.get("fecha_lib_toc"))), g("nombre_archivo", 400), g("prioridad", 40), g("estado", 40),
-                       g("responsable", 80), g("plan_corte", 80), g("fullkit", 60)))
-    return {"cesar.seri_logos": (COLUMNAS_LOGOS, salida),
-            "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], _leer_grafica_logos(ruta))}, {}
-
-
-_HISTORICO_LOGOS = {}   # caché: {(ruta, fecha de modificación): conteo}
-
-
-def historico_logos():
-    """Hoja "Historico" del Excel de logos, leída directo del archivo (sin pasar por la base): un logo hecho por fila
-    (FechaCreacion, RESPONSABLE, ESTADO, ORDEN). Devuelve {(fecha, responsable, orden): logos con ESTADO = OK}, o None si el archivo
-    no está en este equipo. Se vuelve a leer solo cuando el Excel cambia."""
-    from .config import ruta_fuente
-    ruta = _HISTORICO_LOGOS.get("ruta")
-    if ruta is None or not ruta.exists():
-        ruta = _HISTORICO_LOGOS["ruta"] = ruta_fuente("logos")
-    if ruta is None or not ruta.exists():
-        return None
-    clave = (str(ruta), ruta.stat().st_mtime)
-    if clave not in _HISTORICO_LOGOS:
-        _HISTORICO_LOGOS.clear()
-        _HISTORICO_LOGOS["ruta"] = ruta
-        _HISTORICO_LOGOS[clave] = _leer_historico_logos(ruta)
-    return _HISTORICO_LOGOS[clave]
-
-
-def _leer_historico_logos(ruta):
-    # copia temporal: si alguien tiene el Excel abierto, leerlo directo puede fallar por permisos
-    import shutil, tempfile
-    with tempfile.TemporaryDirectory() as tmp:
-        copia = Path(tmp) / "logos.xlsx"
-        try:
-            shutil.copyfile(ruta, copia)
-            (filas,) = _leer(copia, "HISTORICO")
-            h, c = _tabla(filas, ["FechaCreacion", "RESPONSABLE"], {"fecha": ["FechaCreacion"], "responsable": ["RESPONSABLE"],
-                                                                   "estado": ["ESTADO"], "orden": ["ORDEN"]},
-                          obligatorias=["fecha", "responsable", "estado"])
-        except (OSError, ValueError):   # sin permiso de lectura o sin la hoja: queda en caché como "sin dato"
-            return None
-    conteo = Counter()
-    for r in filas[h + 1:]:
-        f = fecha(_celda(r, c["fecha"]))
-        if f is not None and norm(_celda(r, c["estado"])) == "OK":
-            conteo[(f, texto(_celda(r, c["responsable"]), 80), texto(_celda(r, c.get("orden")), 40))] += 1
-    return conteo
-
-
-def _leer_grafica_logos(ruta):
-    """Hoja "Gráfica": tabla diaria Fecha | CARGA | CAPACIDAD | FALTANTES PCP (si la hoja o la tabla no están, vacío)."""
-    try:
-        (filas,) = _leer(ruta, "GRAFICA")
-        # la tabla diaria va debajo de una tabla dinámica (hacia la fila 55): se busca el encabezado en toda la hoja
-        h, enc = buscar_encabezado(filas, ["Fecha", "CARGA", "CAPACIDAD"], max_filas=len(filas))
-        c = ubicar_columnas(enc, {"fecha": ["Fecha"], "carga": ["CARGA"], "capacidad": ["CAPACIDAD"],
-                                  "faltantes": ["FALTANTES PCP", "FALTANTES"]}, obligatorias=["fecha", "carga"])
-    except ValueError:
-        return []
-    salida = []
-    for i, r in enumerate(filas[h + 1:], start=h + 2):
-        f = fecha(_celda(r, c["fecha"]))
-        if f is None:
-            continue
-        salida.append((i, f, numero(_celda(r, c["carga"])), numero(_celda(r, c.get("capacidad"))), numero(_celda(r, c.get("faltantes")))))
-    return salida
+        salida.append((i, texto(r["PedidoGenesis"], 40), orden, texto(r["TRAZABILIDAD"], 80), logo,
+                       texto(r["TIPO_DE_LOGO"], 60), texto(r["STATUS_LOGO"], 40), texto(r["ZFER"], 40),
+                       texto(r["Vehiculo"], 200), texto(r["Cliente"], 200), texto(r["Puestodetrabajo"], 40),
+                       fecha(r["FechaLiberacionTOC"]), texto(r["NOMBRE_ARCHIVO"], 400), texto(r["PRIORIDAD"], 40),
+                       texto(r["ESTADO"], 40), texto(r["RESPONSABLE"], 80), texto(r["PLAN_DE_CORTE"], 80),
+                       texto(r["SITUACION"], 40), None))
+    grafica = [(i, fecha(r["Fecha"]), numero(r["CARGA"]), numero(r["CAPACIDAD"]), numero(r["faltantes"]))
+               for i, r in enumerate(db.consultar(SQL_LOGOS_GRAFICA), start=2)]
+    historico = []
+    for i, r in enumerate(db.consultar(SQL_LOGOS_HISTORICO), start=2):
+        f = fecha(r["FechaGrafica"])
+        if f is not None:
+            historico.append((i, f, texto(r["ORDEN"], 40), texto(r["RESPONSABLE"], 80)))
+    extra = {
+        # no hay archivo que hashear: la huella sale de los datos leídos (así no se recarga si nada cambió)
+        "huella": hashlib.sha256(repr((salida, grafica, historico)).encode("utf-8")).hexdigest(),
+        "origen": config.FUENTES_BD["logos"],
+        "modificado": marca,
+    }
+    tablas = {
+        "cesar.seri_logos": (COLUMNAS_LOGOS, salida),
+        "cesar.seri_logos_grafica": (["fila", "fecha", "carga", "capacidad", "faltantes"], grafica),
+        "cesar.seri_logos_historico": (["fila", "fecha", "orden", "responsable"], historico),
+    }
+    _cache_logos.update(marca=marca, tablas=tablas, extra=extra)
+    return tablas, extra
 
 
 COLUMNAS_VITRO_CAL = ["fila", "pedido_genesis", "orden", "zfer", "puesto_trabajo", "fecha_lib_toc", "vehiculo", "descripcion",
