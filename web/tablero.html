@@ -391,7 +391,12 @@
   table.tx5r tr.det td:first-child::before{content:'';position:absolute;left:12px;top:50%;width:6px;height:6px;border-radius:50%;background:var(--c);opacity:.6;transform:translateY(-50%)}
   table.tx5r td.tot-c b{min-width:26px;text-align:right}
   table.tx5r td.tot-c b.suave{font-weight:600;color:var(--text-soft)}
-  .x5-resumen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:4px 0 6px;border-bottom:1px solid var(--grid)}
+  .x5-resumen{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:4px 0 6px;border-bottom:1px solid var(--grid)}
+  .x5-sets b{color:var(--brand-dark)}
+  table.tx5r td.sets-c b{display:inline-block;min-width:34px;padding:1px 8px;border-radius:999px;background:var(--grid)}
+  table.tx5r td.sets-c b.suave{background:transparent;font-weight:600;color:var(--text-soft)}
+  table.tx5r td.sets-c b.limita{background:var(--bad-bg);color:var(--bad)}
+  .x5-xset{color:var(--muted);font-size:10.5px}
   .x5-resumen div{display:flex;flex-direction:column;gap:2px}
   .x5-resumen b{font:700 24px/1.1 var(--font);font-variant-numeric:tabular-nums;color:var(--text)}
   .x5-resumen span{font-size:11px;color:var(--text-soft);font-weight:600}
@@ -1607,11 +1612,20 @@ function tarjetaResumenOem(){
   const op = BLOQUE_RESUMEN_X5.op, sum = (rs, k) => rs.reduce((a, r) => a + r[k], 0);
   const tm = sum(X.filas, 'matriceria'), tc = sum(X.filas, 'calidad');
   const celdaTot = (v, color, fuerte) => `<td class="n tot-c"><b class="${fuerte ? '' : 'suave'}">${fmt(v)}</b></td>`;
+  // sets: un set de X5 = 1 lengüeta + 2 aceros laterales + 1 delanteral inox izquierda + 1 derecha + 1 delantera ramor
+  // + 1 extendida izquierda + 1 derecha. Sets de una pieza = total (matricería + calidad) ÷ lo que lleva un set; los de una
+  // familia = los de su pieza más escasa; los sets X5 completos = los de la familia más escasa.
+  const porSet = pieza => /ACEROS\s+LATERALES/i.test(pieza) ? 2 : 1;
+  const setsPieza = r => Math.floor((r.matriceria + r.calidad) / porSet(r.pieza));
+  const setsFam = Object.fromEntries(Object.entries(fams).map(([f, rs]) => [f, Math.min(...rs.map(setsPieza))]));
+  const setsX5 = Math.min(...Object.values(setsFam)), limita = Object.keys(setsFam).find(f => setsFam[f] === setsX5);
+  const piezaLimita = limita && fams[limita].length > 1 ? fams[limita].reduce((a, r) => setsPieza(r) < setsPieza(a) ? r : a) : null;
+  const celdaSets = (v, fuerte) => `<td class="n sets-c"><b class="${fuerte ? '' : 'suave'} ${v === setsX5 ? 'limita' : ''}">${fmt(v)}</b></td>`;
   const cuerpo = Object.entries(fams).map(([f, rs]) => {
     const color = op.colores[f], m = sum(rs, 'matriceria'), c = sum(rs, 'calidad'), unica = rs.length === 1 && rs[0].detalle === 'Única';
     return `<tbody class="x5-fam" style="--c:${color}">
-      <tr class="fam"><td><span class="x5-nom">${esc(f)}</span></td><td class="n">${fmt(m)}</td><td class="n">${fmt(c)}</td>${celdaTot(m + c, color, true)}</tr>
-      ${unica ? '' : rs.map(r => `<tr class="det"><td>${esc(r.detalle)}</td><td class="n">${fmt(r.matriceria)}</td><td class="n">${fmt(r.calidad)}</td>${celdaTot(r.matriceria + r.calidad, color, false)}</tr>`).join('')}
+      <tr class="fam"><td><span class="x5-nom">${esc(f)}</span></td><td class="n">${fmt(m)}</td><td class="n">${fmt(c)}</td>${celdaTot(m + c, color, true)}${celdaSets(setsFam[f], true)}</tr>
+      ${unica ? '' : rs.map(r => `<tr class="det"><td>${esc(r.detalle)}${porSet(r.pieza) > 1 ? ` <small class="x5-xset">(${porSet(r.pieza)} por set)</small>` : ''}</td><td class="n">${fmt(r.matriceria)}</td><td class="n">${fmt(r.calidad)}</td>${celdaTot(r.matriceria + r.calidad, color, false)}${celdaSets(setsPieza(r), false)}</tr>`).join('')}
     </tbody>`; }).join('');
   return `<article class="serv-largo">
     <div class="sl-head"><h3>Aceros OEM · BMW X5</h3><span class="ver" data-ir="aceros" data-sub-ir="oem" tabindex="0">${t('ver_detalle')}</span></div>
@@ -1619,8 +1633,8 @@ function tarjetaResumenOem(){
       ${htmlGraficaResumen(BLOQUE_RESUMEN_X5.id, BLOQUE_RESUMEN_X5.titulo)}
       <div class="kpi ra-chart ra-tabla">
         <div class="lbl"><span>Inventario por pieza</span></div>
-        <div class="x5-resumen"><div><b>${fmt(tm + tc)}</b><span>aceros en inventario</span></div><div><b>${fmt(tm)}</b><span>en matricería</span></div><div><b>${fmt(tc)}</b><span>en calidad (piso)</span></div></div>
-        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad</th><th class="n">Total</th></tr></thead>
+        <div class="x5-resumen"><div class="x5-sets"><b>${fmt(setsX5)}</b><span>sets X5 completos${limita ? ` · limita ${esc(piezaLimita ? piezaLimita.detalle.toLowerCase() : limita)}` : ''}</span></div><div><b>${fmt(tm + tc)}</b><span>aceros en inventario</span></div><div><b>${fmt(tm)}</b><span>en matricería</span></div><div><b>${fmt(tc)}</b><span>en calidad (piso)</span></div></div>
+        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad</th><th class="n">Total</th><th class="n">Sets</th></tr></thead>
           ${cuerpo}</table></div>
       </div>
     </div></article>`;
