@@ -100,8 +100,9 @@ def leer_pedidos(ruta: Path):
     finally:
         wb.close()
     h, enc = buscar_encabezado(filas, ["Fecha", "Comentario"])
-    c = ubicar_columnas(enc, {"servicio": ["Servicio"], "fecha": ["Fecha"], "material": ["Material"],
-                              "comentario": ["Comentario"], "marcos": ["#Marcos", "Marcos", "# Marcos"],
+    # desde 2026-11-10 el Excel llama "OT" al servicio y "CANT" a los marcos
+    c = ubicar_columnas(enc, {"servicio": ["Servicio", "OT"], "fecha": ["Fecha"], "material": ["Material"],
+                              "comentario": ["Comentario"], "marcos": ["#Marcos", "Marcos", "# Marcos", "CANT", "Cantidad"],
                               "orden_trabajo": ["Orden trabajo", "Orden de trabajo"], "valor": ["Valor"]},
                         obligatorias=["fecha", "comentario", "marcos"])
     salida = []
