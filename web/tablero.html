@@ -429,7 +429,8 @@
   /* piezas retenidas / refundidas en piso */
   .ret-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 8px}
   .ret-form input,.ret-form select,.ret-tabla select{font:500 13px var(--font);color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 9px}
-  .ret-form input{width:150px}
+  .ret-form textarea{font:500 13px var(--font);color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 9px;
+    width:min(420px,100%);min-height:32px;resize:vertical;line-height:1.4}
   .ret-form button{background:var(--brand);color:var(--on-brand);border:0;border-radius:7px;padding:7px 14px;font:700 12.5px var(--font);cursor:pointer}
   .ret-form button:disabled{opacity:.5;cursor:default}
   .ret-prev{font-size:12px;color:var(--text-soft);min-height:18px;margin-bottom:6px}
@@ -1812,11 +1813,11 @@ function dibujarRetenidasPiso(){
   if(!R){ cont.innerHTML = '<div class="vacio">Disponible cuando se cree la tabla en la base (instalar_bd.py) y se reinicie el servidor.</div>'; $('#ret-sub').textContent = ''; return; }
   const hoyN = R.filas.filter(f => f.fecha === D.hoy).length, sem = R.filas.filter(f => f.fecha >= lunesDe(D.hoy)).length;
   const hace30 = sumarDias(D.hoy, -29), n30 = R.filas.filter(f => f.fecha >= hace30).length;
-  $('#ret-sub').textContent = 'Escribe la orden; el compromiso, ZHAL, acero, entrega y matricero salen del consolidado';
+  $('#ret-sub').textContent = 'Escribe o pega una o varias órdenes y presiona Enter; el compromiso, ZHAL, acero, entrega y matricero salen del consolidado';
   const opts = sel => ['', ...R.estatus].map(e => `<option value="${esc(e)}" ${e === (sel || '') ? 'selected' : ''}>${e ? esc(e) : '— Estatus —'}</option>`).join('');
   const marca = (txt, color) => txt ? `<span class="marca" style="background:${hexA(color, .18)};color:var(--text);box-shadow:inset 0 0 0 1px ${hexA(color, .55)}">${esc(txt)}</span>` : '—';
   cont.innerHTML = `
-    <div class="ret-form"><input id="ret-orden" inputmode="numeric" placeholder="N.º de orden" autocomplete="off">
+    <div class="ret-form"><textarea id="ret-orden" rows="1" placeholder="N.º de orden (puedes pegar varias)" autocomplete="off" spellcheck="false"></textarea>
       <select id="ret-estatus">${opts('Retenida')}</select><button id="ret-guardar" disabled>Registrar</button></div>
     <div class="ret-prev" id="ret-prev"></div>
     <div class="ret-kpis"><span><b>${fmt(hoyN)}</b>hoy</span><span><b>${fmt(sem)}</b>esta semana</span><span><b>${fmt(n30)}</b>últimos 30 días</span></div>
@@ -1841,36 +1842,69 @@ async function llamarRetenidas(metodo, ruta, cuerpo){
   if(!r.ok) throw new Error(j.error || ('error ' + r.status));
   return j;
 }
+// Órdenes del cuadro: separadas por renglón, espacio, coma o punto y coma (sirve pegar una columna de Excel); sin repetidas.
+const ordenesRet = txt => [...new Set(String(txt || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean))];
+const ordenValida = o => /^[0-9A-Za-z-]{3,40}$/.test(o);
+// Después de guardar, el servidor devuelve la lista nueva de piezas retenidas: se pinta sin pedir el tablero completo.
+function aplicarRetenidas(lista, enfocar){
+  if(!D || !D.aceros || lista === undefined) return;
+  D.aceros.retenidas_piso = lista;
+  render();
+  if(enfocar){ const i = $('#ret-orden'); if(i) i.focus(); }
+}
 let tBuscarRet;
 document.addEventListener('input', ev => {
   if(ev.target.id !== 'ret-orden') return;
-  const orden = ev.target.value.trim(), prev = $('#ret-prev'), btn = $('#ret-guardar');
-  btn.disabled = orden.length < 3; clearTimeout(tBuscarRet);
-  if(orden.length < 3){ prev.textContent = ''; return; }
+  const caja = ev.target; caja.style.height = 'auto'; caja.style.height = Math.min(caja.scrollHeight, 160) + 'px';   // crece con lo pegado
+  const ords = ordenesRet(caja.value), malas = ords.filter(o => !ordenValida(o)), prev = $('#ret-prev'), btn = $('#ret-guardar');
+  btn.disabled = !ords.length || malas.length > 0;
+  btn.textContent = ords.length > 1 ? `Registrar ${ords.length}` : 'Registrar';
+  clearTimeout(tBuscarRet);
+  if(!ords.length){ prev.textContent = ''; return; }
+  if(malas.length){ prev.innerHTML = `<span style="color:var(--bad)">Revisa: ${malas.slice(0, 5).map(esc).join(', ')}${malas.length > 5 ? '…' : ''} no parece un número de orden</span>`; return; }
   tBuscarRet = setTimeout(async () => {
     try {
-      const j = await llamarRetenidas('GET', '/api/retenidas/buscar/' + encodeURIComponent(orden));
-      if($('#ret-orden').value.trim() !== orden) return;
-      const x = j.datos;
-      prev.innerHTML = x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
-                         : '<span style="color:var(--bad)">Esa orden no está en el consolidado (igual se puede registrar)</span>';
+      const j = await llamarRetenidas('POST', '/api/retenidas/buscar', {ordenes: ords});
+      if(ordenesRet($('#ret-orden').value).join() !== ords.join()) return;   // ya cambió lo escrito
+      const R = (D.aceros && D.aceros.retenidas_piso) || {filas: []};
+      const yaActiva = o => R.filas.some(f => f.orden === o && f.estatus !== 'Liberada');
+      if(ords.length === 1){
+        const o = ords[0], x = j.datos[o];
+        prev.innerHTML = (x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
+                             : '<span style="color:var(--bad)">Esa orden no está en el consolidado (igual se puede registrar)</span>') +
+                         (yaActiva(o) ? ' · <span style="color:var(--near)">ya está registrada sin liberar</span>' : '');
+        return;
+      }
+      const no = ords.filter(o => !j.datos[o]), rep_ = ords.filter(yaActiva);
+      prev.innerHTML = `<b>${fmt(ords.length)}</b> órdenes · <b>${fmt(ords.length - no.length)}</b> en el consolidado` +
+        (no.length ? ` · <span style="color:var(--bad)">${fmt(no.length)} no están: ${no.slice(0, 6).map(esc).join(', ')}${no.length > 6 ? '…' : ''}</span>` : '') +
+        (rep_.length ? ` · <span style="color:var(--near)">${fmt(rep_.length)} ya registradas sin liberar: ${rep_.slice(0, 6).map(esc).join(', ')}${rep_.length > 6 ? '…' : ''}</span>` : '');
     } catch(e){ prev.textContent = 'No se pudo buscar: ' + e.message; }
-  }, 350);
+  }, 300);
 });
-document.addEventListener('keydown', ev => { if(ev.target.id === 'ret-orden' && ev.key === 'Enter'){ const b = $('#ret-guardar'); if(!b.disabled) b.click(); } });
+// Enter registra (Shift+Enter hace un renglón nuevo para seguir escribiendo órdenes)
+document.addEventListener('keydown', ev => {
+  if(ev.target.id === 'ret-orden' && ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); const b = $('#ret-guardar'); if(!b.disabled) b.click(); }
+});
 document.addEventListener('click', async ev => {
   const g = ev.target.closest('#ret-guardar'), b = ev.target.closest('[data-ret-borrar]');
   if(!g && !b) return;
   try {
-    if(g){ g.disabled = true; usuarioEdicion();
-      await llamarRetenidas('POST', '/api/retenidas', {orden: $('#ret-orden').value.trim(), estatus: $('#ret-estatus').value || null}); }
-    else { if(!confirm('¿Borrar este registro de pieza retenida?')) return; await llamarRetenidas('DELETE', '/api/retenidas/' + b.dataset.retBorrar); }
-    await cargar(true);
-  } catch(e){ alert('No se guardó: ' + e.message); if(g) g.disabled = false; }
+    if(g){
+      const ords = ordenesRet($('#ret-orden').value); if(!ords.length) return;
+      g.disabled = true; g.textContent = 'Guardando…'; usuarioEdicion();
+      const j = await llamarRetenidas('POST', '/api/retenidas/lote', {ordenes: ords, estatus: $('#ret-estatus').value || null});
+      aplicarRetenidas(j.retenidas, true);
+    } else {
+      if(!confirm('¿Borrar este registro de pieza retenida?')) return;
+      const j = await llamarRetenidas('DELETE', '/api/retenidas/' + b.dataset.retBorrar);
+      aplicarRetenidas(j.retenidas);
+    }
+  } catch(e){ alert('No se guardó: ' + e.message); if(g){ g.disabled = false; g.textContent = 'Registrar'; } }
 });
 document.addEventListener('change', async ev => {
   const id = ev.target.dataset && ev.target.dataset.retEstatus; if(!id) return;
-  try { await llamarRetenidas('PUT', '/api/retenidas/' + id, {estatus: ev.target.value || null}); await cargar(true); }
+  try { const j = await llamarRetenidas('PUT', '/api/retenidas/' + id, {estatus: ev.target.value || null}); aplicarRetenidas(j.retenidas); }
   catch(e){ alert('No se guardó el estatus: ' + e.message); }
 });
 

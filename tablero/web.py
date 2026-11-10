@@ -74,6 +74,37 @@ def crear_app(ingestor):
     def _estatus(valor):
         return (str(valor).strip()[:60] or None) if valor is not None else None
 
+    MAX_ORDENES = 200   # por envío
+
+    @app.get("/api/retenidas")
+    def api_retenidas_lista():
+        return _json({"retenidas": tablero.refrescar_retenidas()})
+
+    @app.post("/api/retenidas/buscar")
+    def api_retenidas_buscar_varias():
+        cuerpo = request.get_json(silent=True) or {}
+        ordenes = [o for o in (_orden(x) for x in (cuerpo.get("ordenes") or [])[:MAX_ORDENES]) if o]
+        return _json({"datos": retenidas_piso.buscar_varias(ordenes)})
+
+    @app.post("/api/retenidas/lote")
+    def api_retenidas_lote():
+        """Varias órdenes de una vez (pegadas de una columna de Excel, separadas por espacio, coma o renglón)."""
+        if not _puede_editar():
+            return jsonify(error="Clave de edición incorrecta"), 403
+        cuerpo = request.get_json(silent=True) or {}
+        crudas = [str(x).strip() for x in (cuerpo.get("ordenes") or []) if str(x).strip()]
+        if not crudas:
+            return jsonify(error="No llegó ninguna orden"), 400
+        if len(crudas) > MAX_ORDENES:
+            return jsonify(error=f"Máximo {MAX_ORDENES} órdenes por envío"), 400
+        invalidas = [x for x in crudas if not _orden(x)]
+        if invalidas:
+            return jsonify(error="Órdenes inválidas: " + ", ".join(invalidas[:10])), 400
+        ordenes = list(dict.fromkeys(_orden(x) for x in crudas))   # sin repetidas, en el orden en que llegaron
+        ids = retenidas_piso.agregar_varias(ordenes, _estatus(cuerpo.get("estatus")), str(cuerpo.get("usuario") or "")[:80] or None,
+                                            request.remote_addr)
+        return jsonify(ok=True, ids=ids, retenidas=tablero.refrescar_retenidas())
+
     @app.get("/api/retenidas/buscar/<orden>")
     def api_retenidas_buscar(orden):
         orden = _orden(orden)
@@ -91,8 +122,7 @@ def crear_app(ingestor):
             return jsonify(error="Número de orden inválido"), 400
         id_ = retenidas_piso.agregar(orden, _estatus(cuerpo.get("estatus")), str(cuerpo.get("usuario") or "")[:80] or None,
                                      request.remote_addr)
-        tablero.invalidar()
-        return jsonify(ok=True, id=id_)
+        return jsonify(ok=True, id=id_, retenidas=tablero.refrescar_retenidas())
 
     @app.put("/api/retenidas/<int:id_>")
     def api_retenidas_estatus(id_):
@@ -100,16 +130,14 @@ def crear_app(ingestor):
             return jsonify(error="Clave de edición incorrecta"), 403
         cuerpo = request.get_json(silent=True) or {}
         ok = retenidas_piso.actualizar(id_, _estatus(cuerpo.get("estatus")), str(cuerpo.get("usuario") or "")[:80] or None)
-        tablero.invalidar()
-        return (jsonify(ok=True), 200) if ok else (jsonify(error="No existe"), 404)
+        return (jsonify(ok=True, retenidas=tablero.refrescar_retenidas()), 200) if ok else (jsonify(error="No existe"), 404)
 
     @app.delete("/api/retenidas/<int:id_>")
     def api_retenidas_borrar(id_):
         if not _puede_editar():
             return jsonify(error="Clave de edición incorrecta"), 403
         ok = retenidas_piso.borrar(id_)
-        tablero.invalidar()
-        return (jsonify(ok=True), 200) if ok else (jsonify(error="No existe"), 404)
+        return (jsonify(ok=True, retenidas=tablero.refrescar_retenidas()), 200) if ok else (jsonify(error="No existe"), 404)
 
     @app.get("/api/teams")
     def api_teams_estado():

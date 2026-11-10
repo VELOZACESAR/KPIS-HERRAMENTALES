@@ -106,6 +106,17 @@ def invalidar():
         _cache["t"] = 0
 
 
+def refrescar_retenidas():
+    """Relee solo las piezas retenidas en piso y las pone en el tablero que está en memoria (sin recalcular todo:
+    registrar una orden no debe tardar lo que tarda armar el tablero completo). Devuelve la lista nueva."""
+    lista = retenidas_piso.listar(dt.date.today(), comprobar=False)
+    with _lock:
+        datos = _cache["datos"]
+        if datos and datos.get("aceros"):
+            datos["aceros"]["retenidas_piso"] = lista
+    return lista
+
+
 def historial(indicadores=("retenidas", "fila", "dias_fila"), dias=120):
     filas = db.consultar(f"""SELECT fecha, indicador, valor FROM cesar.foto_diaria
                              WHERE fecha >= ? AND indicador IN ({', '.join('?' * len(indicadores))})""",

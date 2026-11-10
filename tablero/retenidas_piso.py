@@ -38,8 +38,9 @@ def buscar(orden):
     return _detalle([orden]).get(orden)
 
 
-def listar(hoy, dias=400):
-    if not db.consultar("SELECT OBJECT_ID('cesar.aceros_retenidas_piso') AS id")[0]["id"]:
+def listar(hoy, dias=400, comprobar=True):
+    # comprobar=False: la tabla ya se sabe que existe (después de guardar), una consulta menos a la base
+    if comprobar and not db.consultar("SELECT OBJECT_ID('cesar.aceros_retenidas_piso') AS id")[0]["id"]:
         return None   # la tabla aún no existe: falta correr instalar_bd.py
     filas = db.consultar("""SELECT id, orden, fecha, estatus, usuario FROM cesar.aceros_retenidas_piso
                             WHERE fecha >= ? ORDER BY fecha DESC, id DESC""", hoy - dt.timedelta(days=dias))
@@ -47,6 +48,22 @@ def listar(hoy, dias=400):
     return {"estatus": ESTATUS,
             "filas": [{"id": f["id"], "orden": f["orden"], "fecha": f["fecha"].isoformat(), "estatus": f["estatus"],
                        "usuario": f["usuario"], "encontrada": f["orden"] in det, **det.get(f["orden"], {})} for f in filas]}
+
+
+def buscar_varias(ordenes):
+    """{orden: datos del consolidado} de varias órdenes de una vez (las que no están no salen)."""
+    return _detalle(ordenes)
+
+
+def agregar_varias(ordenes, estatus, usuario, ip):
+    """Registra varias órdenes en una sola transacción; devuelve sus ids."""
+    ahora, ids = db.ahora(), []
+    with db.transaccion() as cur:
+        for orden in ordenes:
+            cur.execute("""INSERT INTO cesar.aceros_retenidas_piso (orden, fecha, estatus, creado, usuario, ip)
+                           OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, ?)""", orden, ahora.date(), estatus, ahora, usuario, ip)
+            ids.append(cur.fetchone()[0])
+    return ids
 
 
 def agregar(orden, estatus, usuario, ip):
