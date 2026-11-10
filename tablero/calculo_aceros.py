@@ -11,6 +11,12 @@ PUESTOS = [("01CORTE", "Corte"), ("02CNC", "CNC"), ("03SERIG", "Serigrafía"), (
            ("05EMPAL", "Empalme"), ("06CURVAD", "Curvado"), ("07RECORT", "Recorte")]
 
 
+def _cancelado(v):
+    """En Operario del consolidado se escribe "Pedido Cancelado" (también "Cancelado" / "Pieza cancelada"): no es un
+    matricero ni producción; en el cumplimiento cierra la fecha comprometida sin contar como cumplido ni incumplido."""
+    return "CANCELAD" in norm(v)
+
+
 def _fuera_de_meta(v):
     t = norm(v)
     return "CIERRE TECNICO" in t or "AVANZADA SIN MOTIVO" in t
@@ -36,6 +42,7 @@ def calcular(hoy, R):
         if fab and not (dt.date(2020, 1, 1) <= fab <= hoy):
             fab = None
         tipo_op, nombre_op = R.operario(r["operario"])
+        cancelado = _cancelado(r["operario"])
         eq = R.factor(mat, r["pieza"])
         puesto = (r["puesto_trabajo"] or "").strip()
 
@@ -44,13 +51,16 @@ def calcular(hoy, R):
                 fila_nmi += 1
             else:
                 fila_pend.append((entrega, mat))
-        if entrega and not nmi and tipo_op != "excluido" and not _fuera_de_meta(r["operario"]):
+        if entrega and not nmi and (tipo_op != "excluido" or cancelado) and not _fuera_de_meta(r["operario"]):
+            if cancelado:
+                compromisos.append((entrega, mat, False, False, None, True))
+                continue
             hecho = fab is not None and fab <= entrega
-            compromisos.append((entrega, mat, hecho, fab is not None and fab > entrega, fab))   # tarde = fabricado después
+            compromisos.append((entrega, mat, hecho, fab is not None and fab > entrega, fab, False))   # tarde = fabricado después
             if hoy - dt.timedelta(days=10) <= entrega < hoy:
                 comp_detalle.append({"entrega": entrega, "hecho": hecho, "mat": mat, "orden": r["orden"], "acero": r["acero"],
                                      "vehiculo": r["vehiculo"], "fab": fab.isoformat() if fab else None, "puesto": puesto})
-        if fab and tipo_op != "excluido" and not nmi:
+        if fab and tipo_op != "excluido" and not nmi and not cancelado:
             fab_events.append({"fecha": fab, "mat": mat, "eq": eq, "op": nombre_op, "rechazo": "RECHAZ" in corte.upper()})
         if not nmi:
             por_orden[r["orden"]].append({"entrega": entrega, "fab": fab, "op": r["operario"], "puesto": puesto, "mat": mat,
@@ -109,12 +119,14 @@ def calcular(hoy, R):
                         "meta": dias_lab(ini, fin) * meta_dia, "dias_lab": dias_lab(ini, fin),
                         "hoy_total": sum(1 for e in ev if e["fecha"] == hoy), "en_curso": fin >= hoy or fin > ayer})
 
-    comp_dia = defaultdict(lambda: {"total": 0, "hechos": 0, "tarde": 0, "segs": defaultdict(int),
+    comp_dia = defaultdict(lambda: {"total": 0, "hechos": 0, "tarde": 0, "cancelados": 0, "segs": defaultdict(int),
                                     "segs_tarde": defaultdict(int), "entregas": defaultdict(int)})
-    for d, mat, hecho, tarde, fab in compromisos:
+    for d, mat, hecho, tarde, fab, cancel in compromisos:
         c = comp_dia[d]
         c["total"] += 1
-        if hecho:
+        if cancel:           # pedido cancelado: cierra la barra con su propio color, no es cumplido ni incumplido
+            c["cancelados"] += 1
+        elif hecho:
             c["hechos"] += 1
             c["segs"][mat] += 1
         elif tarde:          # se fabricó, pero después de la fecha comprometida (cierra la barra con su material)
@@ -129,6 +141,7 @@ def calcular(hoy, R):
         if (c and c["total"]) or (d <= ayer and es_laboral(d)):
             cumplimiento.append({"fecha": d.isoformat(), "comprometidos": c["total"] if c else 0,
                                  "hechos": c["hechos"] if c else 0, "tarde": c["tarde"] if c else 0,
+                                 "cancelados": c["cancelados"] if c else 0,
                                  "segs": dict(c["segs"]) if c else {}, "segs_tarde": dict(c["segs_tarde"]) if c else {},
                                  "entregas": dict(c["entregas"]) if c else {},
                                  "futuro": d > ayer})
@@ -212,6 +225,7 @@ def calcular(hoy, R):
             "comprometidos": comp_dia[ayer]["total"], "comprometidos_hechos": comp_dia[ayer]["hechos"],
             "comprometidos_segs": dict(comp_dia[ayer]["segs"]), "comprometidos_tarde": comp_dia[ayer]["tarde"],
             "comprometidos_segs_tarde": dict(comp_dia[ayer]["segs_tarde"]),
+            "comprometidos_cancelados": comp_dia[ayer]["cancelados"],
             "no_cumplidos": sorted(({k: v for k, v in c.items() if k not in ("entrega", "hecho")}
                                     for c in comp_detalle if c["entrega"] == ayer and not c["hecho"]),
                                    key=lambda x: (x["fab"] is None, x["fab"] or "", str(x["orden"]))),
