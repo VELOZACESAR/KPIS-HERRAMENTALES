@@ -1298,7 +1298,7 @@ function vistaResumen(A){
 }
 
 // ---- Piezas retenidas del área (arriba del Resumen), una tarjeta por servicio:
-//   Aceros: piezas registradas en "Piezas retenidas / refundidas en piso" que aún no están Liberadas.
+//   Aceros: piezas registradas HOY en "Piezas retenidas / refundidas en piso" (las de días pasados no cuentan aquí).
 //   Serigrafía: las de HOY (falta de archivo por tipo de vitro + falta de malla, Indicadores diarios).
 //   Moldes: número escrito a mano (se guarda en la base para todos).
 const chipRet = n => n ? '<span class="chip bad">▼ Hay retenidas</span>' : '<span class="chip ok">▲ Sin retenidas</span>';
@@ -1307,14 +1307,14 @@ const columnasRet = cols => `<div class="fila-tres seri-tres">${cols.map(([v, no
 function tarjetaRetAceros(A){
   const R = A && A.retenidas_piso;
   if(!R) return `<div class="kpi fila-res ret-k"><div class="lbl"><span>Aceros</span></div><div class="desc">Sin el registro de piezas retenidas en piso.</div></div>`;
-  const activas = R.filas.filter(f => f.estatus !== 'Liberada'), cuenta = e => activas.filter(f => f.estatus === e).length;
-  const hoyN = R.filas.filter(f => f.fecha === D.hoy).length;
+  const deHoy = R.filas.filter(f => f.fecha === D.hoy), activas = deHoy.filter(f => f.estatus !== 'Liberada');
+  const cuenta = e => activas.filter(f => f.estatus === e).length, liberadas = deHoy.length - activas.length;
   return `<div class="kpi fila-res ret-k">
-    <div class="lbl"><span>Aceros · en piso</span>${chipRet(activas.length)}</div>
+    <div class="lbl"><span>Aceros · en piso · hoy</span>${chipRet(activas.length)}</div>
     <div class="fila-hero"><span class="num-hero" style="color:${activas.length ? 'var(--bad)' : 'var(--text)'}">${fmt(activas.length)}</span><span>piezas<br>retenidas</span></div>
     ${columnasRet([[cuenta('Retenida'), 'RETENIDAS', cuenta('Retenida') ? 'var(--bad)' : ''], [cuenta('Refundida'), 'REFUNDIDAS', cuenta('Refundida') ? 'var(--bad)' : ''],
                    [cuenta('En reproceso'), 'EN REPROCESO', '']])}
-    <div class="desc seri-nota">Sin liberar en "Piezas retenidas / refundidas en piso" · <b>${fmt(hoyN)}</b> registradas hoy</div>
+    <div class="desc seri-nota">Registradas hoy en "Piezas retenidas / refundidas en piso"${liberadas ? ` · <b>${fmt(liberadas)}</b> ya liberadas` : ''}</div>
   </div>`;
 }
 function tarjetaRetSeri(S){
