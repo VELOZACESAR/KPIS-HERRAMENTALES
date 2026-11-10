@@ -55,13 +55,24 @@ def buscar_varias(ordenes):
     return _detalle(ordenes)
 
 
+AUTOMATICO = "automatico"
+
+
+def estatus_automatico(datos):
+    """Ya entregada (tiene fecha de fabricación en el consolidado) = Refundida; si no, Retenida."""
+    return "Refundida" if datos and datos.get("entrega") else "Retenida"
+
+
 def agregar_varias(ordenes, estatus, usuario, ip):
-    """Registra varias órdenes en una sola transacción; devuelve sus ids."""
+    """Registra varias órdenes en una sola transacción; devuelve sus ids. Con estatus "automatico" cada orden queda
+    Refundida si ya se entregó o Retenida si no (En reproceso se escoge a mano)."""
+    det = _detalle(ordenes) if estatus == AUTOMATICO else {}
     ahora, ids = db.ahora(), []
     with db.transaccion() as cur:
         for orden in ordenes:
+            e = estatus_automatico(det.get(orden)) if estatus == AUTOMATICO else estatus
             cur.execute("""INSERT INTO cesar.aceros_retenidas_piso (orden, fecha, estatus, creado, usuario, ip)
-                           OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, ?)""", orden, ahora.date(), estatus, ahora, usuario, ip)
+                           OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, ?)""", orden, ahora.date(), e, ahora, usuario, ip)
             ids.append(cur.fetchone()[0])
     return ids
 

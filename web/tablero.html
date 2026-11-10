@@ -199,6 +199,7 @@
 
   /* ---------- resumen ---------- */
   .ret-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+  .rk-tur{display:block;font-size:10.5px;font-weight:600;color:var(--muted);margin-top:1px}
   .ret-k{display:flex;flex-direction:column;gap:8px}
   .ret-k .seri-nota{margin-top:auto}
   .ret-k .ret-in{font:700 52px/1 var(--font)!important;width:3.2ch;padding:0;border:0;background:transparent;border-bottom:2px dashed var(--border)}
@@ -1818,10 +1819,12 @@ function dibujarRetenidasPiso(){
   const hace30 = sumarDias(D.hoy, -29), n30 = R.filas.filter(f => f.fecha >= hace30).length;
   $('#ret-sub').textContent = 'Escribe o pega una o varias órdenes y presiona Enter; el compromiso, ZHAL, acero, entrega y matricero salen del consolidado';
   const opts = sel => ['', ...R.estatus].map(e => `<option value="${esc(e)}" ${e === (sel || '') ? 'selected' : ''}>${e ? esc(e) : '— Estatus —'}</option>`).join('');
+  // al registrar: Automático = ya entregada → Refundida, sin entregar → Retenida; En reproceso se escoge a mano
+  const optsNueva = `<option value="automatico" selected>Automático (según entrega)</option>${R.estatus.filter(e => e !== 'Liberada').map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('')}`;
   const marca = (txt, color) => txt ? `<span class="marca" style="background:${hexA(color, .18)};color:var(--text);box-shadow:inset 0 0 0 1px ${hexA(color, .55)}">${esc(txt)}</span>` : '—';
   cont.innerHTML = `
     <div class="ret-form"><textarea id="ret-orden" rows="1" placeholder="N.º de orden (puedes pegar varias)" autocomplete="off" spellcheck="false"></textarea>
-      <select id="ret-estatus">${opts('Retenida')}</select><button id="ret-guardar" disabled>Registrar</button></div>
+      <select id="ret-estatus">${optsNueva}</select><button id="ret-guardar" disabled>Registrar</button></div>
     <div class="ret-prev" id="ret-prev"></div>
     <div class="ret-kpis"><span><b>${fmt(hoyN)}</b>hoy</span><span><b>${fmt(sem)}</b>esta semana</span><span><b>${fmt(n30)}</b>últimos 30 días</span></div>
     <div class="tabla ret-tabla"><table><thead><tr><th>Registro</th><th>Orden</th><th>Compromiso</th><th>ZHAL</th><th>Acero</th><th>Entrega</th><th>Matricero</th><th>Estatus</th><th></th></tr></thead><tbody>${
@@ -1871,15 +1874,18 @@ document.addEventListener('input', ev => {
       if(ordenesRet($('#ret-orden').value).join() !== ords.join()) return;   // ya cambió lo escrito
       const R = (D.aceros && D.aceros.retenidas_piso) || {filas: []};
       const yaActiva = o => R.filas.some(f => f.orden === o && f.estatus !== 'Liberada');
+      const auto = $('#ret-estatus').value === 'automatico', estAuto = o => j.datos[o] && j.datos[o].entrega ? 'Refundida' : 'Retenida';
       if(ords.length === 1){
         const o = ords[0], x = j.datos[o];
-        prev.innerHTML = (x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
+        prev.innerHTML = (auto ? `Quedará como <b>${estAuto(o)}</b> (${estAuto(o) === 'Refundida' ? 'ya se entregó' : 'aún no se entrega'}) · ` : '') + (x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
                              : '<span style="color:var(--bad)">Esa orden no está en el consolidado (igual se puede registrar)</span>') +
                          (yaActiva(o) ? ' · <span style="color:var(--near)">ya está registrada sin liberar</span>' : '');
         return;
       }
       const no = ords.filter(o => !j.datos[o]), rep_ = ords.filter(yaActiva);
+      const nRef = ords.filter(o => estAuto(o) === 'Refundida').length;
       prev.innerHTML = `<b>${fmt(ords.length)}</b> órdenes · <b>${fmt(ords.length - no.length)}</b> en el consolidado` +
+        (auto ? ` · quedarán <b>${fmt(nRef)}</b> Refundidas (ya entregadas) y <b>${fmt(ords.length - nRef)}</b> Retenidas` : '') +
         (no.length ? ` · <span style="color:var(--bad)">${fmt(no.length)} no están: ${no.slice(0, 6).map(esc).join(', ')}${no.length > 6 ? '…' : ''}</span>` : '') +
         (rep_.length ? ` · <span style="color:var(--near)">${fmt(rep_.length)} ya registradas sin liberar: ${rep_.slice(0, 6).map(esc).join(', ')}${rep_.length > 6 ? '…' : ''}</span>` : '');
     } catch(e){ prev.textContent = 'No se pudo buscar: ' + e.message; }
@@ -1906,6 +1912,7 @@ document.addEventListener('click', async ev => {
   } catch(e){ alert('No se guardó: ' + e.message); if(g){ g.disabled = false; g.textContent = 'Registrar'; } }
 });
 document.addEventListener('change', async ev => {
+  if(ev.target.id === 'ret-estatus'){ const o = $('#ret-orden'); if(o && o.value.trim()) o.dispatchEvent(new Event('input', {bubbles: true})); return; }
   const id = ev.target.dataset && ev.target.dataset.retEstatus; if(!id) return;
   try { const j = await llamarRetenidas('PUT', '/api/retenidas/' + id, {estatus: ev.target.value || null}); aplicarRetenidas(j.retenidas); }
   catch(e){ alert('No se guardó el estatus: ' + e.message); }
@@ -2411,22 +2418,29 @@ function periodosMat(){
   }
   return out;
 }
+// Turnos (horario de la planta): T1 noche · T2 mañana · T3 tarde; lo finalizado fuera de horario va aparte
+const ORDEN_TURNOS = ['T1', 'T2', 'T3', 'Fuera de turno'], NOMBRE_TURNO = {T1: 'T1 noche', T2: 'T2 mañana', T3: 'T3 tarde', 'Fuera de turno': 'Fuera de turno'};
+const filasTurnos = obj => { const xs = ORDEN_TURNOS.filter(k => obj && obj[k]);
+  return xs.length ? '<div style="margin-top:6px;opacity:.9">' + xs.map(k => `<div class="r"><span>${NOMBRE_TURNO[k]}</span><span>${fmt(obj[k])}</span></div>`).join('') + '</div>' : ''; };
 function analisisMat(M){
   const R = M.registros, cols = periodosMat(), desde = cols[0].desde, hasta = cols[cols.length - 1].hasta;
   const visibles = new Set(catsVisibles(M).filter(c => !catMant || c === catMant));
-  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({}))});
+  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({})), turnos: cols.map(() => ({})), porTurno: {}});
   const per = {}, tip = {}, mol = {}, equipo = nuevo();
   for(const r of (R ? R.filas : [])){
-    if(r[0] < desde || r[0] > hasta) continue;
+    // cuenta en el día de producción de su turno (ej. finalizado el lunes 10 p. m. = martes, T1); sin ese dato, el día en que se finalizó
+    const dia = r[6] || r[0], tur = r[7] || null;
+    if(dia < desde || dia > hasta) continue;
     const cat = R.categorias[r[2]]; if(!visibles.has(cat)) continue;
-    const i = cols.findIndex(c => r[0] >= c.desde && r[0] <= c.hasta); if(i < 0) continue;
+    const i = cols.findIndex(c => dia >= c.desde && dia <= c.hasta); if(i < 0) continue;
     const nombre = R.personas[r[1]], tipo = R.tipos[r[3]], molde = R.moldes[r[4]];
     for(const x of [per[nombre] = per[nombre] || nuevo(), equipo]){
       x.total++; x.n[i]++; x.segs[i][cat] = (x.segs[i][cat] || 0) + 1; x.tipos[i][tipo] = (x.tipos[i][tipo] || 0) + 1;
+      if(tur){ x.turnos[i][tur] = (x.turnos[i][tur] || 0) + 1; x.porTurno[tur] = (x.porTurno[tur] || 0) + 1; }
     }
     const tp = tip[tipo] = tip[tipo] || {n: 0, serie: cols.map(() => 0)}; tp.n++; tp.serie[i]++;
-    const m = mol[molde] = mol[molde] || {n: 0, cat, vehiculo: R.vehiculos[r[5]], personas: new Set(), ultima: r[0]};
-    m.n++; m.personas.add(nombre); if(r[0] > m.ultima) m.ultima = r[0];
+    const m = mol[molde] = mol[molde] || {n: 0, cat, vehiculo: R.vehiculos[r[5]], personas: new Set(), ultima: dia};
+    m.n++; m.personas.add(nombre); if(dia > m.ultima) m.ultima = dia;
   }
   return {cols, desde, hasta, equipo,
     personas: Object.entries(per).map(([nombre, x]) => ({nombre, ...x, activos: x.n.filter(v => v).length})).sort((a, b) => b.total - a.total),
@@ -2455,13 +2469,15 @@ function analisisBasico(M){
 }
 // Ranking de matriceros del periodo: barra apilada por vehículo (escala = el que más hizo), total, % del equipo,
 // promedio por periodo activo y mini-tendencia por columna del periodo.
+const resumenTurnos = obj => { const xs = ORDEN_TURNOS.filter(k => obj && obj[k]);
+  return xs.length ? `<small class="rk-tur">${xs.map(k => `${k === 'Fuera de turno' ? 'Fuera' : k} ${fmt(obj[k])}`).join(' · ')}</small>` : ''; };
 function dibujarRankingMat(M, A, op, unidad){
   const max = Math.max(1, ...A.personas.map(p => p.total)), tot = A.equipo.total || 1;
   const segsTot = p => { const s = {}; p.segs.forEach(x => { for(const k in x) s[k] = (s[k] || 0) + x[k]; }); return s; };
   const fila = (p, i) => { const s = segsTot(p), prom = p.activos ? p.total / p.activos : 0;
     return `<div class="rk-fila ${i < 3 ? 'top' : ''}" data-tip="${esc(tipSegs(`${p.nombre} · ${fmt(p.total)} finalizados`, s,
-      `<div class="r" style="margin-top:6px"><span>${unidad === 'día' ? 'Días' : unidad === 'semana' ? 'Semanas' : 'Meses'} con actividad</span><span>${fmt(p.activos)} de ${fmt(A.cols.length)}</span></div>`, op))}">
-      <span class="rk-pos">${i + 1}</span><span class="rk-nom" title="${esc(p.nombre)}">${esc(p.nombre)}</span>
+      `<div class="r" style="margin-top:6px"><span>${unidad === 'día' ? 'Días' : unidad === 'semana' ? 'Semanas' : 'Meses'} con actividad</span><span>${fmt(p.activos)} de ${fmt(A.cols.length)}</span></div>` + filasTurnos(p.porTurno), op))}">
+      <span class="rk-pos">${i + 1}</span><span class="rk-nom" title="${esc(p.nombre)}">${esc(p.nombre)}${resumenTurnos(p.porTurno)}</span>
       <span class="rk-bar" style="width:${p.total / max * 100}%">${op.orden.filter(c => s[c]).map(c => `<i style="flex:${s[c]};background:${op.colores[c]}"></i>`).join('')}</span>
       <span class="rk-n">${fmt(p.total)}</span><span class="rk-pct">${fmt(p.total / tot * 100)} %</span>
       <span class="rk-prom">${fmt(prom, 1)} / ${unidad}</span>${sparkMini(p.n, PALETA[0])}</div>`; };
@@ -2504,8 +2520,8 @@ function dibujarAnalisisMant(M){
   const claro = document.documentElement.dataset.tema === 'claro'; // en oscuro el número va siempre claro
   const tinta = n => claro && n / maxN > .6 ? '#0B2F36' : 'var(--text)';
   const meta = unidad === 'día' ? M.kpis.meta_persona_dia : null;
-  const tipCelda = (titulo, x, i) => tipSegs(titulo, x.segs[i], Object.keys(x.tipos[i]).length ? '<div style="margin-top:6px;opacity:.85">' +
-    Object.entries(x.tipos[i]).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join('') + '</div>' : '', op);
+  const tipCelda = (titulo, x, i) => tipSegs(titulo, x.segs[i], filasTurnos(x.turnos && x.turnos[i]) + (Object.keys(x.tipos[i]).length ? '<div style="margin-top:6px;opacity:.85">' +
+    Object.entries(x.tipos[i]).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join('') + '</div>' : ''), op);
   const prom = p => p.activos ? p.total / p.activos : 0;
   document.querySelectorAll('#mat-modo button').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === modoMat));
   if(modoMat === 'ranking'){ dibujarRankingMat(M, A, op, unidad); }
@@ -2555,6 +2571,8 @@ function segsFiltrados(segs){ // quita los vehículos ocultos y, si hay uno eleg
 }
 function totalSegs(segs){ return Object.values(segs).reduce((a, b) => a + b, 0); }
 
+// Líneas de pedidos (alertas nuevas) y atendidos: ocultas mientras el dato no sea confiable (pedido 2026-11-10)
+const MOSTRAR_PEDIDOS_MANT = false;
 function dibujarMantenimiento(){
   const M = D && D.mantenimiento; if(!M || $('#v-mantenimiento').hidden) return;
   document.querySelectorAll('#mant-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMant));
@@ -2565,7 +2583,7 @@ function dibujarMantenimiento(){
   // null = el servidor no tenía foto de alertas ese día (la línea se corta ahí)
   const sumaPed = x => x == null ? null : totalSegs(segsFiltrados(x));
   const pedidos = fuenteMant.map(p => sumaPed(p.ped)), atendidos = fuenteMant.map(p => sumaPed(p.ate));
-  const hayPedidos = pedidos.some(v => v != null);
+  const hayPedidos = MOSTRAR_PEDIDOS_MANT && pedidos.some(v => v != null);
   const serie = fuenteMant.map((p, i) => {
     const segs = segsFiltrados(p.segs), total = totalSegs(segs);
     const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
@@ -2584,7 +2602,7 @@ function dibujarMantenimiento(){
   const mediana = base.length ? (base.length % 2 ? base[(base.length - 1) / 2] : (base[base.length / 2 - 1] + base[base.length / 2]) / 2) : null;
   const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
   $('#mant-serie-sub').innerHTML = (catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '') +
-    (M.diaria.some(d => d.ped !== undefined) && !hayPedidos
+    (MOSTRAR_PEDIDOS_MANT && M.diaria.some(d => d.ped !== undefined) && !hayPedidos
       ? `${catMant ? ' · ' : ''}Pedidos y atendidos se ven desde el día siguiente a que el servidor empieza a registrar las alertas` : '');
   $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
     (hayPedidos ? `<span title="Moldes que el sistema de puntaje marcó POR MANTENIMIENTO ese periodo y no venían marcados de antes"><i class="linea" style="background:var(--near)"></i>Pedidos (alertas nuevas)</span>` +

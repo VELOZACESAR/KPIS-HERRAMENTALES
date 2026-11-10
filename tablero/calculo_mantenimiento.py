@@ -16,6 +16,30 @@ def _dia(r):
     return (r["fin"] or r["inicio"]).date()
 
 
+# Horario de turnos de la planta (12 h): T1 noche, T2 mañana, T3 tarde. El T1 de un día empieza la noche anterior
+# (cuando termina el T3) y acaba a las 5:00 a. m.: el T1 del martes va del lunes 8:30 p. m. al martes 5:00 a. m.;
+# el del sábado, del viernes 9:00 p. m. al sábado 5:00 a. m. No hay T1 el lunes (domingo en la noche) ni turnos el
+# domingo, ni T3 el sábado. lunes=0 … domingo=6.
+FIN_T2 = {0: dt.time(13, 0), 1: dt.time(12, 0), 2: dt.time(12, 0), 3: dt.time(12, 0), 4: dt.time(12, 0), 5: dt.time(11, 0)}
+FIN_T3 = {0: dt.time(20, 30), 1: dt.time(20, 30), 2: dt.time(20, 30), 3: dt.time(20, 30), 4: dt.time(21, 0)}   # = inicio del T1 del día siguiente
+CON_T1 = {1, 2, 3, 4, 5}   # martes a sábado
+INICIO_T2 = dt.time(5, 0)
+
+
+def turno(momento):
+    """(día de producción, turno) del momento en que se finalizó: 'T1', 'T2', 'T3' o 'Fuera de turno'."""
+    d, h, w = momento.date(), momento.time(), momento.weekday()
+    if h < INICIO_T2:
+        return d, ("T1" if w in CON_T1 else "Fuera de turno")
+    if w in FIN_T2 and h < FIN_T2[w]:
+        return d, "T2"
+    if w in FIN_T3 and h < FIN_T3[w]:
+        return d, "T3"
+    if w in FIN_T3 and (w + 1) % 7 in CON_T1:   # después del T3: es el T1 del día siguiente
+        return d + dt.timedelta(days=1), "T1"
+    return d, "Fuera de turno"
+
+
 def _pad(valor, n):
     t = str(valor or "").strip().upper()
     return t.zfill(n) if t.isdigit() and len(t) < n else t
@@ -222,7 +246,8 @@ def calcular(hoy, R):
 
     # Registros compactos de lo finalizado (~13 meses) para que el tablero arme cualquier periodo (día, semana,
     # mes) por matricero, tipo de mantenimiento y molde. Cada texto va una sola vez en su lista y las filas
-    # guardan índices: [fecha, persona, categoría, tipo de mantenimiento, molde, vehículo].
+    # guardan índices: [fecha, persona, categoría, tipo de mantenimiento, molde, vehículo, día de producción, turno]
+    # (día de producción y turno salen de la hora en que se finalizó y el horario de turnos de la planta).
     registros = {"personas": [], "categorias": [], "tipos": [], "moldes": [], "vehiculos": [], "filas": []}
     indices = {k: {} for k in registros if k != "filas"}
 
@@ -233,9 +258,11 @@ def calcular(hoy, R):
         return indices[lista][valor]
 
     for r in sorted(fin, key=_dia):
+        dia_prod, tur = turno(r["fin"] or r["inicio"])
         registros["filas"].append([_dia(r).isoformat(), indice("personas", r["persona"]),
                                    indice("categorias", r["categoria"]), indice("tipos", r["tipo_mant"] or "Sin tipo"),
-                                   indice("moldes", r["molde"]), indice("vehiculos", r["vehiculo"] or "")])
+                                   indice("moldes", r["molde"]), indice("vehiculos", r["vehiculo"] or ""),
+                                   dia_prod.isoformat(), tur])
 
     return {
         "categorias": categorias,
