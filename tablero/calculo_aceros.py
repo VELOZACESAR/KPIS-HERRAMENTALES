@@ -33,6 +33,8 @@ def calcular(hoy, R):
                             FROM cesar.aceros_consolidado ORDER BY fila""")
     fab_events, fila_pend, compromisos, comp_detalle = [], [], [], []
     fila_nmi = 0
+    # Fila por fecha de compromiso y material (como la tabla dinámica del reporte de Full Kit); material vacío = "(en blanco)"
+    fila_tabla = defaultdict(lambda: defaultdict(int))
     por_orden = defaultdict(list)
     for r in filas:
         mat = R.material(r["material"])
@@ -51,6 +53,7 @@ def calcular(hoy, R):
                 fila_nmi += 1
             else:
                 fila_pend.append((entrega, mat))
+                fila_tabla[entrega][mat if (r["material"] or "").strip() else "(en blanco)"] += 1
         if entrega and not nmi and (tipo_op != "excluido" or cancelado) and not _fuera_de_meta(r["operario"]):
             if cancelado:
                 compromisos.append((entrega, mat, False, False, None, True))
@@ -162,6 +165,8 @@ def calcular(hoy, R):
     for b in fila_buckets:
         b["segs"] = dict(b["segs"])
     dias_fila = len({d for d, _ in fila_pend if d and d >= hoy})
+    fila_por_fecha = [{"fecha": d.isoformat() if d else None, "segs": dict(s), "total": sum(s.values())}
+                      for d, s in sorted(fila_tabla.items(), key=lambda x: (x[0] is None, x[0] or dt.date.max))]
 
     dias_con_prod = sorted((d for d in prod_por_dia if d <= ayer), reverse=True)[:dias_prom]
     prom = sum(len(prod_por_dia[d]) for d in dias_con_prod) / len(dias_con_prod) if dias_con_prod else 0
@@ -244,7 +249,7 @@ def calcular(hoy, R):
             "rechazos_30": len(rech_30),
         },
         "diaria": diaria, "semanal": semanal, "mensual": mensual, "cumplimiento": cumplimiento,
-        "fila": fila_buckets, "personas": personas_out, "meta_turno": meta_turno, "meta_dia_defecto": meta_dia,
+        "fila": fila_buckets, "fila_por_fecha": fila_por_fecha, "personas": personas_out, "meta_turno": meta_turno, "meta_dia_defecto": meta_dia,
         "cuellos": cuellos_out, "rechazos_semanal": rech_sem,
         "rechazos_12s": [dict(x, fecha=x["fecha"].isoformat())
                          for x in sorted(rechazos, key=lambda x: x["fecha"], reverse=True)

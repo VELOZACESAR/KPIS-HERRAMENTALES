@@ -199,6 +199,23 @@
 
   /* ---------- resumen ---------- */
   .ret-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+  /* Resumen: selector de indicadores / reportes y reporte con formato de correo */
+  .res-modo{margin:0 0 14px}
+  .reporte{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 26px;max-width:1100px}
+  .rp-cab{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--grid);padding-bottom:10px;margin-bottom:6px}
+  .rp-tit{font-size:20px;font-weight:800;font-style:italic;color:var(--text)}
+  .rp-fecha{font-size:12px;color:var(--text-soft);margin-top:2px}
+  .rp-sec{margin:20px 0 6px;font-size:15px;font-weight:800;letter-spacing:.02em}
+  .rp-sec mark{background:#E8F36A;color:#0B1626;padding:2px 6px;border-radius:3px;text-decoration:underline}
+  .rp-lista{margin:4px 0 10px;padding-left:22px;font-size:14px;line-height:1.6;color:var(--text)}
+  .rp-rojo{color:var(--bad)}
+  table.rp-tabla{font-size:12.5px;border-collapse:collapse;min-width:520px}
+  table.rp-tabla th{background:#2F6E8C;color:#fff;font-size:11px;letter-spacing:.04em;padding:6px 10px;text-transform:none}
+  table.rp-tabla td{padding:5px 10px;border-bottom:1px solid var(--grid)}
+  table.rp-tabla tr.venc td:first-child{color:var(--bad)}
+  .rp-venc{font-size:10.5px;font-weight:700;color:var(--bad);border:1px solid var(--bad);border-radius:999px;padding:0 6px;margin-left:4px}
+  table.rp-tabla tfoot td{background:var(--grid);font-weight:800;border-top:2px solid #2F6E8C}
+  .reporte .x5-resumen,.reporte .tabla,.reporte .rp-moldes{max-width:820px}
   .rk-tur{display:block;font-size:10.5px;font-weight:600;color:var(--muted);margin-top:1px}
   .ret-k{display:flex;flex-direction:column;gap:8px}
   .ret-k .seri-nota{margin-top:auto}
@@ -1084,6 +1101,13 @@ function capFilaHTML(titulo, celdas){
   return `<span class="cap-tit">${titulo}</span><div class="cap-celdas" style="grid-template-columns:repeat(${celdas.length},minmax(0,1fr))">${
     celdas.map(c => `<span class="${valorManual(c.clave, null)!=null?'propia':''}" title="${esc(c.titulo)}: vacía = ${c.resp}">${inputManual(c.clave, null, c.resp)}</span>`).join('')}</div>`;
 }
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('#res-modo button'); if(!b) return;
+  modoResumen = b.dataset.r; guardarPref('tablero-res-modo', modoResumen);
+  document.querySelectorAll('#res-modo button').forEach(x => x.setAttribute('aria-pressed', x.dataset.r === modoResumen));
+  REPORTES_RESUMEN.forEach(r => { const el = $('#res-' + r.id); if(el) el.hidden = r.id !== modoResumen; });
+  if(modoResumen === 'indicadores') dibujarResumen();   // las gráficas se dibujan con el ancho visible
+});
 function dibujarResumen(){
   if(D && !$('#v-resumen').hidden) BLOQUES_RESUMEN.forEach(b => b.dibujar()); // secciones con gráfica por periodo (ej. Mantenimiento)
   const A = D && D.aceros, cont = $('#ch-res-prod'); if(!A || !cont || $('#v-resumen').hidden) return;
@@ -1295,10 +1319,14 @@ function vistaResumen(A){
   const pend = D.pendientes.map(p => `<article class="serv-largo pend" data-ir="${p.id}" tabindex="0">
       <div class="sl-head"><h3>${esc(p.nombre)}</h3><span class="chip neutral">○ Pendiente de conectar</span></div>
       <div class="desc">Para activarlo se necesita: ${p.necesita.map(esc).join(' · ')}</div></article>`).join('');
+  const modo = REPORTE ? 'indicadores' : modoResumen;
   return `<section class="vista" id="v-resumen" hidden>
+    ${REPORTE ? '' : `<div class="seg res-modo" id="res-modo">${REPORTES_RESUMEN.map(r => `<button data-r="${r.id}" aria-pressed="${r.id === modo}">${esc(r.nombre)}</button>`).join('')}</div>`}
+    <div id="res-indicadores" ${modo === 'indicadores' ? '' : 'hidden'}>
     ${franjaRetenidas(A)}
     <h2 class="sec">${t('servicios')}</h2>
-    <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
+    <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></div>
+    <div id="res-fullkit" ${modo === 'fullkit' ? '' : 'hidden'}>${reporteFullKit()}</div></section>`;
 }
 
 // ---- Piezas retenidas del área (arriba del Resumen), una tarjeta por servicio:
@@ -1340,6 +1368,47 @@ function tarjetaRetMoldes(){
     <div class="fila-hero"><span class="num-hero"><input class="val-input num ret-in" data-manual="ret-moldes" inputmode="numeric" placeholder="—" aria-label="Piezas retenidas por moldes"
       style="color:${v ? 'var(--bad)' : 'var(--text)'}"></span><span>piezas<br>retenidas</span></div>
     <div class="desc seri-nota"><span class="registro" data-registro="ret-moldes">Clic en el número para escribirlo</span></div>
+  </div>`;
+}
+// ---- Reportes del Resumen (lo que se envía a cada área). Primero: Estatus de FULL KIT, como el correo:
+//   Aceros: hasta qué día hay fechas asignadas, días de fila y la tabla de aceros en fila por fecha de compromiso y material;
+//   el inventario BMW X5 (la misma tabla del Resumen) y los moldes en fila de fabricación (la misma lista del Resumen).
+const REPORTES_RESUMEN = [{id: 'indicadores', nombre: 'Indicadores del área'}, {id: 'fullkit', nombre: 'Reporte · Full Kit'}];
+// el reporte se puede abrir directo: ...?resumen=fullkit (si no, el último que se vio en este navegador)
+let modoResumen = (() => { const u = new URLSearchParams(location.search).get('resumen'), ids = REPORTES_RESUMEN.map(r => r.id);
+  const m = ids.includes(u) ? u : leerPref('tablero-res-modo', 'indicadores'); return ids.includes(m) ? m : 'indicadores'; })();
+function tablaFilaPorFecha(A){
+  const filas = A.fila_por_fecha || [];
+  if(!filas.length) return '<div class="vacio">No hay aceros en fila con fecha asignada</div>';
+  const mats = [...D.orden_materiales.filter(m => filas.some(f => f.segs[m])), ...(filas.some(f => f.segs['(en blanco)']) ? ['(en blanco)'] : [])];
+  const tot = m => filas.reduce((a, f) => a + (f.segs[m] || 0), 0), total = filas.reduce((a, f) => a + f.total, 0);
+  const nombreFecha = iso => { if(!iso) return 'Sin fecha'; const f = fecha(iso);
+    return `${['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][f.getDay()]}, ${f.getDate()} de ${MESES[f.getMonth()].toLowerCase()} de ${f.getFullYear()}`; };
+  return `<div class="tabla"><table class="rp-tabla"><thead><tr><th>Fecha de compromiso</th>${mats.map(m => `<th class="n">${esc(m === '(en blanco)' ? m : m.toUpperCase())}</th>`).join('')}<th class="n">Total</th></tr></thead>
+    <tbody>${filas.map(f => `<tr class="${f.fecha && f.fecha < D.hoy ? 'venc' : ''}"><td>${nombreFecha(f.fecha)}${f.fecha && f.fecha < D.hoy ? ' <span class="rp-venc">vencido</span>' : ''}</td>${
+      mats.map(m => `<td class="n">${f.segs[m] ? fmt(f.segs[m]) : ''}</td>`).join('')}<td class="n"><b>${fmt(f.total)}</b></td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>Total general</td>${mats.map(m => `<td class="n">${fmt(tot(m))}</td>`).join('')}<td class="n">${fmt(total)}</td></tr></tfoot></table></div>`;
+}
+function reporteFullKit(){
+  const A = D.aceros, MO = D.moldes;
+  let aceros = '<div class="vacio">Sin datos del consolidado de aceros</div>';
+  if(A){
+    const fechas = (A.fila_por_fecha || []).map(f => f.fecha).filter(f => f && f >= D.hoy).sort(), ultima = fechas[fechas.length - 1];
+    const dia = ultima ? ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][fecha(ultima).getDay()] : null;
+    aceros = `<ul class="rp-lista"><li>${dia ? `Se asignan fechas de aceros hasta el día <b>${dia.toUpperCase()}</b> (${fCorta(ultima)}), esto nos da una fila de fabricación de <b>${fmt(A.kpis.dias_fila)} ${A.kpis.dias_fila === 1 ? 'día' : 'días'}</b>.`
+        : 'No hay aceros con fecha asignada desde hoy.'} Total en fila: <b>${fmt(A.kpis.fila)}</b> aceros${A.kpis.vencidos ? ` · <b class="rp-rojo">${fmt(A.kpis.vencidos)}</b> con fecha vencida` : ''}.</li></ul>
+      ${tablaFilaPorFecha(A)}`;
+  }
+  const x5 = D.x5 ? `<ul class="rp-lista"><li>Les comparto el inventario actualizado de BMW X5.</li></ul>${tablaX5HTML()}` : '';
+  let moldes = '<div class="vacio">Sin datos de Fila de moldes</div>';
+  if(MO){ const c = colaMoldesHTML(MO);
+    moldes = `<ul class="rp-lista"><li>Actualmente tenemos <b>${fmt(c.conFecha.length)}</b> ${c.conFecha.length === 1 ? 'molde' : 'moldes'} en fila de fabricación con las siguientes fechas de entrega${Object.keys(c.sinFecha).length ? `, y <b>${fmt(Object.keys(c.sinFecha).length)}</b> ${Object.keys(c.sinFecha).length === 1 ? 'desarrollo' : 'desarrollos'} pendiente${Object.keys(c.sinFecha).length === 1 ? '' : 's'} por diseño sin fecha establecida` : ''}:</li></ul>
+      <div class="rp-moldes">${c.html}</div>`; }
+  return `<div class="reporte">
+    <div class="rp-cab"><div><div class="rp-tit">Estatus de FULL KIT</div><div class="rp-fecha">${fLarga(D.hoy)} · datos actualizados ${fHora(D.generado)}</div></div></div>
+    <h3 class="rp-sec"><mark>ACEROS</mark></h3>${aceros}
+    ${x5 ? `<h3 class="rp-sec"><mark>ACEROS OEM · BMW X5</mark></h3>${x5}` : ''}
+    <h3 class="rp-sec"><mark>FABRICACIÓN DE MOLDES</mark></h3>${moldes}
   </div>`;
 }
 function franjaRetenidas(A){
@@ -1654,9 +1723,9 @@ const BLOQUE_RESUMEN_X5 = {
   dibujar(){ if(D.x5) dibujarGraficaResumen(this); },
 };
 
-function tarjetaResumenOem(){
+function tablaX5HTML(){
   const X = D.x5;
-  if(!X) return '';
+  if(!X) return '<div class="vacio">Sin datos del inventario BMW X5</div>';
   // tabla: familias en el orden del Excel, cada una con sus piezas y su subtotal
   const fams = {}; X.filas.forEach(r => { const p = piezaX5(r.pieza); (fams[p.familia] = fams[p.familia] || []).push({...r, ...p}); });
   const op = BLOQUE_RESUMEN_X5.op, sum = (rs, k) => rs.reduce((a, r) => a + r[k], 0);
@@ -1677,15 +1746,19 @@ function tarjetaResumenOem(){
       <tr class="fam"><td><span class="x5-nom">${esc(f)}</span></td><td class="n">${fmt(m)}</td><td class="n">${fmt(c)}</td>${celdaTot(m + c, color, true)}${celdaSets(setsFam[f], true)}</tr>
       ${unica ? '' : rs.map(r => `<tr class="det"><td>${esc(r.detalle)}${porSet(r.pieza) > 1 ? ` <small class="x5-xset">(${porSet(r.pieza)} por set)</small>` : ''}</td><td class="n">${fmt(r.matriceria)}</td><td class="n">${fmt(r.calidad)}</td>${celdaTot(r.matriceria + r.calidad, color, false)}${celdaSets(setsPieza(r), false)}</tr>`).join('')}
     </tbody>`; }).join('');
+  return `<div class="x5-resumen"><div class="x5-sets"><b>${fmt(setsX5)}</b><span>sets X5 completos${limita ? ` · limita ${esc(piezaLimita ? piezaLimita.detalle.toLowerCase() : limita)}` : ''}</span></div><div><b>${fmt(tm + tc)}</b><span>aceros en inventario</span></div><div><b>${fmt(tm)}</b><span>en matricería</span></div><div><b>${fmt(tc)}</b><span>en calidad (piso)</span></div></div>
+        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad</th><th class="n">Total</th><th class="n">Sets</th></tr></thead>
+          ${cuerpo}</table></div>`;
+}
+function tarjetaResumenOem(){
+  if(!D.x5) return '';
   return `<article class="serv-largo">
     <div class="sl-head"><h3>Aceros OEM · BMW X5</h3><span class="ver" data-ir="aceros" data-sub-ir="oem" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_X5.id, BLOQUE_RESUMEN_X5.titulo)}
       <div class="kpi ra-chart ra-tabla">
         <div class="lbl"><span>Inventario por pieza</span></div>
-        <div class="x5-resumen"><div class="x5-sets"><b>${fmt(setsX5)}</b><span>sets X5 completos${limita ? ` · limita ${esc(piezaLimita ? piezaLimita.detalle.toLowerCase() : limita)}` : ''}</span></div><div><b>${fmt(tm + tc)}</b><span>aceros en inventario</span></div><div><b>${fmt(tm)}</b><span>en matricería</span></div><div><b>${fmt(tc)}</b><span>en calidad (piso)</span></div></div>
-        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad</th><th class="n">Total</th><th class="n">Sets</th></tr></thead>
-          ${cuerpo}</table></div>
+        ${tablaX5HTML()}
       </div>
     </div></article>`;
 }
@@ -3164,8 +3237,8 @@ BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 const limboMolde = d => !!d.entrega && d.entrega.slice(5, 7) === '12' && (fecha(d.entrega) - fecha(D.hoy)) / 864e5 > 30;
 const sinFechaMolde = d => !d.entrega;
 const piezaMolde = d => (d.rep || d.codigo || '').replace(/\s*#\d+\s*$/, '').trim() || '—';
-function tarjetaResumenMoldes(MO){
-  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
+// moldes en cola (con fecha, agrupados por vehículo) y desarrollos sin fecha: {conFecha, sinFecha, html}
+function colaMoldesHTML(MO){
   const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde' && !limboMolde(d));
   const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
   const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
@@ -3184,14 +3257,19 @@ function tarjetaResumenMoldes(MO){
         ${ds.map(d => `<div class="mc-fila"><span class="mc-cod num">${esc(piezaMolde(d))}</span><span class="mc-der"><span class="mc-dias ${d.entrega < D.hoy ? 'venc' : ''}">${faltan(d.entrega)}</span>${chipFecha(d.entrega)}</span></div>`).join('')}
       </div>`).join('');
   const sinF = Object.entries(sinFecha).map(([v, n]) => `<div class="mc-fila sin"><span>${esc(titulo(v))}</span><span class="mc-set">Set · ${fmt(n)} ${n === 1 ? 'molde' : 'moldes'}</span></div>`).join('');
+  return {conFecha, sinFecha, html: `<div class="mc">${cuerpo || '<div class="vacio">Sin moldes con fecha de entrega</div>'}
+          ${sinF ? `<div class="mc-sec">Desarrollos pendientes por diseño · sin fecha establecida</div>${sinF}` : ''}</div>`};
+}
+function tarjetaResumenMoldes(MO){
+  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
+  const {conFecha, sinFecha, html} = colaMoldesHTML(MO);
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
       <div class="kpi ra-chart ra-tabla">
         <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(conFecha.length)} con fecha${Object.keys(sinFecha).length ? ` · ${fmt(Object.keys(sinFecha).length)} sin fecha` : ''}</span></div>
-        <div class="mc">${cuerpo || '<div class="vacio">Sin moldes con fecha de entrega</div>'}
-          ${sinF ? `<div class="mc-sec">Desarrollos pendientes por diseño · sin fecha establecida</div>${sinF}` : ''}</div>
+        ${html}
       </div>
     </div></article>`;
 }
