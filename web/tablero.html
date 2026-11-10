@@ -216,6 +216,19 @@
   .rp-venc{font-size:10.5px;font-weight:700;color:var(--bad);border:1px solid var(--bad);border-radius:999px;padding:0 6px;margin-left:4px}
   table.rp-tabla tfoot td{background:var(--grid);font-weight:800;border-top:2px solid #2F6E8C}
   .reporte .x5-resumen,.reporte .tabla,.reporte .rp-moldes{max-width:820px}
+  .rp-ayuda{font-size:11px;color:var(--muted)}
+  .rp-notas li[data-i]{position:relative;cursor:text;border-radius:6px;padding:1px 26px 1px 4px;margin-left:-4px}
+  .rp-notas li[data-i]:hover{background:var(--grid)}
+  .rp-x{position:absolute;right:2px;top:2px;display:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
+  .rp-notas li[data-i]:hover .rp-x{display:block}
+  .rp-x:hover{color:var(--bad)}
+  .rp-mas{list-style:none;margin-left:-22px;display:flex;gap:12px;align-items:center}
+  .rp-mas button{border:1px dashed var(--border);background:transparent;color:var(--text-soft);border-radius:6px;padding:2px 10px;font:600 12px var(--font);cursor:pointer}
+  .rp-mas button:hover{color:var(--text);border-color:var(--text-soft)}
+  .rp-quien{font-size:11px;color:var(--muted)}
+  .rp-editando textarea{width:100%;font:14px/1.5 var(--font);color:var(--text);background:var(--surface);border:1px solid var(--brand);border-radius:6px;padding:4px 8px;resize:none;overflow:hidden}
+  .rp-llaves{font-size:11px;color:var(--muted);margin:2px 0 4px}
+  .rp-llaves code{font-family:var(--font);background:var(--grid);border-radius:4px;padding:0 4px;margin-right:2px}
   .rk-tur{display:block;font-size:10.5px;font-weight:600;color:var(--muted);margin-top:1px}
   .ret-k{display:flex;flex-direction:column;gap:8px}
   .ret-k .seri-nota{margin-top:auto}
@@ -1389,28 +1402,79 @@ function tablaFilaPorFecha(A){
       mats.map(m => `<td class="n">${f.segs[m] ? fmt(f.segs[m]) : ''}</td>`).join('')}<td class="n"><b>${fmt(f.total)}</b></td></tr>`).join('')}</tbody>
     <tfoot><tr><td>Total general</td>${mats.map(m => `<td class="n">${fmt(tot(m))}</td>`).join('')}<td class="n">${fmt(total)}</td></tr></tfoot></table></div>`;
 }
+// Notas del reporte: cada sección tiene sus renglones (guardados en la base, cesar.reporte_nota). Sin nada guardado se usa el
+// texto por defecto. Lo que va {entre llaves} se reemplaza por el dato del momento, así el texto se edita sin congelar números.
+const NOTAS_DEFECTO = {
+  'fullkit/aceros': ['Se asignan fechas de aceros hasta el día {dia} ({fecha_hasta}), esto nos da una fila de fabricación de {dias_fila} días. Total en fila: {fila} aceros · {vencidos} con fecha vencida.'],
+  'fullkit/x5': ['Les comparto el inventario actualizado de BMW X5.'],
+  'fullkit/moldes': ['Actualmente tenemos {moldes} moldes en fila de fabricación con las siguientes fechas de entrega, y {desarrollos} desarrollos pendientes por diseño sin fecha establecida:'],
+};
+const lineasNota = clave => { const n = D.notas && D.notas[clave]; return n ? n.lineas : (NOTAS_DEFECTO[clave] || []); };
+const conDatos = (texto, datos) => esc(texto).replace(/\{([a-z_]+)\}/g, (m, k) => k in datos ? `<b>${esc(String(datos[k]))}</b>` : m);
+function notasHTML(clave, datos){
+  const n = D.notas && D.notas[clave];
+  return `<ul class="rp-lista rp-notas" data-notas="${clave}" data-datos="${esc(JSON.stringify(datos))}">${
+    lineasNota(clave).map((l, i) => `<li data-i="${i}" title="Clic para editar">${conDatos(l, datos)}<button class="rp-x" data-quitar="${i}" title="Quitar este renglón">✕</button></li>`).join('')}
+    <li class="rp-mas"><button data-agregar>+ Agregar renglón</button>${n ? `<span class="rp-quien">editado ${fHora(n.t)}${n.u ? ' · ' + esc(n.u) : ''}</span>` : ''}</li></ul>`;
+}
 function reporteFullKit(){
   const A = D.aceros, MO = D.moldes;
   let aceros = '<div class="vacio">Sin datos del consolidado de aceros</div>';
   if(A){
     const fechas = (A.fila_por_fecha || []).map(f => f.fecha).filter(f => f && f >= D.hoy).sort(), ultima = fechas[fechas.length - 1];
-    const dia = ultima ? ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][fecha(ultima).getDay()] : null;
-    aceros = `<ul class="rp-lista"><li>${dia ? `Se asignan fechas de aceros hasta el día <b>${dia.toUpperCase()}</b> (${fCorta(ultima)}), esto nos da una fila de fabricación de <b>${fmt(A.kpis.dias_fila)} ${A.kpis.dias_fila === 1 ? 'día' : 'días'}</b>.`
-        : 'No hay aceros con fecha asignada desde hoy.'} Total en fila: <b>${fmt(A.kpis.fila)}</b> aceros${A.kpis.vencidos ? ` · <b class="rp-rojo">${fmt(A.kpis.vencidos)}</b> con fecha vencida` : ''}.</li></ul>
-      ${tablaFilaPorFecha(A)}`;
+    const dia = ultima ? ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][fecha(ultima).getDay()] : '—';
+    aceros = notasHTML('fullkit/aceros', {dia: dia.toUpperCase(), fecha_hasta: ultima ? fCorta(ultima) : '—', dias_fila: fmt(A.kpis.dias_fila),
+                                          fila: fmt(A.kpis.fila), vencidos: fmt(A.kpis.vencidos)}) + tablaFilaPorFecha(A);
   }
-  const x5 = D.x5 ? `<ul class="rp-lista"><li>Les comparto el inventario actualizado de BMW X5.</li></ul>${tablaX5HTML()}` : '';
+  const x5 = D.x5 ? notasHTML('fullkit/x5', {}) + tablaX5HTML() : '';
   let moldes = '<div class="vacio">Sin datos de Fila de moldes</div>';
   if(MO){ const c = colaMoldesHTML(MO);
-    moldes = `<ul class="rp-lista"><li>Actualmente tenemos <b>${fmt(c.conFecha.length)}</b> ${c.conFecha.length === 1 ? 'molde' : 'moldes'} en fila de fabricación con las siguientes fechas de entrega${Object.keys(c.sinFecha).length ? `, y <b>${fmt(Object.keys(c.sinFecha).length)}</b> ${Object.keys(c.sinFecha).length === 1 ? 'desarrollo' : 'desarrollos'} pendiente${Object.keys(c.sinFecha).length === 1 ? '' : 's'} por diseño sin fecha establecida` : ''}:</li></ul>
-      <div class="rp-moldes">${c.html}</div>`; }
+    moldes = notasHTML('fullkit/moldes', {moldes: fmt(c.conFecha.length), desarrollos: fmt(Object.keys(c.sinFecha).length)}) + `<div class="rp-moldes">${c.html}</div>`; }
   return `<div class="reporte">
-    <div class="rp-cab"><div><div class="rp-tit">Estatus de FULL KIT</div><div class="rp-fecha">${fLarga(D.hoy)} · datos actualizados ${fHora(D.generado)}</div></div></div>
+    <div class="rp-cab"><div><div class="rp-tit">Estatus de FULL KIT</div><div class="rp-fecha">${fLarga(D.hoy)} · datos actualizados ${fHora(D.generado)}</div></div>
+      <div class="rp-ayuda">Clic en un renglón para editarlo · Enter guarda · Esc cancela</div></div>
     <h3 class="rp-sec"><mark>ACEROS</mark></h3>${aceros}
     ${x5 ? `<h3 class="rp-sec"><mark>ACEROS OEM · BMW X5</mark></h3>${x5}` : ''}
     <h3 class="rp-sec"><mark>FABRICACIÓN DE MOLDES</mark></h3>${moldes}
   </div>`;
 }
+async function guardarNotas(clave, lineas){
+  const [reporte, seccion] = clave.split('/');
+  try {
+    usuarioEdicion();
+    const j = await llamarRetenidas('PUT', `/api/notas/${reporte}/${seccion}`, {lineas});
+    D.notas = j.notas;
+  } catch(e){ alert('No se guardó la nota: ' + e.message); }
+  const r = $('#res-fullkit'); if(r) r.innerHTML = reporteFullKit();
+}
+// editar un renglón: se cambia por un cuadro de texto con el texto tal cual (con sus {datos})
+function editarRenglon(ul, i){
+  const clave = ul.dataset.notas, lineas = [...lineasNota(clave)], nuevo = i >= lineas.length;
+  const li = nuevo ? ul.insertBefore(document.createElement('li'), ul.querySelector('.rp-mas')) : ul.querySelector(`li[data-i="${i}"]`);
+  const datos = JSON.parse(ul.dataset.datos || '{}'), llaves = Object.keys(datos);
+  li.className = 'rp-editando';
+  li.innerHTML = `<textarea rows="2">${esc(nuevo ? '' : lineas[i])}</textarea>${llaves.length ? `<div class="rp-llaves">Datos que se actualizan solos: ${llaves.map(k => `<code>{${k}}</code>`).join(' ')}</div>` : ''}`;
+  const ta = li.querySelector('textarea'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  const alto = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }; alto(); ta.addEventListener('input', alto);
+  let listo = false;
+  const terminar = guardar => { if(listo) return; listo = true;
+    const v = ta.value.trim();
+    if(!guardar){ const r = $('#res-fullkit'); if(r) r.innerHTML = reporteFullKit(); return; }
+    if(nuevo){ if(v) lineas.push(v); } else if(v) lineas[i] = v; else lineas.splice(i, 1);
+    guardarNotas(clave, lineas);
+  };
+  ta.addEventListener('keydown', ev => { if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); terminar(true); } else if(ev.key === 'Escape') terminar(false); });
+  ta.addEventListener('blur', () => terminar(true));
+}
+document.addEventListener('click', ev => {
+  const ul = ev.target.closest('.rp-notas'); if(!ul || ev.target.closest('.rp-editando')) return;
+  const clave = ul.dataset.notas;
+  if(ev.target.closest('[data-agregar]')) return editarRenglon(ul, lineasNota(clave).length);
+  const q = ev.target.closest('[data-quitar]');
+  if(q){ ev.stopPropagation(); if(!confirm('¿Quitar este renglón del reporte?')) return;
+    const lineas = [...lineasNota(clave)]; lineas.splice(+q.dataset.quitar, 1); return guardarNotas(clave, lineas); }
+  const li = ev.target.closest('li[data-i]'); if(li) editarRenglon(ul, +li.dataset.i);
+});
 function franjaRetenidas(A){
   return `<div class="ret-area"><h2 class="sec">Piezas retenidas</h2>
     <div class="ret-grid">${tarjetaRetAceros(A)}${tarjetaRetSeri(D.serigrafia)}${tarjetaRetMoldes()}</div></div>`;
