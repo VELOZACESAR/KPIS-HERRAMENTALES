@@ -2418,8 +2418,9 @@ function periodosMat(){
   }
   return out;
 }
-// Turnos (horario de la planta): T1 noche · T2 mañana · T3 tarde; lo finalizado fuera de horario va aparte
-const ORDEN_TURNOS = ['T1', 'T2', 'T3', 'Fuera de turno'], NOMBRE_TURNO = {T1: 'T1 noche', T2: 'T2 mañana', T3: 'T3 tarde', 'Fuera de turno': 'Fuera de turno'};
+// Turnos (horario de la planta): T1 noche · T2 mañana · T3 tarde; lo finalizado fuera del horario es "Adicional" y se
+// suma en su misma fecha (domingo, sábado en la tarde, lunes antes de las 5:00)
+const ORDEN_TURNOS = ['T1', 'T2', 'T3', 'Adicional'], NOMBRE_TURNO = {T1: 'T1 noche', T2: 'T2 mañana', T3: 'T3 tarde', Adicional: 'Adicional (fuera de turno)'};
 const filasTurnos = obj => { const xs = ORDEN_TURNOS.filter(k => obj && obj[k]);
   return xs.length ? '<div style="margin-top:6px;opacity:.9">' + xs.map(k => `<div class="r"><span>${NOMBRE_TURNO[k]}</span><span>${fmt(obj[k])}</span></div>`).join('') + '</div>' : ''; };
 function analisisMat(M){
@@ -2470,7 +2471,7 @@ function analisisBasico(M){
 // Ranking de matriceros del periodo: barra apilada por vehículo (escala = el que más hizo), total, % del equipo,
 // promedio por periodo activo y mini-tendencia por columna del periodo.
 const resumenTurnos = obj => { const xs = ORDEN_TURNOS.filter(k => obj && obj[k]);
-  return xs.length ? `<small class="rk-tur">${xs.map(k => `${k === 'Fuera de turno' ? 'Fuera' : k} ${fmt(obj[k])}`).join(' · ')}</small>` : ''; };
+  return xs.length ? `<small class="rk-tur">${xs.map(k => `${k === 'Adicional' ? 'Adic.' : k} ${fmt(obj[k])}`).join(' · ')}</small>` : ''; };
 function dibujarRankingMat(M, A, op, unidad){
   const max = Math.max(1, ...A.personas.map(p => p.total)), tot = A.equipo.total || 1;
   const segsTot = p => { const s = {}; p.segs.forEach(x => { for(const k in x) s[k] = (s[k] || 0) + x[k]; }); return s; };

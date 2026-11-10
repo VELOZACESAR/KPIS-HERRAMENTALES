@@ -27,17 +27,18 @@ INICIO_T2 = dt.time(5, 0)
 
 
 def turno(momento):
-    """(día de producción, turno) del momento en que se finalizó: 'T1', 'T2', 'T3' o 'Fuera de turno'."""
+    """(día de producción, turno) del momento en que se finalizó: 'T1', 'T2', 'T3' o 'Adicional' (fuera del horario:
+    domingo, sábado en la tarde, lunes antes de las 5:00; se suma en su misma fecha)."""
     d, h, w = momento.date(), momento.time(), momento.weekday()
     if h < INICIO_T2:
-        return d, ("T1" if w in CON_T1 else "Fuera de turno")
+        return d, ("T1" if w in CON_T1 else "Adicional")
     if w in FIN_T2 and h < FIN_T2[w]:
         return d, "T2"
     if w in FIN_T3 and h < FIN_T3[w]:
         return d, "T3"
     if w in FIN_T3 and (w + 1) % 7 in CON_T1:   # después del T3: es el T1 del día siguiente
         return d + dt.timedelta(days=1), "T1"
-    return d, "Fuera de turno"
+    return d, "Adicional"
 
 
 def _pad(valor, n):
