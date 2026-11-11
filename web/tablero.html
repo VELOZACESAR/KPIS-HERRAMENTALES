@@ -199,6 +199,37 @@
 
   /* ---------- resumen ---------- */
   .ret-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+  /* Resumen: selector de indicadores / reportes y reporte con formato de correo */
+  .res-modo{margin:0 0 14px}
+  .reporte{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 26px;max-width:1100px}
+  .rp-cab{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--grid);padding-bottom:10px;margin-bottom:6px}
+  .rp-tit{font-size:20px;font-weight:800;font-style:italic;color:var(--text)}
+  .rp-fecha{font-size:12px;color:var(--text-soft);margin-top:2px}
+  .rp-sec{margin:20px 0 6px;font-size:15px;font-weight:800;letter-spacing:.02em}
+  .rp-sec mark{background:#E8F36A;color:#0B1626;padding:2px 6px;border-radius:3px;text-decoration:underline}
+  .rp-lista{margin:4px 0 10px;padding-left:22px;font-size:14px;line-height:1.6;color:var(--text)}
+  .rp-rojo{color:var(--bad)}
+  table.rp-tabla{font-size:12.5px;border-collapse:collapse;min-width:520px}
+  table.rp-tabla th{background:#2F6E8C;color:#fff;font-size:11px;letter-spacing:.04em;padding:6px 10px;text-transform:none}
+  table.rp-tabla td{padding:5px 10px;border-bottom:1px solid var(--grid)}
+  table.rp-tabla tr.venc td:first-child{color:var(--bad)}
+  .rp-venc{font-size:10.5px;font-weight:700;color:var(--bad);border:1px solid var(--bad);border-radius:999px;padding:0 6px;margin-left:4px}
+  table.rp-tabla tfoot td{background:var(--grid);font-weight:800;border-top:2px solid #2F6E8C}
+  .reporte .x5-resumen,.reporte .tabla,.reporte .rp-moldes{max-width:820px}
+  .rp-ayuda{font-size:11px;color:var(--muted)}
+  .rp-notas li[data-i]{position:relative;cursor:text;border-radius:6px;padding:1px 26px 1px 4px;margin-left:-4px}
+  .rp-notas li[data-i]:hover{background:var(--grid)}
+  .rp-x{position:absolute;right:2px;top:2px;display:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px}
+  .rp-notas li[data-i]:hover .rp-x{display:block}
+  .rp-x:hover{color:var(--bad)}
+  .rp-mas{list-style:none;margin-left:-22px;display:flex;gap:12px;align-items:center}
+  .rp-mas button{border:1px dashed var(--border);background:transparent;color:var(--text-soft);border-radius:6px;padding:2px 10px;font:600 12px var(--font);cursor:pointer}
+  .rp-mas button:hover{color:var(--text);border-color:var(--text-soft)}
+  .rp-quien{font-size:11px;color:var(--muted)}
+  .rp-editando textarea{width:100%;font:14px/1.5 var(--font);color:var(--text);background:var(--surface);border:1px solid var(--brand);border-radius:6px;padding:4px 8px;resize:none;overflow:hidden}
+  .rp-llaves{font-size:11px;color:var(--muted);margin:2px 0 4px}
+  .rp-llaves code{font-family:var(--font);background:var(--grid);border-radius:4px;padding:0 4px;margin-right:2px}
+  .rk-tur{display:block;font-size:10.5px;font-weight:600;color:var(--muted);margin-top:1px}
   .ret-k{display:flex;flex-direction:column;gap:8px}
   .ret-k .seri-nota{margin-top:auto}
   .ret-k .ret-in{font:700 52px/1 var(--font)!important;width:3.2ch;padding:0;border:0;background:transparent;border-bottom:2px dashed var(--border)}
@@ -630,11 +661,13 @@ const tintaSobre = hex => { const h = String(hex).replace('#',''); if(h.length !
   return 0.2126*r + 0.7152*g + 0.0722*b < 0.42 ? '#ffffff' : '#0B1626'; };
 let COLOR_MAT = {}, COLOR_CAT = {}, COLOR_X5 = {}, COLOR_RET = {}, COLOR_SCR = {}, PALETA_PERSONAS = [], COLOR_HERR = {};
 // asigna los colores de cada gráfica según el tema actual (se llama al dibujar y al cambiar de tema)
+// "Pedido Cancelado" en Operario del consolidado: cierra la fecha comprometida con este color (no es cumplido ni incumplido)
+const PEDIDO_CANCELADO = 'Pedido cancelado', COLOR_CANCELADO = '#E0399E';
 function aplicarPaleta(){
   const tema = document.documentElement.dataset.tema === 'claro' ? 'claro' : 'oscuro';
   PALETA = PALETAS[tema]; COLOR_OTRO = OTROS[tema];
   COLOR_MAT = {'Böhler':PALETA[0],'Inox 2,5mm':PALETA[1],'Galvanizado 0,3mm':PALETA[2],'Inox 3mm':PALETA[3],
-               'Inox 1mm':PALETA[4],'Gurkha':PALETA[5],'Otro':COLOR_OTRO};
+               'Inox 1mm':PALETA[4],'Gurkha':PALETA[5],'Otro':COLOR_OTRO, [PEDIDO_CANCELADO]:COLOR_CANCELADO};
   COLOR_CAT = {'Retrofit':PALETA[0], 'BMW X5':PALETA[1], 'Express Van':PALETA[4], 'Land Rover Sentinel':PALETA[2], 'BMW Serie 7':PALETA[3]};
   COLOR_X5 = {'Matricería':PALETA[0], 'Calidad (piso)':PALETA[1]};
   COLOR_RET = {'Falta de archivo (Vitrojet)':PALETA[0], 'Falta de malla':PALETA[1]};
@@ -1081,6 +1114,13 @@ function capFilaHTML(titulo, celdas){
   return `<span class="cap-tit">${titulo}</span><div class="cap-celdas" style="grid-template-columns:repeat(${celdas.length},minmax(0,1fr))">${
     celdas.map(c => `<span class="${valorManual(c.clave, null)!=null?'propia':''}" title="${esc(c.titulo)}: vacía = ${c.resp}">${inputManual(c.clave, null, c.resp)}</span>`).join('')}</div>`;
 }
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('#res-modo button'); if(!b) return;
+  modoResumen = b.dataset.r; guardarPref('tablero-res-modo', modoResumen);
+  document.querySelectorAll('#res-modo button').forEach(x => x.setAttribute('aria-pressed', x.dataset.r === modoResumen));
+  REPORTES_RESUMEN.forEach(r => { const el = $('#res-' + r.id); if(el) el.hidden = r.id !== modoResumen; });
+  if(modoResumen === 'indicadores') dibujarResumen();   // las gráficas se dibujan con el ancho visible
+});
 function dibujarResumen(){
   if(D && !$('#v-resumen').hidden) BLOQUES_RESUMEN.forEach(b => b.dibujar()); // secciones con gráfica por periodo (ej. Mantenimiento)
   const A = D && D.aceros, cont = $('#ch-res-prod'); if(!A || !cont || $('#v-resumen').hidden) return;
@@ -1191,6 +1231,7 @@ function render(){
   const A = D.aceros;
   aplicarPaleta();
   if(D.colores_materiales) COLOR_MAT = {...D.colores_materiales, ...COLOR_MAT};
+  if(D.orden_materiales && !D.orden_materiales.includes(PEDIDO_CANCELADO)) D.orden_materiales.push(PEDIDO_CANCELADO);
   armarServicios();
 
   // encabezado
@@ -1200,7 +1241,7 @@ function render(){
 
   $('#tabs').innerHTML = SERVICIOS.map(s => {
     let color = 'var(--muted)';
-    if(s.id==='aceros' && A) color = COLOR_EST[estadoAceros(A.ayer.comprometidos_hechos, A.ayer.comprometidos).cls];
+    if(s.id==='aceros' && A) color = COLOR_EST[estadoAceros(A.ayer.comprometidos_hechos, A.ayer.comprometidos - (A.ayer.comprometidos_cancelados || 0)).cls];
     if(s.id==='mantenimiento' && D.mantenimiento) color = 'var(--teal)';
     if(s.id==='moldes' && D.moldes) color = D.moldes.kpis.vencidos ? 'var(--bad)' : 'var(--ok)';
     if(s.id==='serigrafia' && D.serigrafia) color = D.serigrafia.retenidas && D.serigrafia.retenidas.total ? 'var(--bad)' : 'var(--ok)';
@@ -1291,10 +1332,14 @@ function vistaResumen(A){
   const pend = D.pendientes.map(p => `<article class="serv-largo pend" data-ir="${p.id}" tabindex="0">
       <div class="sl-head"><h3>${esc(p.nombre)}</h3><span class="chip neutral">○ Pendiente de conectar</span></div>
       <div class="desc">Para activarlo se necesita: ${p.necesita.map(esc).join(' · ')}</div></article>`).join('');
+  const modo = REPORTE ? 'indicadores' : modoResumen;
   return `<section class="vista" id="v-resumen" hidden>
+    ${REPORTE ? '' : `<div class="seg res-modo" id="res-modo">${REPORTES_RESUMEN.map(r => `<button data-r="${r.id}" aria-pressed="${r.id === modo}">${esc(r.nombre)}</button>`).join('')}</div>`}
+    <div id="res-indicadores" ${modo === 'indicadores' ? '' : 'hidden'}>
     ${franjaRetenidas(A)}
     <h2 class="sec">${t('servicios')}</h2>
-    <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></section>`;
+    <div class="lista-serv">${tarjAceros}${tarjetaResumenOem()}${tarjetaResumenMant(D.mantenimiento)}${tarjetaResumenMoldes(D.moldes)}${tarjetaResumenSeri(D.serigrafia)}${pend}</div></div>
+    <div id="res-fullkit" ${modo === 'fullkit' ? '' : 'hidden'}>${reporteFullKit()}</div></section>`;
 }
 
 // ---- Piezas retenidas del área (arriba del Resumen), una tarjeta por servicio:
@@ -1338,6 +1383,98 @@ function tarjetaRetMoldes(){
     <div class="desc seri-nota"><span class="registro" data-registro="ret-moldes">Clic en el número para escribirlo</span></div>
   </div>`;
 }
+// ---- Reportes del Resumen (lo que se envía a cada área). Primero: Estatus de FULL KIT, como el correo:
+//   Aceros: hasta qué día hay fechas asignadas, días de fila y la tabla de aceros en fila por fecha de compromiso y material;
+//   el inventario BMW X5 (la misma tabla del Resumen) y los moldes en fila de fabricación (la misma lista del Resumen).
+const REPORTES_RESUMEN = [{id: 'indicadores', nombre: 'Indicadores del área'}, {id: 'fullkit', nombre: 'Reporte · Full Kit'}];
+// el reporte se puede abrir directo: ...?resumen=fullkit (si no, el último que se vio en este navegador)
+let modoResumen = (() => { const u = new URLSearchParams(location.search).get('resumen'), ids = REPORTES_RESUMEN.map(r => r.id);
+  const m = ids.includes(u) ? u : leerPref('tablero-res-modo', 'indicadores'); return ids.includes(m) ? m : 'indicadores'; })();
+function tablaFilaPorFecha(A){
+  const filas = A.fila_por_fecha || [];
+  if(!filas.length) return '<div class="vacio">No hay aceros en fila con fecha asignada</div>';
+  const mats = [...D.orden_materiales.filter(m => filas.some(f => f.segs[m])), ...(filas.some(f => f.segs['(en blanco)']) ? ['(en blanco)'] : [])];
+  const tot = m => filas.reduce((a, f) => a + (f.segs[m] || 0), 0), total = filas.reduce((a, f) => a + f.total, 0);
+  const nombreFecha = iso => { if(!iso) return 'Sin fecha'; const f = fecha(iso);
+    return `${['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][f.getDay()]}, ${f.getDate()} de ${MESES[f.getMonth()].toLowerCase()} de ${f.getFullYear()}`; };
+  return `<div class="tabla"><table class="rp-tabla"><thead><tr><th>Fecha de compromiso</th>${mats.map(m => `<th class="n">${esc(m === '(en blanco)' ? m : m.toUpperCase())}</th>`).join('')}<th class="n">Total</th></tr></thead>
+    <tbody>${filas.map(f => `<tr class="${f.fecha && f.fecha < D.hoy ? 'venc' : ''}"><td>${nombreFecha(f.fecha)}${f.fecha && f.fecha < D.hoy ? ' <span class="rp-venc">vencido</span>' : ''}</td>${
+      mats.map(m => `<td class="n">${f.segs[m] ? fmt(f.segs[m]) : ''}</td>`).join('')}<td class="n"><b>${fmt(f.total)}</b></td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>Total general</td>${mats.map(m => `<td class="n">${fmt(tot(m))}</td>`).join('')}<td class="n">${fmt(total)}</td></tr></tfoot></table></div>`;
+}
+// Notas del reporte: cada sección tiene sus renglones (guardados en la base, cesar.reporte_nota). Sin nada guardado se usa el
+// texto por defecto. Lo que va {entre llaves} se reemplaza por el dato del momento, así el texto se edita sin congelar números.
+const NOTAS_DEFECTO = {
+  'fullkit/aceros': ['Se asignan fechas de aceros hasta el día {dia} ({fecha_hasta}), esto nos da una fila de fabricación de {dias_fila} días. Total en fila: {fila} aceros · {vencidos} con fecha vencida.'],
+  'fullkit/x5': ['Les comparto el inventario actualizado de BMW X5.'],
+  'fullkit/moldes': ['Actualmente tenemos {moldes} moldes en fila de fabricación con las siguientes fechas de entrega, y {desarrollos} desarrollos pendientes por diseño sin fecha establecida:'],
+};
+const lineasNota = clave => { const n = D.notas && D.notas[clave]; return n ? n.lineas : (NOTAS_DEFECTO[clave] || []); };
+const conDatos = (texto, datos) => esc(texto).replace(/\{([a-z_]+)\}/g, (m, k) => k in datos ? `<b>${esc(String(datos[k]))}</b>` : m);
+function notasHTML(clave, datos){
+  const n = D.notas && D.notas[clave];
+  return `<ul class="rp-lista rp-notas" data-notas="${clave}" data-datos="${esc(JSON.stringify(datos))}">${
+    lineasNota(clave).map((l, i) => `<li data-i="${i}" title="Clic para editar">${conDatos(l, datos)}<button class="rp-x" data-quitar="${i}" title="Quitar este renglón">✕</button></li>`).join('')}
+    <li class="rp-mas"><button data-agregar>+ Agregar renglón</button>${n ? `<span class="rp-quien">editado ${fHora(n.t)}${n.u ? ' · ' + esc(n.u) : ''}</span>` : ''}</li></ul>`;
+}
+function reporteFullKit(){
+  const A = D.aceros, MO = D.moldes;
+  let aceros = '<div class="vacio">Sin datos del consolidado de aceros</div>';
+  if(A){
+    const fechas = (A.fila_por_fecha || []).map(f => f.fecha).filter(f => f && f >= D.hoy).sort(), ultima = fechas[fechas.length - 1];
+    const dia = ultima ? ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][fecha(ultima).getDay()] : '—';
+    aceros = notasHTML('fullkit/aceros', {dia: dia.toUpperCase(), fecha_hasta: ultima ? fCorta(ultima) : '—', dias_fila: fmt(A.kpis.dias_fila),
+                                          fila: fmt(A.kpis.fila), vencidos: fmt(A.kpis.vencidos)}) + tablaFilaPorFecha(A);
+  }
+  const x5 = D.x5 ? notasHTML('fullkit/x5', {}) + tablaX5HTML() : '';
+  let moldes = '<div class="vacio">Sin datos de Fila de moldes</div>';
+  if(MO){ const c = colaMoldesHTML(MO);
+    moldes = notasHTML('fullkit/moldes', {moldes: fmt(c.conFecha.length), desarrollos: fmt(Object.keys(c.sinFecha).length)}) + `<div class="rp-moldes">${c.html}</div>`; }
+  return `<div class="reporte">
+    <div class="rp-cab"><div><div class="rp-tit">Estatus de FULL KIT</div><div class="rp-fecha">${fLarga(D.hoy)} · datos actualizados ${fHora(D.generado)}</div></div>
+      <div class="rp-ayuda">Clic en un renglón para editarlo · Enter guarda · Esc cancela</div></div>
+    <h3 class="rp-sec"><mark>ACEROS</mark></h3>${aceros}
+    ${x5 ? `<h3 class="rp-sec"><mark>ACEROS OEM · BMW X5</mark></h3>${x5}` : ''}
+    <h3 class="rp-sec"><mark>FABRICACIÓN DE MOLDES</mark></h3>${moldes}
+  </div>`;
+}
+async function guardarNotas(clave, lineas){
+  const [reporte, seccion] = clave.split('/');
+  try {
+    usuarioEdicion();
+    const j = await llamarRetenidas('PUT', `/api/notas/${reporte}/${seccion}`, {lineas});
+    D.notas = j.notas;
+  } catch(e){ alert('No se guardó la nota: ' + e.message); }
+  const r = $('#res-fullkit'); if(r) r.innerHTML = reporteFullKit();
+}
+// editar un renglón: se cambia por un cuadro de texto con el texto tal cual (con sus {datos})
+function editarRenglon(ul, i){
+  const clave = ul.dataset.notas, lineas = [...lineasNota(clave)], nuevo = i >= lineas.length;
+  const li = nuevo ? ul.insertBefore(document.createElement('li'), ul.querySelector('.rp-mas')) : ul.querySelector(`li[data-i="${i}"]`);
+  const datos = JSON.parse(ul.dataset.datos || '{}'), llaves = Object.keys(datos);
+  li.className = 'rp-editando';
+  li.innerHTML = `<textarea rows="2">${esc(nuevo ? '' : lineas[i])}</textarea>${llaves.length ? `<div class="rp-llaves">Datos que se actualizan solos: ${llaves.map(k => `<code>{${k}}</code>`).join(' ')}</div>` : ''}`;
+  const ta = li.querySelector('textarea'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  const alto = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }; alto(); ta.addEventListener('input', alto);
+  let listo = false;
+  const terminar = guardar => { if(listo) return; listo = true;
+    const v = ta.value.trim();
+    if(!guardar){ const r = $('#res-fullkit'); if(r) r.innerHTML = reporteFullKit(); return; }
+    if(nuevo){ if(v) lineas.push(v); } else if(v) lineas[i] = v; else lineas.splice(i, 1);
+    guardarNotas(clave, lineas);
+  };
+  ta.addEventListener('keydown', ev => { if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); terminar(true); } else if(ev.key === 'Escape') terminar(false); });
+  ta.addEventListener('blur', () => terminar(true));
+}
+document.addEventListener('click', ev => {
+  const ul = ev.target.closest('.rp-notas'); if(!ul || ev.target.closest('.rp-editando')) return;
+  const clave = ul.dataset.notas;
+  if(ev.target.closest('[data-agregar]')) return editarRenglon(ul, lineasNota(clave).length);
+  const q = ev.target.closest('[data-quitar]');
+  if(q){ ev.stopPropagation(); if(!confirm('¿Quitar este renglón del reporte?')) return;
+    const lineas = [...lineasNota(clave)]; lineas.splice(+q.dataset.quitar, 1); return guardarNotas(clave, lineas); }
+  const li = ev.target.closest('li[data-i]'); if(li) editarRenglon(ul, +li.dataset.i);
+});
 function franjaRetenidas(A){
   return `<div class="ret-area"><h2 class="sec">Piezas retenidas</h2>
     <div class="ret-grid">${tarjetaRetAceros(A)}${tarjetaRetSeri(D.serigrafia)}${tarjetaRetMoldes()}</div></div>`;
@@ -1467,7 +1604,7 @@ function tarjetaMatriceros(lista, meta){
 function vistaAceros(A){
   if(!A) return `<section class="vista" id="v-aceros" hidden><div class="aviso err">No se pudo leer el consolidado de aceros.</div></section>`;
   const a = A.ayer, k = A.kpis;
-  const eProd = estadoAceros(a.comprometidos_hechos, a.comprometidos);
+  const canc = a.comprometidos_cancelados || 0, eProd = estadoAceros(a.comprometidos_hechos, a.comprometidos - canc);
   const eRech = estado(a.rechazos, a.rechazos_prom, true);
   const noCump = a.no_cumplidos || [];
   const pendientes = noCump.filter(x => !x.fab), porPuesto = {};
@@ -1495,8 +1632,8 @@ function vistaAceros(A){
   <div class="grid-ayer">
     <div class="kpi hero span2">
       <div class="lbl"><span>Cumplimiento de compromisos · ${fCorta(a.fecha)}</span>${chip(eProd)}</div>
-      <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos)} <small>comprometidos${a.comprometidos_tarde ? ` · ${fmt(a.comprometidos_tarde)} entregados tarde` : ''}</small></div>
-      ${barraProyeccion(conTarde({segs: a.comprometidos_segs, segs_tarde: a.comprometidos_segs_tarde}), a.comprometidos_hechos + (a.comprometidos_tarde || 0), a.comprometidos, {marca:'Comprometidos', falta:'Sin fabricar', faltaCorto:'faltan'})}
+      <div class="val">${fmt(a.comprometidos_hechos)} <small>cumplidos de</small> ${fmt(a.comprometidos - canc)} <small>comprometidos${a.comprometidos_tarde ? ` · ${fmt(a.comprometidos_tarde)} entregados tarde` : ''}${canc ? ` · <b style="color:${COLOR_CANCELADO}">${fmt(canc)} pedidos cancelados</b>` : ''}</small></div>
+      ${barraProyeccion(conTarde({segs: a.comprometidos_segs, segs_tarde: a.comprometidos_segs_tarde, cancelados: canc}), a.comprometidos_hechos + (a.comprometidos_tarde || 0) + canc, a.comprometidos, {marca:'Comprometidos', falta:'Sin fabricar', faltaCorto:'faltan'})}
       ${tablaNoCump}
     </div>
     ${kpi(`Rechazos · ${fCorta(a.fecha)}`, fmt(a.rechazos), 'órdenes', `Promedio diario últimos 30 días: <b>${fmt(a.rechazos_prom,1)}</b>`, chip(eRech), 'hero')}
@@ -1650,9 +1787,9 @@ const BLOQUE_RESUMEN_X5 = {
   dibujar(){ if(D.x5) dibujarGraficaResumen(this); },
 };
 
-function tarjetaResumenOem(){
+function tablaX5HTML(){
   const X = D.x5;
-  if(!X) return '';
+  if(!X) return '<div class="vacio">Sin datos del inventario BMW X5</div>';
   // tabla: familias en el orden del Excel, cada una con sus piezas y su subtotal
   const fams = {}; X.filas.forEach(r => { const p = piezaX5(r.pieza); (fams[p.familia] = fams[p.familia] || []).push({...r, ...p}); });
   const op = BLOQUE_RESUMEN_X5.op, sum = (rs, k) => rs.reduce((a, r) => a + r[k], 0);
@@ -1673,15 +1810,19 @@ function tarjetaResumenOem(){
       <tr class="fam"><td><span class="x5-nom">${esc(f)}</span></td><td class="n">${fmt(m)}</td><td class="n">${fmt(c)}</td>${celdaTot(m + c, color, true)}${celdaSets(setsFam[f], true)}</tr>
       ${unica ? '' : rs.map(r => `<tr class="det"><td>${esc(r.detalle)}${porSet(r.pieza) > 1 ? ` <small class="x5-xset">(${porSet(r.pieza)} por set)</small>` : ''}</td><td class="n">${fmt(r.matriceria)}</td><td class="n">${fmt(r.calidad)}</td>${celdaTot(r.matriceria + r.calidad, color, false)}${celdaSets(setsPieza(r), false)}</tr>`).join('')}
     </tbody>`; }).join('');
+  return `<div class="x5-resumen"><div class="x5-sets"><b>${fmt(setsX5)}</b><span>sets X5 completos${limita ? ` · limita ${esc(piezaLimita ? piezaLimita.detalle.toLowerCase() : limita)}` : ''}</span></div><div><b>${fmt(tm + tc)}</b><span>aceros en inventario</span></div><div><b>${fmt(tm)}</b><span>en matricería</span></div><div><b>${fmt(tc)}</b><span>en calidad (piso)</span></div></div>
+        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad</th><th class="n">Total</th><th class="n">Sets</th></tr></thead>
+          ${cuerpo}</table></div>`;
+}
+function tarjetaResumenOem(){
+  if(!D.x5) return '';
   return `<article class="serv-largo">
     <div class="sl-head"><h3>Aceros OEM · BMW X5</h3><span class="ver" data-ir="aceros" data-sub-ir="oem" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_X5.id, BLOQUE_RESUMEN_X5.titulo)}
       <div class="kpi ra-chart ra-tabla">
         <div class="lbl"><span>Inventario por pieza</span></div>
-        <div class="x5-resumen"><div class="x5-sets"><b>${fmt(setsX5)}</b><span>sets X5 completos${limita ? ` · limita ${esc(piezaLimita ? piezaLimita.detalle.toLowerCase() : limita)}` : ''}</span></div><div><b>${fmt(tm + tc)}</b><span>aceros en inventario</span></div><div><b>${fmt(tm)}</b><span>en matricería</span></div><div><b>${fmt(tc)}</b><span>en calidad (piso)</span></div></div>
-        <div class="tabla"><table class="tx5r"><thead><tr><th>Pieza</th><th class="n">Matricería</th><th class="n">Calidad</th><th class="n">Total</th><th class="n">Sets</th></tr></thead>
-          ${cuerpo}</table></div>
+        ${tablaX5HTML()}
       </div>
     </div></article>`;
 }
@@ -1815,10 +1956,12 @@ function dibujarRetenidasPiso(){
   const hace30 = sumarDias(D.hoy, -29), n30 = R.filas.filter(f => f.fecha >= hace30).length;
   $('#ret-sub').textContent = 'Escribe o pega una o varias órdenes y presiona Enter; el compromiso, ZHAL, acero, entrega y matricero salen del consolidado';
   const opts = sel => ['', ...R.estatus].map(e => `<option value="${esc(e)}" ${e === (sel || '') ? 'selected' : ''}>${e ? esc(e) : '— Estatus —'}</option>`).join('');
+  // al registrar: Automático = ya entregada → Refundida, sin entregar → Retenida; En reproceso se escoge a mano
+  const optsNueva = `<option value="automatico" selected>Automático (según entrega)</option>${R.estatus.filter(e => e !== 'Liberada').map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join('')}`;
   const marca = (txt, color) => txt ? `<span class="marca" style="background:${hexA(color, .18)};color:var(--text);box-shadow:inset 0 0 0 1px ${hexA(color, .55)}">${esc(txt)}</span>` : '—';
   cont.innerHTML = `
     <div class="ret-form"><textarea id="ret-orden" rows="1" placeholder="N.º de orden (puedes pegar varias)" autocomplete="off" spellcheck="false"></textarea>
-      <select id="ret-estatus">${opts('Retenida')}</select><button id="ret-guardar" disabled>Registrar</button></div>
+      <select id="ret-estatus">${optsNueva}</select><button id="ret-guardar" disabled>Registrar</button></div>
     <div class="ret-prev" id="ret-prev"></div>
     <div class="ret-kpis"><span><b>${fmt(hoyN)}</b>hoy</span><span><b>${fmt(sem)}</b>esta semana</span><span><b>${fmt(n30)}</b>últimos 30 días</span></div>
     <div class="tabla ret-tabla"><table><thead><tr><th>Registro</th><th>Orden</th><th>Compromiso</th><th>ZHAL</th><th>Acero</th><th>Entrega</th><th>Matricero</th><th>Estatus</th><th></th></tr></thead><tbody>${
@@ -1868,15 +2011,18 @@ document.addEventListener('input', ev => {
       if(ordenesRet($('#ret-orden').value).join() !== ords.join()) return;   // ya cambió lo escrito
       const R = (D.aceros && D.aceros.retenidas_piso) || {filas: []};
       const yaActiva = o => R.filas.some(f => f.orden === o && f.estatus !== 'Liberada');
+      const auto = $('#ret-estatus').value === 'automatico', estAuto = o => j.datos[o] && j.datos[o].entrega ? 'Refundida' : 'Retenida';
       if(ords.length === 1){
         const o = ords[0], x = j.datos[o];
-        prev.innerHTML = (x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
+        prev.innerHTML = (auto ? `Quedará como <b>${estAuto(o)}</b> (${estAuto(o) === 'Refundida' ? 'ya se entregó' : 'aún no se entrega'}) · ` : '') + (x ? `Compromiso <b>${x.compromiso ? fCorta(x.compromiso) : '—'}</b> · ZHAL <b>${esc(x.zhal || '—')}</b> · Acero <b>${esc(x.acero || '—')}</b> · Entrega <b>${x.entrega ? fCorta(x.entrega) : 'sin entregar'}</b> · Matricero <b>${esc(x.matricero || '—')}</b>`
                              : '<span style="color:var(--bad)">Esa orden no está en el consolidado (igual se puede registrar)</span>') +
                          (yaActiva(o) ? ' · <span style="color:var(--near)">ya está registrada sin liberar</span>' : '');
         return;
       }
       const no = ords.filter(o => !j.datos[o]), rep_ = ords.filter(yaActiva);
+      const nRef = ords.filter(o => estAuto(o) === 'Refundida').length;
       prev.innerHTML = `<b>${fmt(ords.length)}</b> órdenes · <b>${fmt(ords.length - no.length)}</b> en el consolidado` +
+        (auto ? ` · quedarán <b>${fmt(nRef)}</b> Refundidas (ya entregadas) y <b>${fmt(ords.length - nRef)}</b> Retenidas` : '') +
         (no.length ? ` · <span style="color:var(--bad)">${fmt(no.length)} no están: ${no.slice(0, 6).map(esc).join(', ')}${no.length > 6 ? '…' : ''}</span>` : '') +
         (rep_.length ? ` · <span style="color:var(--near)">${fmt(rep_.length)} ya registradas sin liberar: ${rep_.slice(0, 6).map(esc).join(', ')}${rep_.length > 6 ? '…' : ''}</span>` : '');
     } catch(e){ prev.textContent = 'No se pudo buscar: ' + e.message; }
@@ -1903,6 +2049,7 @@ document.addEventListener('click', async ev => {
   } catch(e){ alert('No se guardó: ' + e.message); if(g){ g.disabled = false; g.textContent = 'Registrar'; } }
 });
 document.addEventListener('change', async ev => {
+  if(ev.target.id === 'ret-estatus'){ const o = $('#ret-orden'); if(o && o.value.trim()) o.dispatchEvent(new Event('input', {bubbles: true})); return; }
   const id = ev.target.dataset && ev.target.dataset.retEstatus; if(!id) return;
   try { const j = await llamarRetenidas('PUT', '/api/retenidas/' + id, {estatus: ev.target.value || null}); aplicarRetenidas(j.retenidas); }
   catch(e){ alert('No se guardó el estatus: ' + e.message); }
@@ -1918,19 +2065,25 @@ function semanaIso(iso){
   const e = new Date(f.getFullYear(), 0, 4);
   return 1 + Math.round(((f - e) / 864e5 - 3 + ((e.getDay() + 6) % 7)) / 7);
 }
-// Lo entregado después de la fecha comprometida también cierra la barra, con el color de su material.
-const conTarde = c => { const s = {...c.segs}; for(const m in (c.segs_tarde || {})) s[m] = (s[m] || 0) + c.segs_tarde[m]; return s; };
+// Lo entregado después de la fecha comprometida también cierra la barra, con el color de su material; los pedidos
+// cancelados la cierran con su color propio.
+const conTarde = c => { const s = {...c.segs}; for(const m in (c.segs_tarde || {})) s[m] = (s[m] || 0) + c.segs_tarde[m];
+  if(c.cancelados) s[PEDIDO_CANCELADO] = c.cancelados; return s; };
+// cerrados = a tiempo + tarde + cancelados; el % es lo cumplido a tiempo sobre lo comprometido SIN los cancelados
+const cerradosComp = c => c.hechos + (c.tarde || 0) + (c.cancelados || 0);
+const estadoComp = c => estadoAceros(c.hechos, c.comprometidos - (c.cancelados || 0));
 const sumarObj = (dias, campo) => { const o = {}; dias.forEach(d => Object.entries(d[campo] || {}).forEach(([k, v]) => o[k] = (o[k] || 0) + v)); return o; };
 // Detalle del zoom: por cada fecha comprometida, cuántos se entregaron a tiempo, tarde y pendientes, y en qué fechas
 // se entregaron (las fechas posteriores al compromiso van marcadas como tarde).
 function tablaEntregasComp(dias){
   const chip = (iso, n, tarde) => `<span class="ent ${tarde ? 'tarde' : ''}" title="${fLarga(iso)}${tarde ? ' · después del compromiso' : ''}">${fCorta(iso)} <b>${fmt(n)}</b></span>`;
-  return `<table><thead><tr><th>Compromiso</th><th class="n">Comprometidos</th><th class="n">A tiempo</th><th class="n">Tarde</th><th class="n">Pendientes</th><th>Fechas de entrega</th></tr></thead><tbody>${
-    dias.map(d => { const pend = d.comprometidos - d.hechos - (d.tarde || 0);
+  return `<table><thead><tr><th>Compromiso</th><th class="n">Comprometidos</th><th class="n">A tiempo</th><th class="n">Tarde</th><th class="n">Cancelados</th><th class="n">Pendientes</th><th>Fechas de entrega</th></tr></thead><tbody>${
+    dias.map(d => { const pend = d.comprometidos - cerradosComp(d);
       const ent = Object.entries(d.entregas || {}).sort((a, b) => a[0] < b[0] ? -1 : 1);
       return `<tr><td style="white-space:nowrap;font-weight:600">${fLarga(d.fecha)}</td><td class="n">${fmt(d.comprometidos)}</td>
         <td class="n" style="color:var(--ok);font-weight:700">${fmt(d.hechos)}</td>
         <td class="n" style="color:${d.tarde ? 'var(--bad)' : 'var(--muted)'};font-weight:700">${fmt(d.tarde || 0)}</td>
+        <td class="n" style="color:${d.cancelados ? COLOR_CANCELADO : 'var(--muted)'};font-weight:700">${fmt(d.cancelados || 0)}</td>
         <td class="n" style="color:${pend > 0 ? 'var(--text)' : 'var(--muted)'}">${fmt(pend)}</td>
         <td><div class="ents">${ent.map(([iso, n]) => chip(iso, n, iso > d.fecha)).join('') || '—'}</div></td></tr>`; }).join('')}</tbody></table>`;
 }
@@ -1938,7 +2091,8 @@ function sumarComp(dias){
   const segs = {};
   dias.forEach(d => Object.entries(d.segs).forEach(([m, v]) => segs[m] = (segs[m] || 0) + v));
   return {segs, comprometidos: dias.reduce((s, d) => s + d.comprometidos, 0), hechos: dias.reduce((s, d) => s + d.hechos, 0),
-          tarde: dias.reduce((s, d) => s + (d.tarde || 0), 0), segs_tarde: sumarObj(dias, 'segs_tarde'), entregas: sumarObj(dias, 'entregas')};
+          tarde: dias.reduce((s, d) => s + (d.tarde || 0), 0), cancelados: dias.reduce((s, d) => s + (d.cancelados || 0), 0),
+          segs_tarde: sumarObj(dias, 'segs_tarde'), entregas: sumarObj(dias, 'entregas')};
 }
 function periodosComp(vista){
   const dias = D.aceros.cumplimiento, grupos = {};
@@ -1960,15 +2114,17 @@ function filasComp(c, futuro){
   return `<div class="r" style="margin-top:6px"><span>Comprometidos</span><span>${fmt(c.comprometidos)}</span></div>` +
     `<div class="r"><span>${futuro ? 'Ya fabricados (adelantados)' : 'Entregados a tiempo'}</span><span>${fmt(c.hechos)}</span></div>` +
     (c.tarde ? `<div class="r"><span>Entregados tarde</span><span>${fmt(c.tarde)}</span></div>` : '') +
-    `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - c.hechos - (c.tarde || 0))}</span></div>`;
+    (c.cancelados ? `<div class="r"><span style="color:${COLOR_CANCELADO}">Pedidos cancelados</span><span>${fmt(c.cancelados)}</span></div>` : '') +
+    `<div class="r"><span>Pendientes</span><span>${fmt(c.comprometidos - cerradosComp(c))}</span></div>` +
+    (c.cancelados ? '<div style="margin-top:4px;opacity:.75">El % no cuenta los pedidos cancelados</div>' : '');
 }
 function barraCompDia(c){
-  const e = estadoAceros(c.hechos, c.comprometidos), i = infoDia(c.fecha);
-  const sub = c.futuro ? (c.comprometidos ? 'prog.' : '') : c.comprometidos ? `${fmt(e.pct*100)} %` : (i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : '');
-  return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:conTarde(c), total:c.hechos + (c.tarde || 0), fondo:c.comprometidos,
-    etiquetaValor: c.comprometidos ? `${fmt(c.hechos + (c.tarde || 0))}/${fmt(c.comprometidos)}` : '',
-    sub, subColor: c.futuro || !c.comprometidos ? 'var(--muted)' : COLOR_EST[e.cls],
-    tip: tipSegs(fLarga(c.fecha) + (c.futuro ? ' · programado' : ''), c.segs, filasComp(c, c.futuro))};
+  const e = estadoComp(c), i = infoDia(c.fecha);
+  const sub = c.futuro ? (c.comprometidos ? 'prog.' : '') : c.comprometidos && e.pct != null ? `${fmt(e.pct*100)} %` : c.comprometidos ? 'cancelado' : (i.festivo ? 'Festivo' : i.domingo ? 'Domingo' : '');
+  return {etiqueta: c.fecha === D.hoy ? 'Hoy' : fCorta(c.fecha), segs:conTarde(c), total:cerradosComp(c), fondo:c.comprometidos,
+    etiquetaValor: c.comprometidos ? `${fmt(cerradosComp(c))}/${fmt(c.comprometidos)}` : '',
+    sub, subColor: c.futuro || !c.comprometidos || e.pct == null ? 'var(--muted)' : COLOR_EST[e.cls],
+    tip: tipSegs(fLarga(c.fecha) + (c.futuro ? ' · programado' : ''), conTarde(c), filasComp(c, c.futuro))};
 }
 function dibujarCumplimiento(){
   const A = D.aceros, enZoom = zoomComp !== null && vistaComp !== 'diaria';
@@ -1988,20 +2144,20 @@ function dibujarCumplimiento(){
       : p.dias.filter(d => diaVisibleAceros(d.fecha, d.comprometidos));
     items = dias.map(barraCompDia); detalleDias = dias.filter(d => d.comprometidos);
     titulo = `Cumplimiento · ${vistaComp === 'semanal' ? 'Sem ' + semanaIso(p.desde) : MESES[+p.clave.slice(5)-1] + ' ' + p.clave.slice(0,4)}`;
-    sub = `${fLarga(p.desde)} a ${fLarga(p.hasta)} · ${fmt(p.hechos)} de ${fmt(p.comprometidos)} aceros comprometidos`;
+    sub = `${fLarga(p.desde)} a ${fLarga(p.hasta)} · ${fmt(p.hechos)} de ${fmt(p.comprometidos)} aceros comprometidos${p.cancelados ? ` · ${fmt(p.cancelados)} pedidos cancelados` : ''}`;
   } else {
     const mensual = vistaComp === 'mensual', anio = D.hoy.slice(0, 4);
     items = periodosComp(vistaComp).map(p => {
-      const e = estadoAceros(p.hechos, p.comprometidos), eA = estadoAceros(p.hastaAyer.hechos, p.hastaAyer.comprometidos);
+      const e = estadoComp(p), eA = estadoComp(p.hastaAyer);
       const mes = MESES[+p.clave.slice(5)-1];
       const nombre = mensual ? `${mes} ${p.clave.slice(0,4)}` : `Sem ${semanaIso(p.desde)} (${fCorta(p.desde)} – ${fCorta(p.hasta)})`;
       const extra = p.estado === 'curso'
-        ? `<div class="r" style="margin-top:4px"><span>Hasta ayer</span><span>${fmt(p.hastaAyer.hechos)} de ${fmt(p.hastaAyer.comprometidos)} (${fmt(eA.pct*100)} %)</span></div>` : '';
+        ? `<div class="r" style="margin-top:4px"><span>Hasta ayer</span><span>${fmt(p.hastaAyer.hechos)} de ${fmt(p.hastaAyer.comprometidos - (p.hastaAyer.cancelados || 0))} (${fmt(eA.pct*100)} %)</span></div>` : '';
       return {etiqueta: mensual ? mes.slice(0,3) + (p.clave.slice(0,4) !== anio ? ' ' + p.clave.slice(2,4) : '') : 'S' + semanaIso(p.desde),
-        segs:conTarde(p), total:p.hechos + (p.tarde || 0), fondo:p.comprometidos, etiquetaValor:`${fmt(p.hechos + (p.tarde || 0))}/${fmt(p.comprometidos)}`,
+        segs:conTarde(p), total:cerradosComp(p), fondo:p.comprometidos, etiquetaValor:`${fmt(cerradosComp(p))}/${fmt(p.comprometidos)}`,
         sub: p.estado === 'prog' ? 'prog.' : p.estado === 'curso' ? (p.hastaAyer.comprometidos ? `${fmt(eA.pct*100)} %` : 'en curso') : `${fmt(e.pct*100)} %`,
         subColor: p.estado === 'prog' || !p.hastaAyer.comprometidos ? 'var(--muted)' : COLOR_EST[(p.estado === 'curso' ? eA : e).cls],
-        tip: tipSegs(nombre + (p.estado === 'curso' ? ' · en curso' : p.estado === 'prog' ? ' · programado' : ''), p.segs,
+        tip: tipSegs(nombre + (p.estado === 'curso' ? ' · en curso' : p.estado === 'prog' ? ' · programado' : ''), conTarde(p),
           filasComp(p, p.estado !== 'pasado') + extra + '<div style="margin-top:4px;opacity:.75">Clic para ver los días</div>')};
     });
     onClick = (it, i) => { zoomComp = i; dibujarCumplimiento(); };
@@ -2399,22 +2555,30 @@ function periodosMat(){
   }
   return out;
 }
+// Turnos (horario de la planta): T1 noche · T2 mañana · T3 tarde; lo finalizado fuera del horario es "Adicional" y se
+// suma en su misma fecha (domingo, sábado en la tarde, lunes antes de las 5:00)
+const ORDEN_TURNOS = ['T1', 'T2', 'T3', 'Adicional'], NOMBRE_TURNO = {T1: 'T1 noche', T2: 'T2 mañana', T3: 'T3 tarde', Adicional: 'Adicional (fuera de turno)'};
+const filasTurnos = obj => { const xs = ORDEN_TURNOS.filter(k => obj && obj[k]);
+  return xs.length ? '<div style="margin-top:6px;opacity:.9">' + xs.map(k => `<div class="r"><span>${NOMBRE_TURNO[k]}</span><span>${fmt(obj[k])}</span></div>`).join('') + '</div>' : ''; };
 function analisisMat(M){
   const R = M.registros, cols = periodosMat(), desde = cols[0].desde, hasta = cols[cols.length - 1].hasta;
   const visibles = new Set(catsVisibles(M).filter(c => !catMant || c === catMant));
-  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({}))});
+  const nuevo = () => ({total: 0, n: cols.map(() => 0), segs: cols.map(() => ({})), tipos: cols.map(() => ({})), turnos: cols.map(() => ({})), porTurno: {}});
   const per = {}, tip = {}, mol = {}, equipo = nuevo();
   for(const r of (R ? R.filas : [])){
-    if(r[0] < desde || r[0] > hasta) continue;
+    // cuenta en el día de producción de su turno (ej. finalizado el lunes 10 p. m. = martes, T1); sin ese dato, el día en que se finalizó
+    const dia = r[6] || r[0], tur = r[7] || null;
+    if(dia < desde || dia > hasta) continue;
     const cat = R.categorias[r[2]]; if(!visibles.has(cat)) continue;
-    const i = cols.findIndex(c => r[0] >= c.desde && r[0] <= c.hasta); if(i < 0) continue;
+    const i = cols.findIndex(c => dia >= c.desde && dia <= c.hasta); if(i < 0) continue;
     const nombre = R.personas[r[1]], tipo = R.tipos[r[3]], molde = R.moldes[r[4]];
     for(const x of [per[nombre] = per[nombre] || nuevo(), equipo]){
       x.total++; x.n[i]++; x.segs[i][cat] = (x.segs[i][cat] || 0) + 1; x.tipos[i][tipo] = (x.tipos[i][tipo] || 0) + 1;
+      if(tur){ x.turnos[i][tur] = (x.turnos[i][tur] || 0) + 1; x.porTurno[tur] = (x.porTurno[tur] || 0) + 1; }
     }
     const tp = tip[tipo] = tip[tipo] || {n: 0, serie: cols.map(() => 0)}; tp.n++; tp.serie[i]++;
-    const m = mol[molde] = mol[molde] || {n: 0, cat, vehiculo: R.vehiculos[r[5]], personas: new Set(), ultima: r[0]};
-    m.n++; m.personas.add(nombre); if(r[0] > m.ultima) m.ultima = r[0];
+    const m = mol[molde] = mol[molde] || {n: 0, cat, vehiculo: R.vehiculos[r[5]], personas: new Set(), ultima: dia};
+    m.n++; m.personas.add(nombre); if(dia > m.ultima) m.ultima = dia;
   }
   return {cols, desde, hasta, equipo,
     personas: Object.entries(per).map(([nombre, x]) => ({nombre, ...x, activos: x.n.filter(v => v).length})).sort((a, b) => b.total - a.total),
@@ -2443,13 +2607,15 @@ function analisisBasico(M){
 }
 // Ranking de matriceros del periodo: barra apilada por vehículo (escala = el que más hizo), total, % del equipo,
 // promedio por periodo activo y mini-tendencia por columna del periodo.
+const resumenTurnos = obj => { const xs = ORDEN_TURNOS.filter(k => obj && obj[k]);
+  return xs.length ? `<small class="rk-tur">${xs.map(k => `${k === 'Adicional' ? 'Adic.' : k} ${fmt(obj[k])}`).join(' · ')}</small>` : ''; };
 function dibujarRankingMat(M, A, op, unidad){
   const max = Math.max(1, ...A.personas.map(p => p.total)), tot = A.equipo.total || 1;
   const segsTot = p => { const s = {}; p.segs.forEach(x => { for(const k in x) s[k] = (s[k] || 0) + x[k]; }); return s; };
   const fila = (p, i) => { const s = segsTot(p), prom = p.activos ? p.total / p.activos : 0;
     return `<div class="rk-fila ${i < 3 ? 'top' : ''}" data-tip="${esc(tipSegs(`${p.nombre} · ${fmt(p.total)} finalizados`, s,
-      `<div class="r" style="margin-top:6px"><span>${unidad === 'día' ? 'Días' : unidad === 'semana' ? 'Semanas' : 'Meses'} con actividad</span><span>${fmt(p.activos)} de ${fmt(A.cols.length)}</span></div>`, op))}">
-      <span class="rk-pos">${i + 1}</span><span class="rk-nom" title="${esc(p.nombre)}">${esc(p.nombre)}</span>
+      `<div class="r" style="margin-top:6px"><span>${unidad === 'día' ? 'Días' : unidad === 'semana' ? 'Semanas' : 'Meses'} con actividad</span><span>${fmt(p.activos)} de ${fmt(A.cols.length)}</span></div>` + filasTurnos(p.porTurno), op))}">
+      <span class="rk-pos">${i + 1}</span><span class="rk-nom" title="${esc(p.nombre)}">${esc(p.nombre)}${resumenTurnos(p.porTurno)}</span>
       <span class="rk-bar" style="width:${p.total / max * 100}%">${op.orden.filter(c => s[c]).map(c => `<i style="flex:${s[c]};background:${op.colores[c]}"></i>`).join('')}</span>
       <span class="rk-n">${fmt(p.total)}</span><span class="rk-pct">${fmt(p.total / tot * 100)} %</span>
       <span class="rk-prom">${fmt(prom, 1)} / ${unidad}</span>${sparkMini(p.n, PALETA[0])}</div>`; };
@@ -2492,8 +2658,8 @@ function dibujarAnalisisMant(M){
   const claro = document.documentElement.dataset.tema === 'claro'; // en oscuro el número va siempre claro
   const tinta = n => claro && n / maxN > .6 ? '#0B2F36' : 'var(--text)';
   const meta = unidad === 'día' ? M.kpis.meta_persona_dia : null;
-  const tipCelda = (titulo, x, i) => tipSegs(titulo, x.segs[i], Object.keys(x.tipos[i]).length ? '<div style="margin-top:6px;opacity:.85">' +
-    Object.entries(x.tipos[i]).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join('') + '</div>' : '', op);
+  const tipCelda = (titulo, x, i) => tipSegs(titulo, x.segs[i], filasTurnos(x.turnos && x.turnos[i]) + (Object.keys(x.tipos[i]).length ? '<div style="margin-top:6px;opacity:.85">' +
+    Object.entries(x.tipos[i]).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${fmt(v)}</span></div>`).join('') + '</div>' : ''), op);
   const prom = p => p.activos ? p.total / p.activos : 0;
   document.querySelectorAll('#mat-modo button').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === modoMat));
   if(modoMat === 'ranking'){ dibujarRankingMat(M, A, op, unidad); }
@@ -2543,6 +2709,8 @@ function segsFiltrados(segs){ // quita los vehículos ocultos y, si hay uno eleg
 }
 function totalSegs(segs){ return Object.values(segs).reduce((a, b) => a + b, 0); }
 
+// Líneas de pedidos (alertas nuevas) y atendidos: ocultas mientras el dato no sea confiable (pedido 2026-11-10)
+const MOSTRAR_PEDIDOS_MANT = false;
 function dibujarMantenimiento(){
   const M = D && D.mantenimiento; if(!M || $('#v-mantenimiento').hidden) return;
   document.querySelectorAll('#mant-vista button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === vistaMant));
@@ -2553,7 +2721,7 @@ function dibujarMantenimiento(){
   // null = el servidor no tenía foto de alertas ese día (la línea se corta ahí)
   const sumaPed = x => x == null ? null : totalSegs(segsFiltrados(x));
   const pedidos = fuenteMant.map(p => sumaPed(p.ped)), atendidos = fuenteMant.map(p => sumaPed(p.ate));
-  const hayPedidos = pedidos.some(v => v != null);
+  const hayPedidos = MOSTRAR_PEDIDOS_MANT && pedidos.some(v => v != null);
   const serie = fuenteMant.map((p, i) => {
     const segs = segsFiltrados(p.segs), total = totalSegs(segs);
     const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
@@ -2572,7 +2740,7 @@ function dibujarMantenimiento(){
   const mediana = base.length ? (base.length % 2 ? base[(base.length - 1) / 2] : (base[base.length / 2 - 1] + base[base.length / 2]) / 2) : null;
   const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
   $('#mant-serie-sub').innerHTML = (catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '') +
-    (M.diaria.some(d => d.ped !== undefined) && !hayPedidos
+    (MOSTRAR_PEDIDOS_MANT && M.diaria.some(d => d.ped !== undefined) && !hayPedidos
       ? `${catMant ? ' · ' : ''}Pedidos y atendidos se ven desde el día siguiente a que el servidor empieza a registrar las alertas` : '');
   $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
     (hayPedidos ? `<span title="Moldes que el sistema de puntaje marcó POR MANTENIMIENTO ese periodo y no venían marcados de antes"><i class="linea" style="background:var(--near)"></i>Pedidos (alertas nuevas)</span>` +
@@ -3133,8 +3301,8 @@ BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 const limboMolde = d => !!d.entrega && d.entrega.slice(5, 7) === '12' && (fecha(d.entrega) - fecha(D.hoy)) / 864e5 > 30;
 const sinFechaMolde = d => !d.entrega;
 const piezaMolde = d => (d.rep || d.codigo || '').replace(/\s*#\d+\s*$/, '').trim() || '—';
-function tarjetaResumenMoldes(MO){
-  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
+// moldes en cola (con fecha, agrupados por vehículo) y desarrollos sin fecha: {conFecha, sinFecha, html}
+function colaMoldesHTML(MO){
   const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde' && !limboMolde(d));
   const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
   const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
@@ -3153,14 +3321,19 @@ function tarjetaResumenMoldes(MO){
         ${ds.map(d => `<div class="mc-fila"><span class="mc-cod num">${esc(piezaMolde(d))}</span><span class="mc-der"><span class="mc-dias ${d.entrega < D.hoy ? 'venc' : ''}">${faltan(d.entrega)}</span>${chipFecha(d.entrega)}</span></div>`).join('')}
       </div>`).join('');
   const sinF = Object.entries(sinFecha).map(([v, n]) => `<div class="mc-fila sin"><span>${esc(titulo(v))}</span><span class="mc-set">Set · ${fmt(n)} ${n === 1 ? 'molde' : 'moldes'}</span></div>`).join('');
+  return {conFecha, sinFecha, html: `<div class="mc">${cuerpo || '<div class="vacio">Sin moldes con fecha de entrega</div>'}
+          ${sinF ? `<div class="mc-sec">Desarrollos pendientes por diseño · sin fecha establecida</div>${sinF}` : ''}</div>`};
+}
+function tarjetaResumenMoldes(MO){
+  if(!MO) return `<article class="serv-largo pend"><div class="sl-head"><h3>${t('moldes')}</h3><span class="chip neutral">○ Sin datos de Fila de moldes</span></div></article>`;
+  const {conFecha, sinFecha, html} = colaMoldesHTML(MO);
   return `<article class="serv-largo">
     <div class="sl-head"><h3>${t('moldes')}</h3><span class="ver" data-ir="moldes" tabindex="0">${t('ver_detalle')}</span></div>
     <div class="ra-grid inv">
       ${htmlGraficaResumen(BLOQUE_RESUMEN_MOLDES.id, BLOQUE_RESUMEN_MOLDES.titulo)}
       <div class="kpi ra-chart ra-tabla">
         <div class="lbl"><span>Moldes en cola de fabricación</span><span class="chip neutral">${fmt(conFecha.length)} con fecha${Object.keys(sinFecha).length ? ` · ${fmt(Object.keys(sinFecha).length)} sin fecha` : ''}</span></div>
-        <div class="mc">${cuerpo || '<div class="vacio">Sin moldes con fecha de entrega</div>'}
-          ${sinF ? `<div class="mc-sec">Desarrollos pendientes por diseño · sin fecha establecida</div>${sinF}` : ''}</div>
+        ${html}
       </div>
     </div></article>`;
 }

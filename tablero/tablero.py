@@ -1,5 +1,6 @@
 """Arma el JSON que pinta el tablero y guarda la foto diaria de lo que los Excel no conservan."""
 import datetime as dt
+import json
 import logging
 import threading
 import time
@@ -56,6 +57,7 @@ def construir(hoy=None):
                                                                            "seri_carga_vitros_dia", "seri_carga_pp_dia", "seri_carga_logos_p2"])),
         "fuentes": ("Estado de fuentes", estado_fuentes),
         "manuales": ("Valores manuales", manuales),
+        "notas": ("Notas de reportes", notas_reporte),
     }
     with ThreadPoolExecutor(max_workers=len(bloques)) as ex:
         futuros = {k: ex.submit(_bloque, nombre, fn, errores) for k, (nombre, fn) in bloques.items()}
@@ -71,6 +73,7 @@ def construir(hoy=None):
         datos[k] = resultado[k]
     datos["fuentes"] = resultado["fuentes"] or {}
     datos["manuales"] = resultado["manuales"] or {}
+    datos["notas"] = resultado["notas"]   # None = la tabla aún no existe (sql/011): el reporte usa sus textos por defecto
     datos["errores"] = errores
     return datos
 
@@ -125,6 +128,31 @@ def historial(indicadores=("retenidas", "fila", "dias_fila"), dias=120):
     for r in filas:
         salida.setdefault(r["fecha"].isoformat(), {})[r["indicador"]] = r["valor"]
     return salida
+
+
+def notas_reporte():
+    """{"reporte/seccion": {"lineas": [...], "t": ..., "u": ...}} de cesar.reporte_nota; None si la tabla no existe."""
+    if not db.consultar("SELECT OBJECT_ID('cesar.reporte_nota') AS n")[0]["n"]:
+        return None
+    return {f'{r["reporte"]}/{r["seccion"]}': {"lineas": json.loads(r["lineas"]), "t": r["actualizado"].isoformat(timespec="seconds"),
+                                               "u": r["usuario"]}
+            for r in db.consultar("SELECT reporte, seccion, lineas, actualizado, usuario FROM cesar.reporte_nota")}
+
+
+def guardar_notas(reporte, seccion, lineas, usuario):
+    """Guarda los renglones de una sección y los pone en el tablero en memoria (sin recalcular todo). Devuelve todas las notas."""
+    ahora, texto = db.ahora(), json.dumps(lineas, ensure_ascii=False)
+    with db.transaccion() as cur:
+        cur.execute("UPDATE cesar.reporte_nota SET lineas = ?, actualizado = ?, usuario = ? WHERE reporte = ? AND seccion = ?",
+                    texto, ahora, usuario, reporte, seccion)
+        if cur.rowcount == 0:
+            cur.execute("INSERT INTO cesar.reporte_nota (reporte, seccion, lineas, actualizado, usuario) VALUES (?, ?, ?, ?, ?)",
+                        reporte, seccion, texto, ahora, usuario)
+    todas = notas_reporte()
+    with _lock:
+        if _cache["datos"] is not None:
+            _cache["datos"]["notas"] = todas
+    return todas
 
 
 def manuales():

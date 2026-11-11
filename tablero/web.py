@@ -139,6 +139,20 @@ def crear_app(ingestor):
         ok = retenidas_piso.borrar(id_)
         return (jsonify(ok=True, retenidas=tablero.refrescar_retenidas()), 200) if ok else (jsonify(error="No existe"), 404)
 
+    # ---- notas editables de los reportes del Resumen
+    @app.put("/api/notas/<reporte>/<seccion>")
+    def api_notas(reporte, seccion):
+        if not _puede_editar():
+            return jsonify(error="Clave de edición incorrecta"), 403
+        if not re.fullmatch(r"[a-z0-9_]{1,40}", reporte) or not re.fullmatch(r"[a-z0-9_]{1,40}", seccion):
+            return jsonify(error="Sección inválida"), 400
+        if tablero.notas_reporte() is None:
+            return jsonify(error="Falta crear la tabla de notas en la base (sql/011_reporte_nota.sql)"), 409
+        cuerpo = request.get_json(silent=True) or {}
+        lineas = [str(x).strip()[:600] for x in (cuerpo.get("lineas") or []) if str(x).strip()][:30]
+        notas = tablero.guardar_notas(reporte, seccion, lineas, str(cuerpo.get("usuario") or "")[:80] or None)
+        return _json({"ok": True, "notas": notas})
+
     @app.get("/api/teams")
     def api_teams_estado():
         ultimos = db.consultar("SELECT TOP 5 fecha, estado, detalle, usuario FROM cesar.reporte_envio ORDER BY id DESC")
