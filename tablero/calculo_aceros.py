@@ -28,10 +28,12 @@ def calcular(hoy, R):
     dias_prom = R.entero("dias_promedio_productividad", 7)
     es_laboral = R.es_laboral
 
-    filas = db.consultar("""SELECT orden, zhal, acero, vehiculo, pieza, corte, material, entrega_produccion,
+    filas = db.consultar("""SELECT fila, orden, zhal, acero, vehiculo, pieza, corte, material, entrega_produccion,
                                    puesto_trabajo, fecha_fabricacion, operario
                             FROM cesar.aceros_consolidado ORDER BY fila""")
     fab_events, fila_pend, compromisos, comp_detalle = [], [], [], []
+    # fechas de fabricación en el futuro (ej. 19/12 digitado en vez de 19/11): no cuentan en ningún día, se avisan
+    fechas_raras = defaultdict(list)
     fila_nmi = 0
     # Fila por fecha de compromiso y material (como la tabla dinámica del reporte de Full Kit); material vacío = "(en blanco)"
     fila_tabla = defaultdict(lambda: defaultdict(int))
@@ -42,6 +44,8 @@ def calcular(hoy, R):
         nmi = "NMI" in corte.upper()
         entrega, fab = r["entrega_produccion"], r["fecha_fabricacion"]
         if fab and not (dt.date(2020, 1, 1) <= fab <= hoy):
+            if fab > hoy:
+                fechas_raras[(fab, (r["operario"] or "").strip() or "Sin operario")].append(r["fila"])
             fab = None
         tipo_op, nombre_op = R.operario(r["operario"])
         cancelado = _cancelado(r["operario"])
@@ -224,6 +228,8 @@ def calcular(hoy, R):
                               for k, v in por_matricero.items()],
                              key=lambda x: (x["nombre"] == "Sin matricero registrado", -x["n"]))
     return {
+        "fechas_raras": [{"fecha": f.isoformat(), "operario": op, "n": len(fl), "desde": min(fl), "hasta": max(fl)}
+                         for (f, op), fl in sorted(fechas_raras.items())],
         "ayer": {
             "fecha": ayer.isoformat(), "fabricados": len(ev_ayer), "eq": round(sum(e["eq"] for e in ev_ayer), 1),
             "segs": segs(ev_ayer), "meta": meta_dia,

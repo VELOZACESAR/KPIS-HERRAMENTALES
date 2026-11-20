@@ -1252,6 +1252,7 @@ function render(){
   let avisos = '';
   Object.entries(F).filter(([k, f]) => f.estado === 'error').forEach(([k, f]) =>
     avisos += `<div class="aviso warn">⚠ <span><b>${esc(NOMBRE_FUENTE[k] || k)}</b>: ${esc(f.mensaje)}${f.ultimo_ok ? ` Se muestran los datos del último cargue bueno (${fHora(f.ultimo_ok)}).` : ''}</span></div>`);
+  ((!REPORTE && A && A.fechas_raras) || []).forEach(x => avisos += `<div class="aviso warn">⚠ <span><b>Consolidado inventario de aceros</b>: ${fmt(x.n)} aceros de <b>${esc(x.operario)}</b> tienen fecha de fabricación <b>${x.fecha.split('-').reverse().join('/')}</b> (en el futuro, ¿fecha mal digitada?, filas ${x.desde} a ${x.hasta} del Excel). No se cuentan en ningún día hasta que se corrija la fecha.</span></div>`);
   (D.errores||[]).forEach(e => avisos += `<div class="aviso err">✖ <span>No se pudo calcular: ${esc(e)}</span><button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div>`);
 
   main.innerHTML = avisos + vistaResumen(A) + vistaAceros(A) + vistaMantenimiento(D.mantenimiento) + vistaMoldes(D.moldes) + vistaSerigrafia(D.serigrafia) +
