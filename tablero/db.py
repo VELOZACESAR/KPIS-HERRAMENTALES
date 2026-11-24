@@ -64,6 +64,26 @@ def ejecutar(sql, *params):
         return cur.rowcount
 
 
+def hay_smartfactory():
+    return all((config.SMART_DB_SERVER, config.SMART_DB_NAME, config.SMART_DB_USER, config.SMART_DB_PASSWORD))
+
+
+def consultar_smart(sql, *params):
+    """SmartFactory es un SQL Server de la planta con certificado propio: se confía en él (solo lectura)."""
+    cadena = (f"DRIVER={{{config.DB_DRIVER}}};SERVER={config.SMART_DB_SERVER};DATABASE={config.SMART_DB_NAME};"
+              f"UID={config.SMART_DB_USER};PWD={config.SMART_DB_PASSWORD};Encrypt=yes;TrustServerCertificate=yes;"
+              "Connection Timeout=15")
+    cn = pyodbc.connect(cadena, autocommit=True)
+    try:
+        cn.timeout = 60
+        cur = cn.cursor()
+        cur.execute(sql, *params)
+        columnas = [d[0] for d in cur.description]
+        return [dict(zip(columnas, fila)) for fila in cur.fetchall()]
+    finally:
+        cn.close()
+
+
 def reemplazar_tabla(cur, tabla, columnas, filas):
     cur.execute(f"DELETE FROM {tabla}")
     if not filas:

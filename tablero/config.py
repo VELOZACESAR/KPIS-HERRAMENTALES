@@ -20,6 +20,14 @@ DB_USER = _env("DB_USER", obligatorio=True)
 DB_PASSWORD = _env("DB_PASSWORD", obligatorio=True)
 DB_DRIVER = _env("DB_DRIVER", "ODBC Driver 18 for SQL Server")
 
+# SmartFactory (red de planta, solo lectura): plan de hornos de SmartBending y cargues reales.
+# Si no se llena, la pestaña Plan de hornos queda pendiente de conectar y el resto del tablero sigue igual.
+SMART_DB_SERVER = _env("SMART_DB_SERVER", "")
+SMART_DB_NAME = _env("SMART_DB_NAME", "")
+SMART_DB_USER = _env("SMART_DB_USER", "")
+SMART_DB_PASSWORD = _env("SMART_DB_PASSWORD", "")
+SMARTBENDING_API_URL = _env("SMARTBENDING_API_URL", "http://192.168.2.112:8200/api")
+
 HOST = _env("HOST", "0.0.0.0")
 PUERTO = int(_env("PUERTO", "8050"))
 CLAVE_EDICION = _env("CLAVE_EDICION", "")

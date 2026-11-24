@@ -6,7 +6,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, calculo_serigrafia, db, reglas, retenidas_piso
+from . import calculo_aceros, calculo_mantenimiento, calculo_moldes, calculo_plan_hornos, calculo_serigrafia, db, reglas, retenidas_piso
 from .ingesta import estado_fuentes
 
 log = logging.getLogger("tablero")
@@ -50,6 +50,7 @@ def construir(hoy=None):
         "moldes": ("Fabricación de moldes", lambda: calculo_moldes.calcular(hoy, R)),
         "historial_moldes": ("Historial de moldes", lambda: historial(["moldes_cola_dias", "moldes_pendientes"])),
         "mantenimiento": ("Mantenimiento de moldes", lambda: calculo_mantenimiento.calcular(hoy, R)),
+        "plan_hornos": ("Plan de hornos", calculo_plan_hornos.calcular),
         "serigrafia": ("Serigrafía", lambda: calculo_serigrafia.calcular(hoy)),
         "historial_seri": ("Historial de serigrafía", lambda: historial(["seri_retenidas", "seri_screens", "seri_carga_logos",
                                                                            "seri_carga_vitros", "seri_carga_pp", "seri_carga_pp_comp",
@@ -69,7 +70,7 @@ def construir(hoy=None):
         resultado["moldes"]["historial"] = resultado["historial_moldes"] or {}
     if resultado["serigrafia"]:
         resultado["serigrafia"]["historial"] = resultado["historial_seri"] or {}
-    for k in ("aceros", "cortes", "x5", "moldes", "mantenimiento", "serigrafia"):
+    for k in ("aceros", "cortes", "x5", "moldes", "mantenimiento", "serigrafia", "plan_hornos"):
         datos[k] = resultado[k]
     datos["fuentes"] = resultado["fuentes"] or {}
     datos["manuales"] = resultado["manuales"] or {}

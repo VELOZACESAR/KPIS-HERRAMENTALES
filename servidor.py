@@ -1,4 +1,5 @@
-"""Servidor del tablero de Herramentales: web + vigilancia de los Excel + foto diaria + foto de alertas de mantenimiento.
+"""Servidor del tablero de Herramentales: web + vigilancia de los Excel + foto diaria + foto de alertas de mantenimiento
++ plan de hornos de SmartBending (se recalcula aparte cada 2 min).
 
     python servidor.py            -> sirve en http://<este-pc>:8050
     python servidor.py --una-vez  -> solo revisa/carga los Excel y guarda la foto del día (sin web)
@@ -10,7 +11,7 @@ import threading
 import time
 from logging.handlers import RotatingFileHandler
 
-from tablero import calculo_mantenimiento, config, tablero
+from tablero import calculo_mantenimiento, calculo_plan_hornos, config, tablero
 from tablero.ingesta import Ingestor
 
 SEGUNDOS_ALERTAS = 300
@@ -71,6 +72,7 @@ def main():
     ingestor.iniciar(config.SEGUNDOS_REVISION)
     threading.Thread(target=foto_periodica, name="foto", daemon=True).start()
     threading.Thread(target=alertas_periodicas, name="alertas", daemon=True).start()
+    calculo_plan_hornos.iniciar()
     threading.Thread(target=lambda: tablero.obtener(ingestor.version), name="precalentar", daemon=True).start()
     nombre = socket.gethostname()
     log.info("Tablero en http://%s:%s (y http://localhost:%s)", nombre, config.PUERTO, config.PUERTO)

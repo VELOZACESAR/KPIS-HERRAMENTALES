@@ -558,6 +558,17 @@
   .pend-box{background:var(--surface);border:1.5px dashed var(--border);border-radius:12px;padding:36px;text-align:center;max-width:720px;margin:20px auto}
   .pend-box h3{margin:8px 0 6px;font-size:18px}
   .pend-box ul{text-align:left;display:inline-block;margin:12px 0 0;color:var(--text-soft)}
+  /* ---------- plan de hornos ---------- */
+  .hz-banner{display:flex;gap:14px;align-items:center;border-radius:12px;padding:14px 18px;margin-bottom:18px;border:1px solid var(--border);background:var(--surface)}
+  .hz-banner b{display:block;font-size:17px;margin-bottom:2px}
+  .hz-banner span{color:var(--text-soft);font-size:13px}
+  .hz-banner .hz-ico{font-size:28px;line-height:1;color:var(--ok)}
+  .hz-banner.sobre{background:var(--ok-bg);border-color:var(--ok)}
+  .hz-banner.sobre b,.hz-banner.al_dia b{color:var(--ok)}
+  .hz-banner.atras{background:var(--near-bg);border-color:var(--near)}
+  .hz-banner.atras b,.hz-banner.atras .hz-ico{color:var(--near)}
+  tr.hz-actual td{background:var(--teal-pale)}
+  .hz-nota{font-size:12px;color:var(--text-soft);margin:16px 0 0;max-width:120ch}
   footer{max-width:1360px;margin:0 auto;padding:0 24px 30px;color:var(--muted);font-size:12px}
   @media (max-width:640px){ .head-in,main,nav.tabs,footer{padding-left:16px;padding-right:16px} .kpi .val{font-size:26px} header{position:static} .titulo h1{font-size:17px} }
   @media print{ nav.tabs,#tip,.head-der button,.idioma{display:none} .vista[hidden]{display:block!important} header{print-color-adjust:exact;-webkit-print-color-adjust:exact} }
@@ -596,7 +607,7 @@ let D = null;
 const TXT = {
   es: {titulo:'Indicadores del Área · Herramentales', actualizar:'⟳ Actualizar ahora', actualizando:'Actualizando…', cargando:'Cargando indicadores…',
        error_carga:'No se pudo conectar con el servidor del tablero.', reintentar:'Reintentar', en_vivo:'En vivo', sin_conexion:'Sin conexión',
-       resumen:'Resumen del área', aceros:'Aceros', mantenimiento:'Mantenimiento de moldes', moldes:'Fabricación de moldes', serigrafia:'Serigrafía',
+       resumen:'Resumen del área', aceros:'Aceros', mantenimiento:'Mantenimiento de moldes', moldes:'Fabricación de moldes', serigrafia:'Serigrafía', hornos:'Plan de hornos',
        servicios:'Servicios del área', clic_servicio:'clic en un servicio para ver el detalle', ver_detalle:'Ver detalle →', pendiente:'Pendiente de conectar',
        fuentes:'Fuentes de datos', actualizado:'Actualizado', sin_datos:'Sin datos', ayer:'Ayer', hoy:'Hoy',
        mant_ayer:'Finalizados el', mant_hoy:'Finalizados hoy', mant_prom:'Ritmo de los últimos 30 días', mant_mediana:'Duración típica',
@@ -608,7 +619,7 @@ const TXT = {
        diario:'Diario', semanal:'Semanal', mensual:'Mensual', dias:'días', persona:'Persona', total:'Total', minutos:'min'},
   pt: {titulo:'Indicadores da Área · Ferramentaria', actualizar:'⟳ Atualizar agora', actualizando:'Atualizando…', cargando:'Carregando indicadores…',
        error_carga:'Não foi possível conectar ao servidor do painel.', reintentar:'Tentar novamente', en_vivo:'Ao vivo', sin_conexion:'Sem conexão',
-       resumen:'Resumo da área', aceros:'Aços', mantenimiento:'Manutenção de moldes', moldes:'Fabricação de moldes', serigrafia:'Serigrafia',
+       resumen:'Resumo da área', aceros:'Aços', mantenimiento:'Manutenção de moldes', moldes:'Fabricação de moldes', serigrafia:'Serigrafia', hornos:'Plano de fornos',
        servicios:'Serviços da área', clic_servicio:'clique em um serviço para ver o detalhe', ver_detalle:'Ver detalhe →', pendiente:'Pendente de conectar',
        fuentes:'Fontes de dados', actualizado:'Atualizado', sin_datos:'Sem dados', ayer:'Ontem', hoy:'Hoje',
        mant_ayer:'Finalizadas em', mant_hoy:'Finalizadas hoje', mant_prom:'Ritmo dos últimos 30 dias', mant_mediana:'Duração típica',
@@ -1204,6 +1215,7 @@ function armarServicios(){
     {id:'resumen', nombre:t('resumen')},
     {id:'aceros', nombre:t('aceros')},
     {id:'mantenimiento', nombre:t('mantenimiento')},
+    {id:'hornos', nombre:t('hornos')},
     {id:'moldes', nombre:t('moldes')},
     {id:'serigrafia', nombre:t('serigrafia')},
     ...((D && D.pendientes) || []).map(p => ({id:p.id, nombre:t(p.id) || p.nombre, pendiente:true})),
@@ -1218,6 +1230,7 @@ function irA(id, mantenerScroll=false){
   if(id==='resumen') dibujarResumen();
   if(id==='mantenimiento') dibujarMantenimiento();
   if(id==='moldes') dibujarMoldes();
+  if(id==='hornos') dibujarHornos();
   if(id==='serigrafia') dibujarSerigrafia();
   if(!mantenerScroll) scrollTo(0,0);
 }
@@ -1244,6 +1257,8 @@ function render(){
     if(s.id==='aceros' && A) color = COLOR_EST[estadoAceros(A.ayer.comprometidos_hechos, A.ayer.comprometidos - (A.ayer.comprometidos_cancelados || 0)).cls];
     if(s.id==='mantenimiento' && D.mantenimiento) color = 'var(--teal)';
     if(s.id==='moldes' && D.moldes) color = D.moldes.kpis.vencidos ? 'var(--bad)' : 'var(--ok)';
+    if(s.id==='hornos' && D.plan_hornos && D.plan_hornos.hoy) color = D.plan_hornos.salud.estado === 'caido' ? 'var(--bad)'
+      : ({sobre:'var(--ok)', al_dia:'var(--ok)', atras:'var(--near)'})[D.plan_hornos.hoy.estado] || 'var(--muted)';
     if(s.id==='serigrafia' && D.serigrafia) color = D.serigrafia.retenidas && D.serigrafia.retenidas.total ? 'var(--bad)' : 'var(--ok)';
     return `<button role="tab" data-id="${s.id}">${s.id!=='resumen'?`<span class="dot" style="background:${color}"></span>`:''}${esc(s.nombre)}</button>`;
   }).join('');
@@ -1255,7 +1270,7 @@ function render(){
   ((!REPORTE && A && A.fechas_raras) || []).forEach(x => avisos += `<div class="aviso warn">⚠ <span><b>Consolidado inventario de aceros</b>: ${fmt(x.n)} aceros de <b>${esc(x.operario)}</b> tienen fecha de fabricación <b>${x.fecha.split('-').reverse().join('/')}</b> (en el futuro, ¿fecha mal digitada?, filas ${x.desde} a ${x.hasta} del Excel). No se cuentan en ningún día hasta que se corrija la fecha.</span></div>`);
   (D.errores||[]).forEach(e => avisos += `<div class="aviso err">✖ <span>No se pudo calcular: ${esc(e)}</span><button class="reintentar" onclick="cargar(true)">${t('reintentar')}</button></div>`);
 
-  main.innerHTML = avisos + vistaResumen(A) + vistaAceros(A) + vistaMantenimiento(D.mantenimiento) + vistaMoldes(D.moldes) + vistaSerigrafia(D.serigrafia) +
+  main.innerHTML = avisos + vistaResumen(A) + vistaAceros(A) + vistaMantenimiento(D.mantenimiento) + vistaHornos(D.plan_hornos) + vistaMoldes(D.moldes) + vistaSerigrafia(D.serigrafia) +
     D.pendientes.map(p => `<section class="vista" id="v-${p.id}" hidden>
       <div class="pend-box"><div class="chip neutral">○ Pendiente de conectar</div>
       <h3>${esc(p.nombre)}</h3><p style="color:var(--text-soft);margin:0">Para activar los indicadores de este servicio se necesita:</p>
@@ -1272,6 +1287,7 @@ function render(){
         ${f.modificado ? `${k === 'logos' ? 'Publicado por la app' : 'Guardado en SharePoint'}: ${fHora(f.modificado)}<br>` : ''}${f.ultimo_ok ? `Cargado a la base: ${fHora(f.ultimo_ok)} · ${fmt(f.filas)} filas` : ''}
         ${f.mensaje ? `<div class="err">${esc(f.mensaje)}</div>` : ''}</div>`; }).join('')}
       <div class="fuente"><b>Control Inventarios (mantenimiento) <span class="chip ${D.mantenimiento?'ok':'bad'}">${D.mantenimiento?'✓ En vivo':'✖ Sin conexión'}</span></b>AGP_Ingenieria · AppControlInventarios_ManttoHead</div>
+      ${fuentePlanHornos(D.plan_hornos)}
     </div>
     <p style="margin-top:14px">Las casillas con ✎ se escriben a mano y quedan guardadas en la base de datos para todos. El tablero se actualiza solo cada minuto.</p>`;
   activarManuales();
@@ -3337,6 +3353,194 @@ function tarjetaResumenMoldes(MO){
         ${html}
       </div>
     </div></article>`;
+}
+
+// ---------------------------------------------------------------- plan de hornos (SmartBending)
+const hhmm = iso => iso ? iso.slice(11, 16) : '—';
+const durMin = m => m >= 60 ? `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')} min` : `${fmt(m)} min`;
+const pctTxt = p => p == null ? '—' : `${fmt(p * 100)} %`;
+const pctConf = p => p == null ? '—' : `${fmt(p * 100, 1)} %`;
+const turnoCorto = n => String(n || '').replace('_OP', '');
+const ESTADO_PLAN = {
+  ok: {cls:'ok', ico:'●', txt:'Funcionando'},
+  atrasado: {cls:'near', ico:'●', txt:'Replaneo atrasado'},
+  api: {cls:'near', ico:'●', txt:'La API no responde'},
+  caido: {cls:'bad', ico:'✖', txt:'Caído'},
+};
+const colorConf = c => c == null ? 'var(--muted)' : c >= .975 ? 'var(--ok)' : c >= .9 ? 'var(--near)' : 'var(--bad)';
+function chipConf(c){
+  if(c == null) return '';
+  return c >= .975 ? '<span class="chip ok">▲ Confiable</span>' : c >= .9 ? '<span class="chip near">● Con fallas</span>' : '<span class="chip bad">▼ Poco confiable</span>';
+}
+// Ejecución contra el plan: por encima del 100 % es sobreejecución (verde); desde el 95 % va al día
+function chipEjecucion(cargados, planeados){
+  if(!planeados) return '<span class="chip neutral">○ Sin plan</span>';
+  const p = cargados / planeados;
+  if(p > 1) return `<span class="chip ok">▲ Sobre el plan · ${fmt(p * 100)} %</span>`;
+  if(p >= .95) return `<span class="chip ok">▲ Al día · ${fmt(p * 100)} %</span>`;
+  return `<span class="chip ${p >= .85 ? 'near' : 'bad'}">${p >= .85 ? '●' : '▼'} Atrás · ${fmt(p * 100)} %</span>`;
+}
+function fuenteTurno(tu){
+  if(tu.oficial) return '<span class="chip neutral" title="Cálculo de SmartBending al cerrar el turno">Oficial</span>';
+  return tu.en_curso ? '<span class="chip ok">● En curso</span>' : '<span class="chip neutral" title="SmartBending publica el oficial ~2 h después del cierre">Preliminar</span>';
+}
+
+function vistaHornos(P){
+  const abre = '<section class="vista" id="v-hornos" hidden>';
+  if(!P) return `${abre}<div class="aviso err">✖ <span>No se pudo calcular el plan de hornos.</span></div></section>`;
+  if(!P.conectado) return `${abre}<div class="pend-box"><div class="chip neutral">○ Pendiente de conectar</div><h3>Plan de hornos (SmartBending)</h3>
+    <p style="color:var(--text-soft);margin:0">Para activar esta pestaña, el PC servidor del tablero necesita:</p>
+    <ul><li>Estar en la red de planta (ver el servidor SmartFactory)</li>
+    <li>Llenar <b>SMART_DB_SERVER</b>, <b>SMART_DB_NAME</b>, <b>SMART_DB_USER</b> y <b>SMART_DB_PASSWORD</b> en el .env (usuario de solo consulta) y reiniciar el tablero</li></ul></div></section>`;
+  if(!P.hoy) return `${abre}<div class="aviso ${P.error ? 'err' : 'warn'}">${P.error ? '✖' : '⟳'} <span>${P.error
+    ? 'No se pudo leer SmartFactory: ' + esc(P.error) : 'Leyendo el plan de hornos de SmartFactory… aparece en unos segundos.'}</span></div></section>`;
+
+  const H = P.hoy, T = P.turno, M = P.moldes, S = P.salud, EP = ESTADO_PLAN[S.estado] || ESTADO_PLAN.ok, uv = S.ultima_version;
+  const banners = {
+    sobre: ['sobre', '🎉', '¡Vamos sobreejecutando el plan!', `${fmt(H.diferencia)} carros por encima de lo que pedía SmartBending hasta esta hora (${fmt(H.cargados)} de ${fmt(H.planeados)}). ¡Felicitaciones al equipo!`],
+    al_dia: ['al_dia', '✔', 'Vamos al día con el plan', `${fmt(H.cargados)} carros cargados de ${fmt(H.planeados)} que pedía el plan hasta esta hora.`],
+    atras: ['atras', '▼', `Vamos ${fmt(-H.diferencia)} carros por debajo del plan`, `${fmt(H.cargados)} cargados de ${fmt(H.planeados)} que pedía el plan hasta esta hora.`],
+  };
+  const b = banners[H.estado];
+  const banner = b ? `<div class="hz-banner ${b[0]}"><span class="hz-ico" aria-hidden="true">${b[1]}</span><div><b>${b[2]}</b><span>${b[3]}</span></div></div>` : '';
+  const aviso = P.aviso ? `<div class="aviso warn">⚠ <span>No se pudo releer SmartFactory (${esc(P.aviso)}). Se muestran los datos de las ${hhmm(P.generado)}.</span></div>` : '';
+  const apego = H.planeados_oficiales ? H.identicos / H.planeados_oficiales : null;
+  const kTurno = T
+    ? kpi(`Turno en curso · ${esc(turnoCorto(T.turno))}`, fmt(T.cargados), `de ${fmt(T.a_la_hora)} a esta hora`,
+        `${hhmm(T.inicio)}–${hhmm(T.fin)} · el turno completo pide <b>${fmt(T.planeados)}</b> carros`, chipEjecucion(T.cargados, T.a_la_hora))
+    : kpi('Turno en curso', '—', '', 'No hay un turno activo en el plan');
+
+  const filasTurnos = P.turnos.slice().reverse().map(tu => {
+    const o = v => tu.oficial ? fmt(v) : '—';
+    return `<tr${tu.en_curso ? ' class="hz-actual"' : ''}><td>${tu.dia === P.dia ? t('hoy') : t('ayer')}</td><td><b>${esc(turnoCorto(tu.turno))}</b></td>
+      <td class="num">${hhmm(tu.inicio)}–${hhmm(tu.fin)}</td>
+      <td class="n">${fmt(tu.a_la_hora)}${tu.en_curso && tu.planeados !== tu.a_la_hora ? ` <small>de ${fmt(tu.planeados)}</small>` : ''}</td>
+      <td class="n"><b>${fmt(tu.cargados)}</b></td><td>${chipEjecucion(tu.cargados, tu.a_la_hora)}</td>
+      <td class="n">${o(tu.identicos + tu.equivalentes)}</td><td class="n">${o(tu.parciales)}</td><td class="n">${o(tu.desviados)}</td>
+      <td class="n">${o(tu.no_ejecutados)}</td><td class="n">${o(tu.adicionales)}</td><td>${fuenteTurno(tu)}</td></tr>`;
+  }).join('');
+
+  const pend = M.pendientes.length
+    ? `<table><thead><tr><th>Hora</th><th>Horno</th><th>Molde</th><th>Vehículo</th><th>Orden</th><th></th></tr></thead><tbody>${M.pendientes.map(p =>
+        `<tr><td class="num">${hhmm(p.hora)}</td><td>${esc(p.horno)}</td><td class="num">${esc(p.molde || 'Sin molde en el plan')}</td><td>${esc(p.vehiculo || '')}</td>
+         <td class="num">${esc(p.orden)}</td><td>${p.atrasada ? '<span class="chip bad">Atrasada</span>' : '<span class="chip neutral">Viene</span>'}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="vacio">Todo lo que pide el plan para las próximas 3 horas ya se cargó 👏</div>';
+  const sinMolde = M.sin_molde.length
+    ? `<table><thead><tr><th>Día</th><th>Turno</th><th>Hora plan</th><th>Horno</th><th>Moldes que pedía</th><th>Comentario en piso</th></tr></thead><tbody>${M.sin_molde.map(s =>
+        `<tr><td style="white-space:nowrap">${fCorta(s.dia)}</td><td>${esc(turnoCorto(s.turno))}</td><td class="num">${hhmm(s.hora)}</td><td>${esc(s.horno)}</td>
+         <td class="num">${s.moldes.map(esc).join('<br>')}</td><td>${esc(s.comentario)}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="vacio">Ningún carro dejó de cargarse por molde no disponible 👏</div>';
+
+  const caidas = S.caidas.length
+    ? `<table><thead><tr><th>Último plan</th><th>Siguiente plan</th><th class="n">Sin replanear</th></tr></thead><tbody>${S.caidas.map(c =>
+        `<tr><td>${fHora(c.desde)}</td><td>${c.abierta ? '<span class="chip bad">✖ Sigue caído</span>' : fHora(c.hasta)}</td>
+         <td class="n" style="color:${c.minutos >= 180 ? 'var(--bad)' : 'var(--near)'};font-weight:700">${durMin(c.minutos)}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="vacio">Sin caídas en los últimos 30 días</div>';
+  const raros = [...S.cambios.map(c => ({en:c.en, txt:`Versión ${fmt(c.version)}: ${c.detalle}`})),
+                 ...S.api_caidas.map(c => ({en:c.desde, txt:`La API de SmartBending no respondió${c.hasta ? ` hasta las ${hhmm(c.hasta)}` : ' (sigue sin responder)'}`}))]
+    .sort((a, b2) => b2.en.localeCompare(a.en));
+  const cambios = raros.length
+    ? `<table><thead><tr><th>Cuándo</th><th>Qué pasó</th></tr></thead><tbody>${raros.map(r => `<tr><td style="white-space:nowrap">${fHora(r.en)}</td><td>${esc(r.txt)}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="vacio">Sin cambios bruscos: la zona congelada no se ha movido</div>';
+  const R = S.reglas;
+
+  return `${abre}${aviso}${banner}
+  <h2 class="sec">Cumplimiento del plan · día lógico ${fLarga(P.dia)}</h2>
+  <div class="grid-kpi">
+    ${kpi('Carros cargados hoy', fmt(H.cargados), `de ${fmt(H.planeados)}`, `lo que pedía el plan hasta esta hora · ${fmt(H.turnos)} turnos`, chipEjecucion(H.cargados, H.planeados), 'hero')}
+    ${kTurno}
+    ${kpi('Igual al plan', pctTxt(apego), '', `${fmt(H.identicos)} de ${fmt(H.planeados_oficiales)} carros idénticos o equivalentes a lo planeado (turnos cerrados)`)}
+    ${kpi('Moldes que pidió el plan', fmt(M.cargados), `de ${fmt(M.exigidos)}`, 'moldes del plan de hoy que ya se cargaron', chipEjecucion(M.cargados, M.exigidos))}
+  </div>
+  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3>Turnos de ayer y hoy</h3>
+    <p>Plan = carros que SmartBending comprometió para el turno (a esta hora, en el turno en curso). Cargados incluye los adicionales que no estaban en el plan.</p></div></div>
+    <div class="tabla"><table><thead><tr><th>Día</th><th>Turno</th><th>Horario</th><th class="n">Plan</th><th class="n">Cargados</th><th>Ejecución</th>
+      <th class="n">Igual</th><th class="n">Parcial</th><th class="n">Desviado</th><th class="n">No cargado</th><th class="n">Adicional</th><th>Fuente</th></tr></thead>
+      <tbody>${filasTurnos}</tbody></table></div></div>
+  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3>Carros planeados vs cargados · 30 días</h3>
+    <p>Por encima del 100 % es sobreejecución. Pasa el mouse por un día para ver el detalle.</p></div></div>
+    <div id="hz-leyenda"></div><div class="chart" id="ch-plan-diario"></div></div>
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><div><h3>Moldes que pide el plan y no se han cargado</h3><p>Atrasados del día y lo que viene en las próximas 3 horas</p></div></div>
+      <div class="tabla">${pend}</div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Carros que no se cargaron por molde no disponible</h3><p>Últimos ${fmt(M.sin_molde_dias)} días · clasificación que hace piso en SmartBending</p></div></div>
+      <div class="tabla">${sinMolde}</div></div>
+  </div>
+
+  <h2 class="sec">¿El plan de SmartBending está funcionando?</h2>
+  <div class="grid-kpi">
+    ${kpi('SmartBending ahora', `<span style="color:${COLOR_EST[EP.cls]}">${EP.txt}</span>`, '',
+        `Último replaneo: versión ${fmt(uv.version)} a las ${hhmm(uv.generado)} (hace ${durMin(uv.hace_min)}) · ${esc(uv.escenario)}${S.api && S.api.ok && S.api.ms != null ? ` · API responde en ${fmt(S.api.ms)} ms` : S.api && !S.api.ok ? ' · la API no responde' : ''}`,
+        `<span class="chip ${EP.cls}">${EP.ico}</span>`, 'hero')}
+    ${kpi('Confiabilidad hoy', `<span style="color:${colorConf(S.confiabilidad_hoy)}">${pctConf(S.confiabilidad_hoy)}</span>`, '', 'del tiempo con plan al día', chipConf(S.confiabilidad_hoy))}
+    ${kpi('Confiabilidad 7 días', `<span style="color:${colorConf(S.confiabilidad_7)}">${pctConf(S.confiabilidad_7)}</span>`, '', 'del tiempo con plan al día', chipConf(S.confiabilidad_7))}
+    ${kpi('Confiabilidad 30 días', `<span style="color:${colorConf(S.confiabilidad_30)}">${pctConf(S.confiabilidad_30)}</span>`, '',
+        `<b>${fmt(S.caidas_30)}</b> caídas · <b>${fmt(S.horas_caido_30, 1)} h</b> sin replanear`, chipConf(S.confiabilidad_30))}
+  </div>
+  <div class="panel" style="margin-top:16px"><div class="panel-head"><div><h3>¿Cuándo se cae el plan? · últimos 14 días</h3>
+    <p>Cada raya es un replaneo de SmartBending; cada fila es un día lógico (de 21:00 a 21:00). A la derecha, la confiabilidad del día.</p></div></div>
+    <div class="legend"><span><i style="background:var(--teal);width:3px;border-radius:1px"></i>Replaneo</span><span><i style="background:var(--near)"></i>Plan desactualizado (más de ${fmt(R.al_dia_min)} min)</span><span><i style="background:var(--bad)"></i>Caída (más de ${fmt(R.caida_min)} min sin replanear)</span></div>
+    <div class="chart" id="ch-plan-linea"></div></div>
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><div><h3>Caídas del plan · 30 días</h3><p>Huecos de más de ${fmt(R.caida_min)} min entre un plan y el siguiente</p></div></div><div class="tabla">${caidas}</div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Cambios raros del plan</h3><p>Escenario que cambia a mitad del día, carros congelados que se mueven o la API sin responder</p></div></div><div class="tabla">${cambios}</div></div>
+  </div>
+  <p class="hz-nota"><b>Cómo se mide.</b> SmartBending promete replanear cada ${fmt(R.ciclo_min)} min. El plan está <b>al día</b> si el último replaneo tiene menos de ${fmt(R.al_dia_min)} min;
+    <b>confiabilidad</b> = % del tiempo con plan al día. Una <b>caída</b> es un hueco de más de ${fmt(R.caida_min)} min sin plan nuevo. El plan comprometido y los resultados de cada turno
+    son el cálculo oficial de SmartBending (Hornos_Buffer_Cumplimiento); el turno en curso se calcula igual con los cargues reales (SF_Cargue_SAP_Hornos). Se actualiza cada 2 min.</p>
+  </section>`;
+}
+
+function dibujarHornos(){
+  const P = D && D.plan_hornos; if(!P || !P.hoy || $('#v-hornos').hidden) return;
+  const col = {Plan: PALETA[1], Cargados: PALETA[0]};
+  $('#hz-leyenda').innerHTML = `<div class="legend"><span><i style="background:${col.Plan}"></i>Plan (comprometido)</span><span><i style="background:${col.Cargados}"></i>Cargados</span></div>`;
+  const colorPct = p => p == null ? 'var(--muted)' : p >= .95 ? 'var(--ok)' : p >= .85 ? 'var(--near)' : 'var(--bad)';
+  barrasAgrupadas($('#ch-plan-diario'), P.diario.map(d => ({
+    etiqueta: d.hoy ? t('hoy') : fCorta(d.dia), valores: {Plan: d.planeados, Cargados: d.cargados},
+    sub: d.pct != null ? `${fmt(d.pct * 100)} %` : '', subColor: colorPct(d.pct),
+    tip: `<b>${fLarga(d.dia)}${d.hoy ? ' · hasta esta hora' : ''}</b>
+      <div class="r" style="margin-top:6px"><span>Plan</span><span>${fmt(d.planeados)}</span></div><div class="r"><span>Cargados</span><span>${fmt(d.cargados)}</span></div>
+      <div class="r"><span>Igual al plan</span><span>${fmt(d.identicos)}</span></div><div class="r"><span>Sin cargar por molde</span><span>${fmt(d.sin_molde)}</span></div>
+      <div class="r"><span>Confiabilidad SmartBending</span><span>${pctConf(d.confiabilidad)}</span></div>`})),
+    {orden: ['Plan', 'Cargados'], colores: col, alto: 270, aria: 'Carros planeados contra cargados por día'});
+  lineaTiempoPlan($('#ch-plan-linea'), P.salud.linea);
+}
+
+// Una fila por día lógico (21:00 a 21:00): rayas = replaneos, ámbar = plan desactualizado, rojo = caída
+function lineaTiempoPlan(cont, dias){
+  cont.innerHTML = '';
+  if(!dias.length){ cont.innerHTML = '<div class="vacio">Sin datos</div>'; return; }
+  const mL = 62, mR = 62, fila = 24, mT = 22, H = mT + dias.length * fila + 4;
+  const W = Math.max(cont.clientWidth || 700, 560), x = m => mL + (W - mL - mR) * m / 1440;
+  const svg = svgEl('svg', {width:W, height:H, viewBox:`0 0 ${W} ${H}`, role:'img', 'aria-label':'Replaneos y caídas del plan de hornos por día'}, cont);
+  for(let h = 0; h <= 24; h += 3){
+    svgEl('line', {x1:x(h * 60), x2:x(h * 60), y1:mT - 4, y2:H - 2, stroke:'var(--grid)'}, svg);
+    svgEl('text', {x:x(h * 60), y:mT - 8, 'text-anchor':'middle'}, svg).textContent = `${String((21 + h) % 24).padStart(2, '0')}:00`;
+  }
+  dias.forEach((d, i) => {
+    const y0 = mT + i * fila, g = svgEl('g', {}, svg), alto = fila - 8;
+    svgEl('text', {x:mL - 8, y:y0 + fila / 2 + 4, 'text-anchor':'end'}, g).textContent = i === dias.length - 1 ? t('hoy') : fCorta(d.dia);
+    svgEl('rect', {x:x(0), y:y0 + 4, width:Math.max(0, x(d.hasta_min) - x(0)), height:alto, rx:3, fill:'var(--grid)'}, g);
+    d.sin_plan.forEach(([a, b]) => svgEl('rect', {x:x(a), y:y0 + 4, width:Math.max(1.5, x(b) - x(a)), height:alto, fill:'var(--near)', opacity:.6}, g));
+    d.caidas.forEach(([a, b]) => svgEl('rect', {x:x(a), y:y0 + 4, width:Math.max(2, x(b) - x(a)), height:alto, rx:2, fill:'var(--bad)'}, g));
+    d.versiones.forEach(m => svgEl('line', {x1:x(m), x2:x(m), y1:y0 + 5, y2:y0 + fila - 5, stroke:'var(--teal)', 'stroke-width':1.4}, g));
+    svgEl('text', {x:W - mR + 8, y:y0 + fila / 2 + 4, 'font-weight':600, style:`fill:${colorConf(d.confiabilidad)}`}, g).textContent = pctConf(d.confiabilidad);
+    const minCaido = d.caidas.reduce((s, [a, b]) => s + b - a, 0), minViejo = d.sin_plan.reduce((s, [a, b]) => s + b - a, 0);
+    const hit = svgEl('rect', {x:0, y:y0, width:W, height:fila, class:'hit'}, svg);
+    hit.addEventListener('mousemove', ev => mostrarTip(ev, `<b>${fLarga(d.dia)}</b>
+      <div class="r" style="margin-top:6px"><span>Replaneos</span><span>${fmt(d.versiones.length)}</span></div>
+      <div class="r"><span>Plan desactualizado</span><span>${durMin(minViejo)}</span></div>
+      <div class="r"><span>Caído</span><span>${minCaido ? durMin(minCaido) : 'no'}</span></div>
+      <div class="r"><span>Confiabilidad</span><span>${pctConf(d.confiabilidad)}</span></div>`));
+    hit.addEventListener('mouseleave', ocultarTip);
+  });
+}
+
+function fuentePlanHornos(P){
+  const ok = P && P.hoy, chipF = !P || !P.conectado ? '<span class="chip neutral">○ Sin conectar</span>' : ok && !P.aviso ? '<span class="chip ok">✓ En vivo</span>'
+    : ok ? '<span class="chip near">● Con aviso</span>' : '<span class="chip bad">✖ Sin datos</span>';
+  return `<div class="fuente"><b>SmartBending · plan de hornos ${chipF}</b>SmartFactory · Hornos_Buffer_* y SF_Cargue_SAP_Hornos${ok ? `<br>Leído: ${fHora(P.generado)}` : ''}${P && P.aviso ? `<div class="err">${esc(P.aviso)}</div>` : ''}</div>`;
 }
 
 function vistaMoldes(MO){
