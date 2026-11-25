@@ -1,4 +1,5 @@
 import datetime as dt
+import threading
 import time
 from contextlib import contextmanager
 
@@ -16,6 +17,15 @@ _CADENA = (
 
 # Errores de red/servidor de Azure SQL que se arreglan solos reintentando.
 _TRANSITORIOS = ("08S01", "08001", "40613", "40197", "40501", "49918", "10053", "10054", "HYT00")
+# La base deja 30 consultas simultáneas para TODAS las apps que la usan (Pedidos, Control Inventarios, Logos...):
+# este servidor nunca abre más de MAX_SIMULTANEAS a la vez y, si igual se llena, espera y reintenta.
+MAX_SIMULTANEAS = 8
+_LIMITE = ("10928", "10936")
+_cupo = threading.BoundedSemaphore(MAX_SIMULTANEAS)
+
+
+def _es_limite(e):
+    return any(c in str(e) for c in _LIMITE)
 
 
 def ahora():
@@ -23,39 +33,47 @@ def ahora():
     return dt.datetime.now().replace(microsecond=0)
 
 
-def conectar(intentos=3):
+def conectar(intentos=5):
     for n in range(intentos):
         try:
             return pyodbc.connect(_CADENA, autocommit=False)
         except pyodbc.Error as e:
-            if n == intentos - 1 or not any(c in str(e) for c in _TRANSITORIOS):
+            if n == intentos - 1 or not (_es_limite(e) or any(c in str(e) for c in _TRANSITORIOS)):
                 raise
             time.sleep(2 * (n + 1))
 
 
 @contextmanager
 def transaccion():
-    cn = conectar()
-    try:
-        cur = cn.cursor()
-        yield cur
-        cn.commit()
-    except Exception:
-        cn.rollback()
-        raise
-    finally:
-        cn.close()
+    with _cupo:
+        cn = conectar()
+        try:
+            cur = cn.cursor()
+            yield cur
+            cn.commit()
+        except Exception:
+            cn.rollback()
+            raise
+        finally:
+            cn.close()
 
 
-def consultar(sql, *params):
-    cn = conectar()
-    try:
-        cur = cn.cursor()
-        cur.execute(sql, *params)
-        columnas = [d[0] for d in cur.description]
-        return [dict(zip(columnas, fila)) for fila in cur.fetchall()]
-    finally:
-        cn.close()
+def consultar(sql, *params, intentos=5):
+    for n in range(intentos):
+        try:
+            with _cupo:
+                cn = conectar()
+                try:
+                    cur = cn.cursor()
+                    cur.execute(sql, *params)
+                    columnas = [d[0] for d in cur.description]
+                    return [dict(zip(columnas, fila)) for fila in cur.fetchall()]
+                finally:
+                    cn.close()
+        except pyodbc.Error as e:
+            if n == intentos - 1 or not _es_limite(e):
+                raise
+            time.sleep(2 * (n + 1))
 
 
 def ejecutar(sql, *params):
