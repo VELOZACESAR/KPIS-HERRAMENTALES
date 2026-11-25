@@ -298,6 +298,9 @@ def calcular(hoy, R):
 #      sus carros) y AppControlInventarios_EmpalmeSync (piezas en Empalme y en los puestos anteriores con su molde).
 #      Rojo = el plan lo va a cargar; naranja = hay piezas esperándolo en un puesto (Empalme primero: es el más cerca
 #      del horno); sin puesto = alerta solo por los ciclos que se ha usado.
+#      Lo que SmartBending pide mantener sale solo del rojo, con la regla de "Hacer primero" de Control Inventarios:
+#      faltan = piezas del plan - repeticiones disponibles; se mantienen las de más puntaje que estén en su
+#      ubicación, hasta cubrir lo que falta.
 PUESTOS_PLAN = [("05EMPAL", "Empalme"), ("04SER_VT", "Vitrificado"), ("03SERIG", "Serigrafía"), ("02CNC", "CNC"),
                 ("01CORTE", "Corte"), ("PLANEACION", "Planeación")]
 MIN_ATRAS_PLAN = 60   # carros del plan de hasta 1 h atrás sin registrar aún cuentan como por cargar
@@ -338,8 +341,9 @@ def plan_alertas(ahora=None):
                              FROM INV.MANTENIMIENTO_MOLDES_GRUPO
                              WHERE Estado = 'POR MANTENIMIENTO' AND NULLIF(LTRIM(RTRIM(Repeticion)), '') IS NOT NULL"""):
         cod, ver, pie, rep = _llave(r["CodHer"], r["Version"], r["Pieza"], r["Repeticion"])
-        a = alertas.setdefault((cod, ver, pie), {"reps": [], "puntaje": 0, "desde": None, "especial": False})
+        a = alertas.setdefault((cod, ver, pie), {"reps": [], "pts": {}, "puntaje": 0, "desde": None, "especial": False})
         a["reps"].append(rep)
+        a["pts"][rep] = float(r["PuntajeTotalCalculado"] or 0)
         a["puntaje"] = max(a["puntaje"], float(r["PuntajeTotalCalculado"] or 0))
         a["especial"] |= (r["TipoAlerta"] or "") == "ESPECIAL"
         d = r["FechaPrimeraDeteccion"]
@@ -389,12 +393,13 @@ def plan_alertas(ahora=None):
                 "especial": a["especial"], "categoria": cat, "vehiculo": veh,
                 "alerta_desde": a["desde"].date().isoformat() if a["desde"] else None}
 
+    inv = _inventario(set(en_plan))
     rojo = []
     for k, e in en_plan.items():
         b = base(k)
         rojo.append({**b, "vehiculo": e["vehiculo"] or b["vehiculo"], "tipo": e["tipo"], "hora": _iso(e["hora"]),
                      "horno": e["horno"], "turno": e["turno"], "carros": len(e["carros"]), "piezas": e["piezas"],
-                     "atrasado": e["hora"] < ahora})
+                     "atrasado": e["hora"] < ahora, **hacer_primero(e["piezas"], inv.get(k, {}), alertas[k]["pts"])})
     rojo.sort(key=lambda x: x["hora"])
     naranja = []
     for k, e in en_puesto.items():
@@ -407,8 +412,8 @@ def plan_alertas(ahora=None):
     naranja.sort(key=lambda x: (x["orden_puesto"], -sum(p["n"] for p in x["puestos"]), -x["puntaje"]))
     sin_puesto = sorted((base(k) for k in alertas if k not in en_plan and k not in en_puesto), key=lambda x: -x["puntaje"])
     info = plan.get("plan") or {}
-    vivo = [{"cod": x["molde"][2:], "version": x["version"], "pieza": x["pieza"], "rep": r, "categoria": x["categoria"],
-             "origen": "Plan" if "hora" in x else x["puesto"]} for x in rojo + naranja for r in x["reps"]]
+    vivo = [{"cod": x["molde"][2:], "version": x["version"], "pieza": x["pieza"], "rep": r, "categoria": x["categoria"]}
+            for x in rojo for r in x["hacer"]]
     return {"generado": _iso(ahora), "rojo": rojo, "naranja": naranja, "sin_puesto": sin_puesto, "necesidad_vivo": vivo,
             "necesidad_historia": _historia_necesidad(ahora.date() - dt.timedelta(days=400)),
             "plan": {"version": info.get("version"), "dia": info.get("dia"), "estado": info.get("estado"),
@@ -417,9 +422,38 @@ def plan_alertas(ahora=None):
             "puestos_sincronizado": _iso(wip_sinc), "orden_puestos": [n for _, n in PUESTOS_PLAN]}
 
 
-# ---- Necesidad del día = repeticiones en alerta que el plan o las piezas en proceso pidieron EN ALGÚN MOMENTO del día.
-#      El servidor la fotografía cada 5 min (cesar.mant_necesidad, sql/012); si en la tarde el plan cambia, lo nuevo se
-#      suma. El tablero junta esa historia con lo que ve en vivo, así hoy está al día aunque falte la última foto.
+# ---- Necesidad del día = repeticiones que SmartBending pidió mantener EN ALGÚN MOMENTO del día (las de "Hacer
+#      primero" de los moldes del plan). El servidor la fotografía cada 5 min (cesar.mant_necesidad, sql/012, con
+#      origen 'SmartBending'; las filas con otro origen son de la regla anterior y no cuentan); si en la tarde el
+#      plan cambia, lo nuevo se suma. El tablero junta esa historia con lo que ve en vivo, así hoy está al día aunque falte la última foto.
+def _inventario(llaves):
+    """{(cod, versión, pieza): {repetición: {"uso": bool, "matriceria": bool}}} de los moldes activos de Control
+    Inventarios, solo para las llaves pedidas."""
+    if not llaves:
+        return {}
+    inv = defaultdict(dict)
+    for r in db.consultar("""SELECT i.CodMolde, i.Version, i.Pieza, i.Repeticion, i.EnMatriceria,
+                                    CASE WHEN s.Id IS NULL THEN 0 ELSE 1 END AS EnUso
+                             FROM dbo.AppControlInventarios_RegistroInventario i
+                             LEFT JOIN dbo.AppControlInventarios_SalidaMolde s
+                                    ON s.IdRegistro = i.IdRegistro AND s.FechaRetorno IS NULL
+                             WHERE (i.Activo IS NULL OR i.Activo = 1) AND i.Tipo = 'M'"""):
+        cod, ver, pie, rep = _llave(r["CodMolde"], r["Version"], r["Pieza"], r["Repeticion"])
+        if (cod, ver, pie) in llaves:
+            inv[(cod, ver, pie)][rep] = {"uso": bool(r["EnUso"]), "matriceria": bool(r["EnMatriceria"])}
+    return inv
+
+
+def hacer_primero(piezas, reps, puntajes):
+    """Cuántas y cuáles repeticiones en alerta hay que mantener para cubrir las piezas del plan (misma regla que
+    "Hacer primero" en Control Inventarios). Disponible = en su ubicación, fuera de matricería y sin alerta."""
+    libres = {r for r, x in reps.items() if not x["uso"] and not x["matriceria"]}
+    disponibles = len(libres - set(puntajes))
+    mantenibles = sorted((r for r in puntajes if r in libres), key=lambda r: (-puntajes[r], len(r), r))
+    faltan = max(0, piezas - disponibles)
+    return {"disponibles": disponibles, "faltan": faltan, "hacer": mantenibles[:min(faltan, len(mantenibles))]}
+
+
 def guardar_necesidad(momento=None):
     momento = momento or db.ahora()
     vivo = plan_alertas(momento)["necesidad_vivo"]
@@ -427,22 +461,21 @@ def guardar_necesidad(momento=None):
         return 0
     with db.transaccion() as cur:
         cur.execute("""CREATE TABLE #nec (cod_her NVARCHAR(20), version NVARCHAR(10), pieza NVARCHAR(10),
-                                          repeticion NVARCHAR(20), categoria NVARCHAR(40), origen NVARCHAR(20))""")
+                                          repeticion NVARCHAR(20), categoria NVARCHAR(40))""")
         cur.fast_executemany = True
-        cur.executemany("INSERT INTO #nec VALUES (?, ?, ?, ?, ?, ?)",
-                        [(x["cod"], x["version"], x["pieza"], x["rep"], x["categoria"], x["origen"]) for x in vivo])
+        cur.executemany("INSERT INTO #nec VALUES (?, ?, ?, ?, ?)",
+                        [(x["cod"], x["version"], x["pieza"], x["rep"], x["categoria"]) for x in vivo])
         cur.fast_executemany = False
         cur.execute("""MERGE cesar.mant_necesidad AS t
-                       USING (SELECT cod_her, version, pieza, repeticion, MAX(categoria) AS categoria,
-                                     MIN(CASE WHEN origen = 'Plan' THEN ' Plan' ELSE origen END) AS origen
+                       USING (SELECT cod_her, version, pieza, repeticion, MAX(categoria) AS categoria
                               FROM #nec GROUP BY cod_her, version, pieza, repeticion) AS s
                           ON t.fecha = ? AND t.cod_her = s.cod_her AND t.version = s.version
                          AND t.pieza = s.pieza AND t.repeticion = s.repeticion
-                       WHEN MATCHED THEN UPDATE SET hasta = ?,
-                            origen = CASE WHEN t.origen = 'Plan' OR s.origen = ' Plan' THEN 'Plan' ELSE s.origen END
+                       WHEN MATCHED AND t.origen = 'SmartBending' THEN UPDATE SET hasta = ?
+                       WHEN MATCHED THEN UPDATE SET origen = 'SmartBending', desde = ?, hasta = ?
                        WHEN NOT MATCHED THEN INSERT (fecha, cod_her, version, pieza, repeticion, categoria, origen, desde, hasta)
-                            VALUES (?, s.cod_her, s.version, s.pieza, s.repeticion, s.categoria, LTRIM(s.origen), ?, ?);""",
-                    momento.date(), momento, momento.date(), momento, momento)
+                            VALUES (?, s.cod_her, s.version, s.pieza, s.repeticion, s.categoria, 'SmartBending', ?, ?);""",
+                    momento.date(), momento, momento, momento, momento.date(), momento, momento)
     return len(vivo)
 
 
@@ -450,36 +483,54 @@ def _historia_necesidad(desde):
     try:
         return [[r["fecha"].isoformat(), r["cod_her"], r["version"], r["pieza"], r["repeticion"], r["categoria"]]
                 for r in db.consultar("""SELECT fecha, cod_her, version, pieza, repeticion, categoria
-                                         FROM cesar.mant_necesidad WHERE fecha >= ?""", desde)]
+                                         FROM cesar.mant_necesidad WHERE fecha >= ? AND origen = 'SmartBending'""",
+                                      desde)]
     except Exception:   # la tabla aún no existe (sql/012): solo queda lo que se ve en vivo
         log.warning("Sin historia de necesidad (cesar.mant_necesidad)")
         return []
 
 
+def _finalizados_por_dia(M):
+    """{fecha: {(cod, versión, pieza, repetición)}} de los moldes (tipo M) finalizados, desde los registros compactos."""
+    reg = M.get("registros") or {}
+    moldes = reg.get("moldes") or []
+    fin = defaultdict(set)
+    for f in reg.get("filas") or []:
+        partes = str(moldes[f[4]]).split()
+        if len(partes) == 2 and partes[0] == "M":
+            fin[f[0]].add((_pad(partes[1], 4), f[8], f[9], f[10]))
+    return fin
+
+
 def sumar_necesidad(M, P, hoy):
-    """Agrega a cada barra del histórico ("diaria", "semanal", "mensual") la necesidad por vehículo: repeticiones
-    distintas que fueron necesidad en el periodo. Sin foto ese día = None (la línea se corta)."""
+    """Agrega a cada barra del histórico ("diaria", "semanal", "mensual") lo que SmartBending pidió mantener por
+    vehículo ("nec": repeticiones distintas del periodo) y cuántas de esas se finalizaron en el periodo ("nec_ok").
+    Sin foto ese día = None (la línea se corta)."""
+    fin = _finalizados_por_dia(M)
     por_dia = defaultdict(dict)   # fecha -> {llave: categoría}
     for f, cod, ver, pie, rep, cat in P.get("necesidad_historia") or []:
         por_dia[f][(cod, ver, pie, rep)] = cat
     for x in P.get("necesidad_vivo") or []:
         por_dia[hoy.isoformat()][(x["cod"], x["version"], x["pieza"], x["rep"])] = x["categoria"]
 
-    def nec(dias):
+    def nec(p, dias):
         dias = [d.isoformat() for d in dias if d <= hoy]
         if not any(d in por_dia for d in dias):
-            return None
-        union = {}
+            p["nec"] = p["nec_ok"] = None
+            return
+        union, hechas = {}, set()
         for d in dias:
             union.update(por_dia.get(d, {}))
-        return dict(Counter(union.values()))
+            hechas |= fin.get(d, set())
+        p["nec"] = dict(Counter(union.values()))
+        p["nec_ok"] = dict(Counter(c for k, c in union.items() if k in hechas))
 
     for p in M.get("diaria") or []:
-        p["nec"] = nec([dt.date.fromisoformat(p["fecha"])])
+        nec(p, [dt.date.fromisoformat(p["fecha"])])
     for p in M.get("semanal") or []:
         a = dt.date.fromisoformat(p["desde"])
-        p["nec"] = nec([a + dt.timedelta(days=i) for i in range(7)])
+        nec(p, [a + dt.timedelta(days=i) for i in range(7)])
     for p in M.get("mensual") or []:
         a = dt.date.fromisoformat(p["etiqueta"] + "-01")
-        p["nec"] = nec([a + dt.timedelta(days=i) for i in range(31) if (a + dt.timedelta(days=i)).month == a.month])
+        nec(p, [a + dt.timedelta(days=i) for i in range(31) if (a + dt.timedelta(days=i)).month == a.month])
     M["necesidad_desde"] = min(por_dia) if por_dia else None

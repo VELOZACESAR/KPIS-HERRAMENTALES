@@ -572,6 +572,7 @@
   .mr-rep{color:var(--bad)}
   .mr-tipo{color:var(--text-soft);white-space:nowrap}
   .mr-quien{white-space:nowrap} .mr-quien small{color:var(--muted);font-weight:600}
+  .mp-hacer{color:var(--bad)} .mp-cubierto{color:var(--ok);font-weight:600}
   .mr-mes{color:var(--muted)}
   .mp-resumen{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   .mp-n{flex:1;min-width:110px;border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text-soft);border-left:4px solid}
@@ -867,7 +868,7 @@ function barrasApiladas(cont, items, o={}){
     const ultimo = pts.map((p,i)=>p?i:-1).filter(i=>i>=0).pop();
     pts.forEach((p, i) => {
       if(!p) return;
-      if(!l.sinPuntos) svgEl('circle', {cx:p[0], cy:p[1], r:4.5, fill:l.color, stroke:'var(--surface)', 'stroke-width':2, 'pointer-events':'none'}, svg);
+      if(!l.sinPuntos) svgEl('circle', {cx:p[0], cy:p[1], r:4.5, fill:(l.colores && l.colores[i]) || l.color, stroke:'var(--surface)', 'stroke-width':2, 'pointer-events':'none'}, svg);
       if(l.etiquetas === 'todas' || i === ultimo)
         svgEl('text', {x:p[0], y:p[1] + (l.abajo ? 16 : -9), 'text-anchor':'middle', class:'linea-num', style:`fill:${l.color}`, 'pointer-events':'none'}, svg).textContent = fmt(l.vals[i]);
     });
@@ -2809,8 +2810,12 @@ function dibujarPlanMant(M){
   const pl = P.plan || {};
   $('#mp-sub').innerHTML = pl.version ? `Plan v${fmt(pl.version)} de SmartBending · generado ${horaPlan(pl.generado)}${pl.hasta ? ` · cubre hasta ${horaPlan(pl.hasta)}` : ''}` : 'Sin plan sincronizado';
   const cab = `<thead><tr><th>Vehículo</th><th>Molde</th><th class="c">V</th><th class="c">P</th><th class="c">Rep. en alerta</th>`;
-  const rojo = P.rojo.length ? `<table class="mp-tabla">${cab}<th>Hora plan</th><th>Horno</th><th class="n">Carros</th></tr></thead><tbody>${P.rojo.map(x =>
-      `<tr>${celdasMolde(x)}<td style="white-space:nowrap"><b>${horaPlan(x.hora)}</b>${x.atrasado ? ' <span class="chip bad" title="La hora del plan ya pasó y el carro no está registrado">pasó</span>' : ''}</td>
+  const hacerTxt = x => !x.hacer ? '—' : x.hacer.length
+    ? `<b class="mp-hacer" title="Faltan ${fmt(x.faltan)}: ${fmt(x.piezas)} piezas del plan y ${fmt(x.disponibles)} disponibles">${fmt(x.hacer.length)}</b> <small>rep ${esc(repsTxt(x.hacer))}</small>`
+    : `<span class="mp-cubierto" title="${fmt(x.disponibles)} disponibles para ${fmt(x.piezas)} piezas del plan">cubierto</span>`;
+  const rojo = P.rojo.length ? `<table class="mp-tabla">${cab}<th class="n">Piezas plan</th><th class="n">Disp.</th><th>Hacer primero</th><th>Hora plan</th><th>Horno</th><th class="n">Carros</th></tr></thead><tbody>${P.rojo.map(x =>
+      `<tr>${celdasMolde(x)}<td class="n num">${fmt(x.piezas)}</td><td class="n num">${x.disponibles == null ? '—' : fmt(x.disponibles)}</td><td style="white-space:nowrap">${hacerTxt(x)}</td>
+       <td style="white-space:nowrap"><b>${horaPlan(x.hora)}</b>${x.atrasado ? ' <span class="chip bad" title="La hora del plan ya pasó y el carro no está registrado">pasó</span>' : ''}</td>
        <td>${esc(x.horno)}</td><td class="n" title="${fmt(x.piezas)} piezas">${fmt(x.carros)}</td></tr>`).join('')}</tbody></table>`
     : '<div class="vacio" style="padding:12px">Ningún molde del plan está en alerta.</div>';
   const grupos = P.orden_puestos.map(p => [p, P.naranja.filter(x => x.puesto === p)]).filter(([, xs]) => xs.length);
@@ -2821,11 +2826,11 @@ function dibujarPlanMant(M){
   const gris = `<table class="mp-tabla">${cab}<th class="n">Puntaje</th><th>En alerta desde</th></tr></thead><tbody>${P.sin_puesto.map(x =>
       `<tr>${celdasMolde(x)}<td class="n num">${fmt(x.puntaje)}</td><td style="white-space:nowrap">${x.alerta_desde ? fCorta(x.alerta_desde) + ' ' + x.alerta_desde.slice(5, 7) + '/' + x.alerta_desde.slice(2, 4) : '—'}</td></tr>`).join('')}</tbody></table>`;
   cont.innerHTML = `<div class="mp-resumen">
-      <span class="mp-n rojo"><b>${fmt(P.rojo.length)}</b>en el plan</span>
+      <span class="mp-n rojo" title="Repeticiones que hay que mantener para cubrir las piezas del plan de SmartBending, en ${fmt(P.rojo.length)} moldes del plan con alerta"><b>${fmt(P.rojo.reduce((a, x) => a + (x.hacer ? x.hacer.length : 0), 0))}</b>pide SmartBending <small>· ${fmt(P.rojo.length)} moldes en el plan</small></span>
       <span class="mp-n naranja"><b>${fmt(P.naranja.length)}</b>con piezas en proceso</span>
       <span class="mp-n gris"><b>${fmt(P.sin_puesto.length)}</b>solo por ciclos</span></div>
     <div class="tabla mant-alto">
-      <h4 class="mp-tit rojo">El plan los va a cargar <small>· ordenado por hora</small></h4>${rojo}
+      <h4 class="mp-tit rojo">El plan los va a cargar <small>· ordenado por hora · Hacer primero = lo que pide SmartBending</small></h4>${rojo}
       <h4 class="mp-tit naranja">Piezas esperándolos en proceso <small>· de Empalme a Planeación</small></h4>${naranja}
       <details class="mp-det"><summary><h4 class="mp-tit gris">Sin piezas en proceso · alerta por ciclos de uso <small>· ${fmt(P.sin_puesto.length)} moldes, por puntaje</small></h4></summary>${gris}</details>
     </div>`;
@@ -2851,9 +2856,12 @@ function dibujarMantenimiento(){
   const sumaPed = x => x == null ? null : totalSegs(segsFiltrados(x));
   const pedidos = fuenteMant.map(p => sumaPed(p.ped)), atendidos = fuenteMant.map(p => sumaPed(p.ate));
   const hayPedidos = MOSTRAR_PEDIDOS_MANT && pedidos.some(v => v != null);
-  // necesidad según SmartBending (plan de hornos + piezas en proceso), en vivo hoy; null = sin foto ese periodo
+  // lo que SmartBending pidió mantener (las de "Hacer primero" de los moldes del plan) y cuántas de esas se
+  // finalizaron; en vivo hoy; null = sin foto ese periodo. Punto verde = se atendió todo lo pedido, rojo = faltó.
   const necesidad = fuenteMant.map(p => p.nec == null ? null : totalSegs(segsFiltrados(p.nec)));
+  const necOk = fuenteMant.map(p => p.nec_ok == null ? null : totalSegs(segsFiltrados(p.nec_ok)));
   const hayNec = necesidad.some(v => v != null);
+  const colorNec = necesidad.map((v, i) => v == null ? null : necOk[i] >= v ? 'var(--ok)' : 'var(--bad)');
   const serie = fuenteMant.map((p, i) => {
     const segs = segsFiltrados(p.segs), total = totalSegs(segs);
     const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
@@ -2863,20 +2871,27 @@ function dibujarMantenimiento(){
       : `<div class="r" style="color:var(--near)"><span>Pedidos (alertas nuevas)</span><span>${fmt(pedidos[i])}</span></div>
          <div class="r" style="color:var(--ok)"><span>Atendidos de lo pedido</span><span>${fmt(atendidos[i])}</span></div>` +
         (p.dias_ped < p.dias ? `<div class="r" style="opacity:.75"><span>Con registro</span><span>${fmt(p.dias_ped)} de ${fmt(p.dias)} días</span></div>` : '');
-    const tipNec = necesidad[i] == null ? '' : `<div class="r" style="color:var(--near)"><span>Por ajustar según SmartBending</span><span>${fmt(necesidad[i])}</span></div>`;
+    const total0 = totalSegs(segsFiltrados(p.segs));
+    const extra = necesidad[i] == null ? 0 : total0 - necOk[i];
+    const tipNec = necesidad[i] == null ? '' :
+      `<div class="r" style="color:var(--near);margin-top:6px"><span>Pidió SmartBending</span><span>${fmt(necesidad[i])}</span></div>
+       <div class="r" style="color:${colorNec[i]}"><span>Atendidas de lo pedido</span><span>${fmt(necOk[i])}${necesidad[i] ? ` (${fmt(Math.round(100 * necOk[i] / necesidad[i]))} %)` : ''}</span></div>` +
+      (necOk[i] < necesidad[i] ? `<div class="r" style="color:var(--bad)"><span>Faltaron</span><span>${fmt(necesidad[i] - necOk[i])}</span></div>` : '') +
+      (extra > 0 ? `<div class="r" style="opacity:.8"><span>${necOk[i] >= necesidad[i] ? 'Sobreejecutado (fuera de lo pedido)' : 'Hechos fuera de lo pedido'}</span><span>+${fmt(extra)}</span></div>` : '');
     return {etiqueta, segs, total, sub: p.hoy || p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
       tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>` + tipNec + tipPedidos, op)};
   });
   $('#mant-serie-sub').innerHTML = (catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '') +
-    (M.necesidad_desde ? `${catMant ? ' · ' : ''}Por ajustar = repeticiones en alerta que el plan de hornos o las piezas en proceso pidieron en el ${vistaMant === 'diaria' ? 'día' : 'periodo'} (se registra desde ${fCorta(M.necesidad_desde)})` : '') +
+    (M.necesidad_desde ? `${catMant ? ' · ' : ''}Línea = repeticiones que SmartBending pidió mantener para cubrir su plan en el ${vistaMant === 'diaria' ? 'día' : 'periodo'}; punto verde = se atendieron todas, rojo = faltaron (se registra desde ${fCorta(M.necesidad_desde)})` : '') +
     (MOSTRAR_PEDIDOS_MANT && M.diaria.some(d => d.ped !== undefined) && !hayPedidos
       ? `${catMant ? ' · ' : ''}Pedidos y atendidos se ven desde el día siguiente a que el servidor empieza a registrar las alertas` : '');
   $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
     (hayPedidos ? `<span title="Moldes que el sistema de puntaje marcó POR MANTENIMIENTO ese periodo y no venían marcados de antes"><i class="linea" style="background:var(--near)"></i>Pedidos (alertas nuevas)</span>` +
                   `<span title="Finalizados de moldes que estaban POR MANTENIMIENTO"><i class="linea" style="background:var(--ok)"></i>Atendidos de lo pedido</span>` : '') +
-    (hayNec ? `<span title="Repeticiones POR MANTENIMIENTO cuyo molde estuvo en el plan de hornos o con piezas en proceso; si el plan cambia en el día, lo nuevo se suma"><i class="linea" style="background:var(--near)"></i>Por ajustar según SmartBending</span>` : '') + `</div>`;
+    (hayNec ? `<span title="Por cada molde del plan de hornos: piezas del plan menos repeticiones disponibles; las que faltan se cubren manteniendo las repeticiones en alerta de más puntaje (Hacer primero). Si el plan cambia en el día, lo nuevo se suma"><i class="linea" style="background:var(--near)"></i>Pidió SmartBending</span>` +
+              `<span><i class="linea" style="background:var(--ok)"></i>atendido</span><span><i class="linea" style="background:var(--bad)"></i>faltó</span>` : '') + `</div>`;
   barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
-    lineas: [...(hayNec ? [{vals: necesidad, color:'var(--near)', etiquetas:'todas'}] : []),
+    lineas: [...(hayNec ? [{vals: necesidad, color:'var(--near)', colores: colorNec, etiquetas:'todas'}] : []),
              ...(hayPedidos ? [{vals: pedidos, color:'var(--near)', etiquetas:'ultima'},
                                {vals: atendidos, color:'var(--ok)', etiquetas:'ultima', abajo:true}] : [])]});
 
