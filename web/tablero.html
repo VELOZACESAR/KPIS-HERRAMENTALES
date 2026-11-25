@@ -565,11 +565,14 @@
   .mr-cat small{font-weight:500;color:var(--muted)}
   .mr-cat b{font-variant-numeric:tabular-nums;margin-left:2px}
   .mr-tabla td,.mp-tabla td{font-size:12.5px}
+  .mr-tabla th,.mr-tabla td{padding-left:6px;padding-right:6px}
   .mr-tabla th.c,.mr-tabla td.c,.mp-tabla th.c,.mp-tabla td.c{text-align:center}
-  .mr-veh{white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+  .mr-veh{white-space:nowrap;max-width:165px;overflow:hidden;text-overflow:ellipsis}
   .mr-veh i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
   .mr-rep{color:var(--bad)}
   .mr-tipo{color:var(--text-soft);white-space:nowrap}
+  .mr-quien{white-space:nowrap} .mr-quien small{color:var(--muted);font-weight:600}
+  .mr-mes{color:var(--muted)}
   .mp-resumen{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   .mp-n{flex:1;min-width:110px;border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text-soft);border-left:4px solid}
   .mp-n b{display:block;font-size:24px;line-height:1.1;color:var(--text);font-variant-numeric:tabular-nums}
@@ -2559,7 +2562,7 @@ function vistaMantenimiento(M){
       <div class="mr-cats" id="mr-cats"></div>
       <div class="tabla mant-alto" id="mant-real"></div></div>
     <div class="panel"><div class="panel-head"><div><h3>POR HACER SEGÚN PLAN DE HORNOS</h3><p id="mp-sub"></p></div></div>
-      <div id="mant-plan"></div></div>
+      <div class="mr-cats" id="mp-cats"></div><div id="mant-plan"></div></div>
   </div>
 
   </section>`;
@@ -2748,7 +2751,9 @@ function dibujarAnalisisMant(M){
 //      versión, pieza y repetición, en el rango de fechas elegido. Sale de los registros de lo finalizado (≈13 meses).
 const CATS_REAL = ['Retrofit', 'BMW X5', 'Land Rover Sentinel', 'Express Van'];
 const catReal = c => c === 'BMW Serie 7' ? 'Retrofit' : c;
-let mrDesde = null, mrHasta = null, mrCats = new Set(CATS_REAL);
+let mrDesde = null, mrHasta = null, mrCats = new Set(CATS_REAL), mpCats = new Set(CATS_REAL);
+const fichasCats = (sel, cuenta) => CATS_REAL.map(c => `<button class="mr-cat ${sel.has(c) ? 'on' : ''}" data-cat="${esc(c)}" style="--c:${colorCat(c)}">
+    <i></i>${esc(nomCat(c))}${c === 'Retrofit' ? ' <small>+ Serie 7</small>' : ''}<b>${fmt(cuenta[c] || 0)}</b></button>`).join('');
 function dibujarRealizados(M){
   const R = M.registros, cont = $('#mant-real'); if(!cont) return;
   if(!R){ cont.innerHTML = '<div class="vacio">Disponible cuando se reinicie el servidor del tablero.</div>'; return; }
@@ -2764,21 +2769,21 @@ function dibujarRealizados(M){
     total++;
     const molde = R.moldes[r[4]], k = [molde, r[8] || '', r[9] || '', r[10] || ''].join('|');
     const g = grupos[k] = grupos[k] || {molde, version: r[8] || '—', pieza: r[9] || '—', rep: r[10] || '—', cat, vehiculo: R.vehiculos[r[5]],
-                                         n: 0, ultima: '', tipo: '', fechas: [], personas: new Set()};
-    g.n++; g.personas.add(R.personas[r[1]]); g.fechas.push(dia);
-    if(dia >= g.ultima){ g.ultima = dia; g.tipo = R.tipos[r[3]]; }
+                                         n: 0, ultima: '', tipo: '', quien: '', hechos: [], personas: new Set()};
+    g.n++; g.personas.add(R.personas[r[1]]); g.hechos.push([dia, R.personas[r[1]]]);
+    if(dia >= g.ultima){ g.ultima = dia; g.tipo = R.tipos[r[3]]; g.quien = R.personas[r[1]]; }
   }
-  $('#mr-cats').innerHTML = CATS_REAL.map(c => `<button class="mr-cat ${mrCats.has(c) ? 'on' : ''}" data-cat="${esc(c)}" style="--c:${colorCat(c)}">
-    <i></i>${esc(nomCat(c))}${c === 'Retrofit' ? ' <small>+ Serie 7</small>' : ''}<b>${fmt(porCat[c])}</b></button>`).join('');
+  $('#mr-cats').innerHTML = fichasCats(mrCats, porCat);
   const filas = Object.values(grupos).sort((a, b) => b.n - a.n || (a.ultima < b.ultima ? 1 : -1) || a.molde.localeCompare(b.molde));
   const repetidos = filas.filter(g => g.n > 1).length, TOPE = 300;
   $('#mr-sub').innerHTML = `${mrDesde === mrHasta ? fLarga(mrDesde) : `${fCorta(mrDesde)} – ${fCorta(mrHasta)}`} · <b>${fmt(total)}</b> mantenimientos · <b>${fmt(filas.length)}</b> moldes` +
     (repetidos ? ` · <b>${fmt(repetidos)}</b> repetidos` : '');
-  cont.innerHTML = filas.length ? `<table class="mr-tabla"><thead><tr><th>Vehículo</th><th>Molde</th><th class="c">Versión</th><th class="c">Pieza</th><th class="c">Rep.</th><th class="n">Veces</th><th>Último</th><th>Tipo</th></tr></thead><tbody>${
-    filas.slice(0, TOPE).map(g => `<tr title="${esc(`${g.molde} ${g.version} ${g.pieza} rep. ${g.rep}\nFechas: ${[...new Set(g.fechas)].sort().map(fCorta).join(', ')}\nMatriceros: ${[...g.personas].join(', ')}`)}">
+  cont.innerHTML = filas.length ? `<table class="mr-tabla"><thead><tr><th>Vehículo</th><th>Molde</th><th class="c">V</th><th class="c">P</th><th class="c">Rep.</th><th class="n">Veces</th><th>Último</th><th>Hecho por</th></tr></thead><tbody>${
+    filas.slice(0, TOPE).map(g => `<tr title="${esc(`${g.molde} ${g.version} ${g.pieza} rep. ${g.rep}\nÚltimo tipo: ${g.tipo}\n` + g.hechos.sort((a, b) => a[0] < b[0] ? 1 : -1).map(([d, q]) => `${fLarga(d)} · ${q}`).join('\n'))}">
       <td class="mr-veh"><i style="background:${colorCat(g.cat)}" title="${esc(nomCat(g.cat))}"></i>${esc(g.vehiculo || '—')}</td>
       <td class="num" style="white-space:nowrap">${esc(g.molde)}</td><td class="c num">${esc(g.version)}</td><td class="c num">${esc(g.pieza)}</td><td class="c num">${esc(g.rep)}</td>
-      <td class="n"><b class="${g.n > 1 ? 'mr-rep' : ''}">${fmt(g.n)}</b></td><td style="white-space:nowrap">${fCorta(g.ultima)}</td><td class="mr-tipo" title="${esc(g.tipo)}">${esc(g.tipo.replace(/^mantenimiento\s+/i, ''))}</td></tr>`).join('')
+      <td class="n"><b class="${g.n > 1 ? 'mr-rep' : ''}">${fmt(g.n)}</b></td><td style="white-space:nowrap">${fCorta(g.ultima)} <small class="mr-mes">${g.ultima.slice(8, 10)}/${g.ultima.slice(5, 7)}</small></td>
+      <td class="mr-quien">${esc(g.quien)}${g.personas.size > 1 ? ` <small title="${esc([...g.personas].join(', '))}">+${g.personas.size - 1}</small>` : ''}</td></tr>`).join('')
   }</tbody></table>${filas.length > TOPE ? `<div class="vacio" style="padding:10px">Se muestran los ${TOPE} primeros de ${fmt(filas.length)} moldes: acorta el rango para ver el resto.</div>` : ''}`
     : `<div class="vacio">Sin mantenimientos finalizados en el rango.</div>`;
 }
@@ -2794,8 +2799,13 @@ function celdasMolde(x){
     <td class="c num" title="Repeticiones en alerta: ${esc(x.reps.join(', '))}">${esc(repsTxt(x.reps))}</td>`;
 }
 function dibujarPlanMant(M){
-  const P = M.plan_alertas, cont = $('#mant-plan'); if(!cont) return;
-  if(!P){ $('#mp-sub').textContent = ''; cont.innerHTML = '<div class="vacio">No se pudo leer el plan de hornos o las alertas de mantenimiento.</div>'; return; }
+  const P0 = M.plan_alertas, cont = $('#mant-plan'); if(!cont) return;
+  if(!P0){ $('#mp-sub').textContent = ''; $('#mp-cats').innerHTML = ''; cont.innerHTML = '<div class="vacio">No se pudo leer el plan de hornos o las alertas de mantenimiento.</div>'; return; }
+  // fichas por vehículo: cuentan todos los moldes en alerta (rojo + naranja + gris) de cada uno
+  const cuenta = {}, enCat = x => mpCats.has(catReal(x.categoria));
+  for(const x of [...P0.rojo, ...P0.naranja, ...P0.sin_puesto]){ const c = catReal(x.categoria); cuenta[c] = (cuenta[c] || 0) + 1; }
+  $('#mp-cats').innerHTML = fichasCats(mpCats, cuenta);
+  const P = {...P0, rojo: P0.rojo.filter(enCat), naranja: P0.naranja.filter(enCat), sin_puesto: P0.sin_puesto.filter(enCat)};
   const pl = P.plan || {};
   $('#mp-sub').innerHTML = pl.version ? `Plan v${fmt(pl.version)} de SmartBending · generado ${horaPlan(pl.generado)}${pl.hasta ? ` · cubre hasta ${horaPlan(pl.hasta)}` : ''}` : 'Sin plan sincronizado';
   const cab = `<thead><tr><th>Vehículo</th><th>Molde</th><th class="c">V</th><th class="c">P</th><th class="c">Rep. en alerta</th>`;
@@ -3716,6 +3726,8 @@ document.addEventListener('click', ev => {
   if(ev.target.closest('#mat-volver')){ zoomMat = null; dibujarMantenimiento(); return; }
   const bc = ev.target.closest('#mr-cats .mr-cat');
   if(bc){ const k = bc.dataset.cat; if(mrCats.has(k) && mrCats.size > 1) mrCats.delete(k); else mrCats.add(k); dibujarRealizados(D.mantenimiento); return; }
+  const bp = ev.target.closest('#mp-cats .mr-cat');
+  if(bp){ const k = bp.dataset.cat; if(mpCats.has(k) && mpCats.size > 1) mpCats.delete(k); else mpCats.add(k); dibujarPlanMant(D.mantenimiento); return; }
   const br = ev.target.closest('#mr-rapido button');
   if(br){ mrHasta = D.hoy; mrDesde = sumarDias(D.hoy, -br.dataset.d); dibujarRealizados(D.mantenimiento); return; }
   const bm = ev.target.closest('#mant-vista button');
