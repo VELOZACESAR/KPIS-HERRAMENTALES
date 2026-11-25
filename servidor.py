@@ -53,6 +53,10 @@ def alertas_periodicas():
             calculo_mantenimiento.guardar_alertas()
         except Exception:
             logging.exception("Foto de alertas de mantenimiento")
+        try:
+            calculo_mantenimiento.guardar_necesidad()
+        except Exception:
+            logging.exception("Foto de necesidad de mantenimiento (plan de hornos)")
         time.sleep(SEGUNDOS_ALERTAS)
 
 

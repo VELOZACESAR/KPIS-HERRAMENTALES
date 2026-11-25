@@ -407,8 +407,79 @@ def plan_alertas(ahora=None):
     naranja.sort(key=lambda x: (x["orden_puesto"], -sum(p["n"] for p in x["puestos"]), -x["puntaje"]))
     sin_puesto = sorted((base(k) for k in alertas if k not in en_plan and k not in en_puesto), key=lambda x: -x["puntaje"])
     info = plan.get("plan") or {}
-    return {"generado": _iso(ahora), "rojo": rojo, "naranja": naranja, "sin_puesto": sin_puesto,
+    vivo = [{"cod": x["molde"][2:], "version": x["version"], "pieza": x["pieza"], "rep": r, "categoria": x["categoria"],
+             "origen": "Plan" if "hora" in x else x["puesto"]} for x in rojo + naranja for r in x["reps"]]
+    return {"generado": _iso(ahora), "rojo": rojo, "naranja": naranja, "sin_puesto": sin_puesto, "necesidad_vivo": vivo,
+            "necesidad_historia": _historia_necesidad(ahora.date() - dt.timedelta(days=400)),
             "plan": {"version": info.get("version"), "dia": info.get("dia"), "estado": info.get("estado"),
                      "generado": (info.get("generado_en") or "")[:16] or None, "sincronizado": _iso(plan_sinc),
                      "hasta": max((c.get("hora") for c in plan.get("carros") or [] if c.get("hora")), default=None)},
             "puestos_sincronizado": _iso(wip_sinc), "orden_puestos": [n for _, n in PUESTOS_PLAN]}
+
+
+# ---- Necesidad del día = repeticiones en alerta que el plan o las piezas en proceso pidieron EN ALGÚN MOMENTO del día.
+#      El servidor la fotografía cada 5 min (cesar.mant_necesidad, sql/012); si en la tarde el plan cambia, lo nuevo se
+#      suma. El tablero junta esa historia con lo que ve en vivo, así hoy está al día aunque falte la última foto.
+def guardar_necesidad(momento=None):
+    momento = momento or db.ahora()
+    vivo = plan_alertas(momento)["necesidad_vivo"]
+    if not vivo:
+        return 0
+    with db.transaccion() as cur:
+        cur.execute("""CREATE TABLE #nec (cod_her NVARCHAR(20), version NVARCHAR(10), pieza NVARCHAR(10),
+                                          repeticion NVARCHAR(20), categoria NVARCHAR(40), origen NVARCHAR(20))""")
+        cur.fast_executemany = True
+        cur.executemany("INSERT INTO #nec VALUES (?, ?, ?, ?, ?, ?)",
+                        [(x["cod"], x["version"], x["pieza"], x["rep"], x["categoria"], x["origen"]) for x in vivo])
+        cur.fast_executemany = False
+        cur.execute("""MERGE cesar.mant_necesidad AS t
+                       USING (SELECT cod_her, version, pieza, repeticion, MAX(categoria) AS categoria,
+                                     MIN(CASE WHEN origen = 'Plan' THEN ' Plan' ELSE origen END) AS origen
+                              FROM #nec GROUP BY cod_her, version, pieza, repeticion) AS s
+                          ON t.fecha = ? AND t.cod_her = s.cod_her AND t.version = s.version
+                         AND t.pieza = s.pieza AND t.repeticion = s.repeticion
+                       WHEN MATCHED THEN UPDATE SET hasta = ?,
+                            origen = CASE WHEN t.origen = 'Plan' OR s.origen = ' Plan' THEN 'Plan' ELSE s.origen END
+                       WHEN NOT MATCHED THEN INSERT (fecha, cod_her, version, pieza, repeticion, categoria, origen, desde, hasta)
+                            VALUES (?, s.cod_her, s.version, s.pieza, s.repeticion, s.categoria, LTRIM(s.origen), ?, ?);""",
+                    momento.date(), momento, momento.date(), momento, momento)
+    return len(vivo)
+
+
+def _historia_necesidad(desde):
+    try:
+        return [[r["fecha"].isoformat(), r["cod_her"], r["version"], r["pieza"], r["repeticion"], r["categoria"]]
+                for r in db.consultar("""SELECT fecha, cod_her, version, pieza, repeticion, categoria
+                                         FROM cesar.mant_necesidad WHERE fecha >= ?""", desde)]
+    except Exception:   # la tabla aún no existe (sql/012): solo queda lo que se ve en vivo
+        log.warning("Sin historia de necesidad (cesar.mant_necesidad)")
+        return []
+
+
+def sumar_necesidad(M, P, hoy):
+    """Agrega a cada barra del histórico ("diaria", "semanal", "mensual") la necesidad por vehículo: repeticiones
+    distintas que fueron necesidad en el periodo. Sin foto ese día = None (la línea se corta)."""
+    por_dia = defaultdict(dict)   # fecha -> {llave: categoría}
+    for f, cod, ver, pie, rep, cat in P.get("necesidad_historia") or []:
+        por_dia[f][(cod, ver, pie, rep)] = cat
+    for x in P.get("necesidad_vivo") or []:
+        por_dia[hoy.isoformat()][(x["cod"], x["version"], x["pieza"], x["rep"])] = x["categoria"]
+
+    def nec(dias):
+        dias = [d.isoformat() for d in dias if d <= hoy]
+        if not any(d in por_dia for d in dias):
+            return None
+        union = {}
+        for d in dias:
+            union.update(por_dia.get(d, {}))
+        return dict(Counter(union.values()))
+
+    for p in M.get("diaria") or []:
+        p["nec"] = nec([dt.date.fromisoformat(p["fecha"])])
+    for p in M.get("semanal") or []:
+        a = dt.date.fromisoformat(p["desde"])
+        p["nec"] = nec([a + dt.timedelta(days=i) for i in range(7)])
+    for p in M.get("mensual") or []:
+        a = dt.date.fromisoformat(p["etiqueta"] + "-01")
+        p["nec"] = nec([a + dt.timedelta(days=i) for i in range(31) if (a + dt.timedelta(days=i)).month == a.month])
+    M["necesidad_desde"] = min(por_dia) if por_dia else None

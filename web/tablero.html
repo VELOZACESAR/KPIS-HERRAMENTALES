@@ -2851,6 +2851,9 @@ function dibujarMantenimiento(){
   const sumaPed = x => x == null ? null : totalSegs(segsFiltrados(x));
   const pedidos = fuenteMant.map(p => sumaPed(p.ped)), atendidos = fuenteMant.map(p => sumaPed(p.ate));
   const hayPedidos = MOSTRAR_PEDIDOS_MANT && pedidos.some(v => v != null);
+  // necesidad según SmartBending (plan de hornos + piezas en proceso), en vivo hoy; null = sin foto ese periodo
+  const necesidad = fuenteMant.map(p => p.nec == null ? null : totalSegs(segsFiltrados(p.nec)));
+  const hayNec = necesidad.some(v => v != null);
   const serie = fuenteMant.map((p, i) => {
     const segs = segsFiltrados(p.segs), total = totalSegs(segs);
     const etiqueta = vistaMant === 'diaria' ? (p.hoy ? t('hoy') : fCorta(p.fecha)) : vistaMant === 'semanal' ? p.etiqueta.replace('Sem ','S') : MESES[+p.etiqueta.slice(5)-1].slice(0,3);
@@ -2860,25 +2863,22 @@ function dibujarMantenimiento(){
       : `<div class="r" style="color:var(--near)"><span>Pedidos (alertas nuevas)</span><span>${fmt(pedidos[i])}</span></div>
          <div class="r" style="color:var(--ok)"><span>Atendidos de lo pedido</span><span>${fmt(atendidos[i])}</span></div>` +
         (p.dias_ped < p.dias ? `<div class="r" style="opacity:.75"><span>Con registro</span><span>${fmt(p.dias_ped)} de ${fmt(p.dias)} días</span></div>` : '');
+    const tipNec = necesidad[i] == null ? '' : `<div class="r" style="color:var(--near)"><span>Por ajustar según SmartBending</span><span>${fmt(necesidad[i])}</span></div>`;
     return {etiqueta, segs, total, sub: p.hoy || p.en_curso ? 'en curso' : '', subColor:'var(--muted)',
-      tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>` + tipPedidos, op)};
+      tip: tipSegs(nombre + (p.hoy || p.en_curso ? ' · en curso' : ''), segs, `<div class="r" style="margin-top:6px"><span>${t('total')}</span><span>${fmt(total)}</span></div>` + tipNec + tipPedidos, op)};
   });
-  // mediana de referencia: diario = días laborales; semanal/mensual = periodos ya cerrados (sin el que va en curso)
-  const base = fuenteMant.map((p, i) => ({...p, total: serie[i].total}))
-    .filter(p => vistaMant === 'diaria' ? (!p.hoy && p.lab) : !p.en_curso).map(p => p.total).sort((a, b) => a - b);
-  const mediana = base.length ? (base.length % 2 ? base[(base.length - 1) / 2] : (base[base.length / 2 - 1] + base[base.length / 2]) / 2) : null;
-  const unidad = vistaMant === 'diaria' ? 'día laboral' : vistaMant === 'semanal' ? 'semana' : 'mes';
   $('#mant-serie-sub').innerHTML = (catMant ? `<b>Solo ${esc(nomCat(catMant))}</b>` : '') +
+    (M.necesidad_desde ? `${catMant ? ' · ' : ''}Por ajustar = repeticiones en alerta que el plan de hornos o las piezas en proceso pidieron en el ${vistaMant === 'diaria' ? 'día' : 'periodo'} (se registra desde ${fCorta(M.necesidad_desde)})` : '') +
     (MOSTRAR_PEDIDOS_MANT && M.diaria.some(d => d.ped !== undefined) && !hayPedidos
       ? `${catMant ? ' · ' : ''}Pedidos y atendidos se ven desde el día siguiente a que el servidor empieza a registrar las alertas` : '');
   $('#mant-leyenda').innerHTML = `<div class="legend">${catsVisibles(M).filter(c => !catMant || c === catMant).map(c => `<span><i style="background:${colorCat(c)}"></i>${esc(nomCat(c))}</span>`).join('')}` +
     (hayPedidos ? `<span title="Moldes que el sistema de puntaje marcó POR MANTENIMIENTO ese periodo y no venían marcados de antes"><i class="linea" style="background:var(--near)"></i>Pedidos (alertas nuevas)</span>` +
                   `<span title="Finalizados de moldes que estaban POR MANTENIMIENTO"><i class="linea" style="background:var(--ok)"></i>Atendidos de lo pedido</span>` : '') +
-    (mediana != null ? `<span><i class="linea punteada" style="color:var(--mediana)"></i>Mediana por ${unidad}</span>` : '') + `</div>`;
+    (hayNec ? `<span title="Repeticiones POR MANTENIMIENTO cuyo molde estuvo en el plan de hornos o con piezas en proceso; si el plan cambia en el día, lo nuevo se suma"><i class="linea" style="background:var(--near)"></i>Por ajustar según SmartBending</span>` : '') + `</div>`;
   barrasApiladas($('#ch-mant'), serie, {...op, sub:true, alto:260, aria:'Mantenimientos finalizados por periodo',
-    lineas: hayPedidos ? [{vals: pedidos, color:'var(--near)', etiquetas:'ultima'},
-                          {vals: atendidos, color:'var(--ok)', etiquetas:'ultima', abajo:true}] : [],
-    referencias: mediana != null ? [{valor: mediana, color:'var(--mediana)', etiqueta:`Mediana ${fmt(mediana)}`}] : []});
+    lineas: [...(hayNec ? [{vals: necesidad, color:'var(--near)', etiquetas:'todas'}] : []),
+             ...(hayPedidos ? [{vals: pedidos, color:'var(--near)', etiquetas:'ultima'},
+                               {vals: atendidos, color:'var(--ok)', etiquetas:'ultima', abajo:true}] : [])]});
 
   dibujarAnalisisMant(M);
   dibujarRealizados(M);

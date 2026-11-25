@@ -69,6 +69,8 @@ def construir(hoy=None):
         resultado["aceros"]["retenidas_piso"] = resultado["retenidas_piso"]
     if resultado["mantenimiento"]:
         resultado["mantenimiento"]["plan_alertas"] = resultado["mant_plan"]
+        if resultado["mant_plan"]:
+            calculo_mantenimiento.sumar_necesidad(resultado["mantenimiento"], resultado["mant_plan"], hoy)
     if resultado["moldes"]:
         resultado["moldes"]["historial"] = resultado["historial_moldes"] or {}
     if resultado["serigrafia"]:
