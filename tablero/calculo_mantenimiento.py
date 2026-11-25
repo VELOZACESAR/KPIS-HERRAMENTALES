@@ -471,11 +471,11 @@ def guardar_necesidad(momento=None):
                               FROM #nec GROUP BY cod_her, version, pieza, repeticion) AS s
                           ON t.fecha = ? AND t.cod_her = s.cod_her AND t.version = s.version
                          AND t.pieza = s.pieza AND t.repeticion = s.repeticion
-                       WHEN MATCHED AND t.origen = 'SmartBending' THEN UPDATE SET hasta = ?
-                       WHEN MATCHED THEN UPDATE SET origen = 'SmartBending', desde = ?, hasta = ?
+                       WHEN MATCHED THEN UPDATE SET hasta = ?, origen = 'SmartBending',
+                            desde = CASE WHEN t.origen = 'SmartBending' THEN t.desde ELSE ? END
                        WHEN NOT MATCHED THEN INSERT (fecha, cod_her, version, pieza, repeticion, categoria, origen, desde, hasta)
                             VALUES (?, s.cod_her, s.version, s.pieza, s.repeticion, s.categoria, 'SmartBending', ?, ?);""",
-                    momento.date(), momento, momento, momento, momento.date(), momento, momento)
+                    momento.date(), momento, momento, momento.date(), momento, momento)
     return len(vivo)
 
 
