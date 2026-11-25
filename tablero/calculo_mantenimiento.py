@@ -1,7 +1,9 @@
 """Mantenimiento y ajuste de moldes/galgas, en vivo desde la app Control Inventarios (cesar.vw_mantenimiento).
 Un mantenimiento cuenta el día en que se finalizó; la persona es quien lo entrega."""
 import datetime as dt
+import json
 import logging
+import re
 import statistics
 from collections import Counter, defaultdict
 
@@ -247,7 +249,8 @@ def calcular(hoy, R):
 
     # Registros compactos de lo finalizado (~13 meses) para que el tablero arme cualquier periodo (día, semana,
     # mes) por matricero, tipo de mantenimiento y molde. Cada texto va una sola vez en su lista y las filas
-    # guardan índices: [fecha, persona, categoría, tipo de mantenimiento, molde, vehículo, día de producción, turno]
+    # guardan índices: [fecha, persona, categoría, tipo de mantenimiento, molde, vehículo, día de producción, turno,
+    # versión, pieza, repetición]
     # (día de producción y turno salen de la hora en que se finalizó y el horario de turnos de la planta).
     registros = {"personas": [], "categorias": [], "tipos": [], "moldes": [], "vehiculos": [], "filas": []}
     indices = {k: {} for k in registros if k != "filas"}
@@ -263,7 +266,8 @@ def calcular(hoy, R):
         registros["filas"].append([_dia(r).isoformat(), indice("personas", r["persona"]),
                                    indice("categorias", r["categoria"]), indice("tipos", r["tipo_mant"] or "Sin tipo"),
                                    indice("moldes", r["molde"]), indice("vehiculos", r["vehiculo"] or ""),
-                                   dia_prod.isoformat(), tur])
+                                   dia_prod.isoformat(), tur, _pad(r["version"], 3), _pad(r["pieza"], 3),
+                                   _llave(None, None, None, r["repeticion"])[3]])
 
     return {
         "categorias": categorias,
@@ -287,3 +291,124 @@ def calcular(hoy, R):
                              "inicio": r["inicio"].isoformat(timespec="minutes") if r["inicio"] else None}
                             for r in abiertos_recientes), key=lambda x: x["inicio"] or "", reverse=True),
     }
+
+
+# ---- Moldes POR MANTENIMIENTO cruzados con el plan de hornos de SmartBending y con las piezas en proceso.
+#      Andrés sincroniza SmartBending en la base compartida: AppControlInventarios_PlanDiaSync (el plan del día con
+#      sus carros) y AppControlInventarios_EmpalmeSync (piezas en Empalme y en los puestos anteriores con su molde).
+#      Rojo = el plan lo va a cargar; naranja = hay piezas esperándolo en un puesto (Empalme primero: es el más cerca
+#      del horno); sin puesto = alerta solo por los ciclos que se ha usado.
+PUESTOS_PLAN = [("05EMPAL", "Empalme"), ("04SER_VT", "Vitrificado"), ("03SERIG", "Serigrafía"), ("02CNC", "CNC"),
+                ("01CORTE", "Corte"), ("PLANEACION", "Planeación")]
+MIN_ATRAS_PLAN = 60   # carros del plan de hasta 1 h atrás sin registrar aún cuentan como por cargar
+
+
+def llave_molde(texto):
+    """'M 1244 00 02 Molde de Anillo' -> ('1244', '000', '002')"""
+    m = re.match(r"\s*M\s+(\d+)\s+(\d+)\s+(\d+)", str(texto or ""))
+    return (_pad(m.group(1), 4), _pad(m.group(2), 3), _pad(m.group(3), 3)) if m else None
+
+
+def _sync(tabla):
+    fila = db.consultar(f"SELECT CAST(Datos AS NVARCHAR(MAX)) AS datos, SincronizadoEn FROM dbo.AppControlInventarios_{tabla}")
+    if not fila or not fila[0]["datos"]:
+        return {}, None
+    sinc = fila[0]["SincronizadoEn"]   # Azure guarda la hora en UTC: se pasa a la hora del PC (Colombia)
+    if sinc:
+        desfase = dt.datetime.now() - dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+        sinc = sinc + dt.timedelta(hours=round(desfase.total_seconds() / 3600))
+    return json.loads(fila[0]["datos"]), sinc
+
+
+def _hora(x):
+    try:
+        return dt.datetime.fromisoformat(str(x)).replace(tzinfo=None)
+    except ValueError:
+        return None
+
+
+def _iso(x):
+    return x.isoformat(timespec="minutes") if x else None
+
+
+def plan_alertas(ahora=None):
+    ahora = ahora or db.ahora()
+    alertas = {}
+    for r in db.consultar("""SELECT CodHer, Version, Pieza, Repeticion, PuntajeTotalCalculado, TipoAlerta, FechaPrimeraDeteccion
+                             FROM INV.MANTENIMIENTO_MOLDES_GRUPO
+                             WHERE Estado = 'POR MANTENIMIENTO' AND NULLIF(LTRIM(RTRIM(Repeticion)), '') IS NOT NULL"""):
+        cod, ver, pie, rep = _llave(r["CodHer"], r["Version"], r["Pieza"], r["Repeticion"])
+        a = alertas.setdefault((cod, ver, pie), {"reps": [], "puntaje": 0, "desde": None, "especial": False})
+        a["reps"].append(rep)
+        a["puntaje"] = max(a["puntaje"], float(r["PuntajeTotalCalculado"] or 0))
+        a["especial"] |= (r["TipoAlerta"] or "") == "ESPECIAL"
+        d = r["FechaPrimeraDeteccion"]
+        if d and (a["desde"] is None or d < a["desde"]):
+            a["desde"] = d
+    categoria = {}
+    for r in db.consultar("SELECT cod_molde, vehiculo, categoria FROM cesar.vw_molde_categoria WHERE tipo = 'M'"):
+        cat = "Retrofit" if r["categoria"] == "BMW Serie 7" else r["categoria"]
+        categoria[_pad(r["cod_molde"], 4)] = (cat, r["vehiculo"])
+
+    plan, plan_sinc = _sync("PlanDiaSync")
+    en_plan = {}
+    desde = ahora - dt.timedelta(minutes=MIN_ATRAS_PLAN)
+    for c in plan.get("carros") or []:
+        hora = _hora(c.get("hora"))
+        if not hora or hora < desde or (c.get("gestion") or {}).get("estado") == "REGISTRADO":
+            continue
+        for cs in c.get("casillas") or []:
+            k = llave_molde(cs.get("molde"))
+            if k not in alertas:
+                continue
+            e = en_plan.setdefault(k, {"hora": hora, "horno": (c.get("horno") or "").upper(), "turno": c.get("turno"),
+                                       "carros": set(), "piezas": 0, "vehiculo": cs.get("vehiculo"), "tipo": cs.get("tipo")})
+            if hora < e["hora"]:
+                e.update(hora=hora, horno=(c.get("horno") or "").upper(), turno=c.get("turno"))
+            e["carros"].add(c.get("carro"))
+            e["piezas"] += 1
+
+    wip, wip_sinc = _sync("EmpalmeSync")
+    en_puesto = {}
+    for x in (wip.get("piezas") or []) + (wip.get("anteriores") or []):
+        k = llave_molde(x.get("MoldeCurvado"))
+        if k not in alertas or k in en_plan:
+            continue
+        puesto = str(x.get("Puestodetrabajo") or "").strip().upper()
+        e = en_puesto.setdefault(k, {"puestos": Counter(), "vehiculo": None})
+        e["puestos"][puesto] += 1
+        e["vehiculo"] = e["vehiculo"] or x.get("Vehiculo")
+    orden_puesto = {cod: i for i, (cod, _) in enumerate(PUESTOS_PLAN)}
+    nombre_puesto = dict(PUESTOS_PLAN)
+
+    def base(k):
+        a = alertas[k]
+        cat, veh = categoria.get(k[0], ("Retrofit", None))
+        return {"molde": f"M {k[0]}", "version": k[1], "pieza": k[2],
+                "reps": sorted(a["reps"], key=lambda x: (len(x), x)), "puntaje": round(a["puntaje"]),
+                "especial": a["especial"], "categoria": cat, "vehiculo": veh,
+                "alerta_desde": a["desde"].date().isoformat() if a["desde"] else None}
+
+    rojo = []
+    for k, e in en_plan.items():
+        b = base(k)
+        rojo.append({**b, "vehiculo": e["vehiculo"] or b["vehiculo"], "tipo": e["tipo"], "hora": _iso(e["hora"]),
+                     "horno": e["horno"], "turno": e["turno"], "carros": len(e["carros"]), "piezas": e["piezas"],
+                     "atrasado": e["hora"] < ahora})
+    rojo.sort(key=lambda x: x["hora"])
+    naranja = []
+    for k, e in en_puesto.items():
+        b = base(k)
+        puestos = sorted(e["puestos"].items(), key=lambda x: orden_puesto.get(x[0], 99))
+        naranja.append({**b, "vehiculo": b["vehiculo"] or e["vehiculo"],
+                        "puesto": nombre_puesto.get(puestos[0][0], puestos[0][0].title()),
+                        "orden_puesto": orden_puesto.get(puestos[0][0], 99),
+                        "puestos": [{"puesto": nombre_puesto.get(p, p.title()), "n": n} for p, n in puestos]})
+    naranja.sort(key=lambda x: (x["orden_puesto"], -sum(p["n"] for p in x["puestos"]), -x["puntaje"]))
+    sin_puesto = sorted((base(k) for k in alertas if k not in en_plan and k not in en_puesto), key=lambda x: -x["puntaje"])
+    info = plan.get("plan") or {}
+    return {"generado": _iso(ahora), "rojo": rojo, "naranja": naranja, "sin_puesto": sin_puesto,
+            "plan": {"version": info.get("version"), "dia": info.get("dia"), "estado": info.get("estado"),
+                     "generado": (info.get("generado_en") or "")[:16] or None, "sincronizado": _iso(plan_sinc),
+                     "hasta": max((c.get("hora") for c in plan.get("carros") or [] if c.get("hora")), default=None)},
+            "puestos_sincronizado": _iso(wip_sinc), "orden_puestos": [n for _, n in PUESTOS_PLAN]}

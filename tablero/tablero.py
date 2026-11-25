@@ -51,6 +51,7 @@ def construir(hoy=None):
         "historial_moldes": ("Historial de moldes", lambda: historial(["moldes_cola_dias", "moldes_pendientes"])),
         "mantenimiento": ("Mantenimiento de moldes", lambda: calculo_mantenimiento.calcular(hoy, R)),
         "plan_hornos": ("Plan de hornos", calculo_plan_hornos.calcular),
+        "mant_plan": ("Moldes en alerta vs. plan de hornos", calculo_mantenimiento.plan_alertas),
         "serigrafia": ("Serigrafía", lambda: calculo_serigrafia.calcular(hoy)),
         "historial_seri": ("Historial de serigrafía", lambda: historial(["seri_retenidas", "seri_screens", "seri_carga_logos",
                                                                            "seri_carga_vitros", "seri_carga_pp", "seri_carga_pp_comp",
@@ -66,6 +67,8 @@ def construir(hoy=None):
     if resultado["aceros"]:
         resultado["aceros"]["historial"] = resultado["historial"] or {}
         resultado["aceros"]["retenidas_piso"] = resultado["retenidas_piso"]
+    if resultado["mantenimiento"]:
+        resultado["mantenimiento"]["plan_alertas"] = resultado["mant_plan"]
     if resultado["moldes"]:
         resultado["moldes"]["historial"] = resultado["historial_moldes"] or {}
     if resultado["serigrafia"]:
