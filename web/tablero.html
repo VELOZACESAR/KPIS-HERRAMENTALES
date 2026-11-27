@@ -3443,13 +3443,12 @@ const BLOQUE_RESUMEN_MOLDES = {
 BLOQUES_RESUMEN.push(BLOQUE_RESUMEN_MOLDES);
 
 // Moldes en cola para el Resumen: con fecha (por fecha de entrega) y, aparte, los que no tienen fecha establecida
-// agrupados por vehículo (las fechas limbo de diciembre las agrupa el servidor en "sin_fecha").
-const limboMolde = d => !!d.entrega && d.entrega.slice(5, 7) === '12' && (fecha(d.entrega) - fecha(D.hoy)) / 864e5 > 30;
+// agrupados por vehículo.
 const sinFechaMolde = d => !d.entrega;
 const piezaMolde = d => (d.rep || d.codigo || '').replace(/\s*#\d+\s*$/, '').trim() || '—';
 // moldes en cola (con fecha, agrupados por vehículo) y desarrollos sin fecha: {conFecha, sinFecha, html}
 function colaMoldesHTML(MO){
-  const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde' && !limboMolde(d));
+  const moldes = (MO.detalle || []).filter(d => d.herramental === 'Molde');
   const conFecha = moldes.filter(d => !sinFechaMolde(d)).sort((a, b) => a.entrega < b.entrega ? -1 : a.entrega > b.entrega ? 1 : a.vehiculo < b.vehiculo ? -1 : 1);
   const sinFecha = {}; moldes.filter(sinFechaMolde).forEach(d => sinFecha[d.vehiculo] = (sinFecha[d.vehiculo] || 0) + 1);
   (MO.sin_fecha || []).forEach(x => { if(x.moldes) sinFecha[x.vehiculo] = Math.max(sinFecha[x.vehiculo] || 0, x.moldes); });
